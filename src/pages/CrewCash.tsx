@@ -8,8 +8,8 @@ import { FlightChip } from '../components/FlightChip';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import { getFlightSchedule } from '../lib/sq/endpoints';
-import { FlightSchedule } from '../lib/sq/types';
-import { ArrowRight, Plane, Wallet, RotateCcw } from 'lucide-react';
+import { FlightSchedule, Sector } from '../lib/sq/types';
+import { ArrowRight, Plane, Wallet, RotateCcw, Clock, MapPin } from 'lucide-react';
 
 const CREWCASH_MESSAGES: InterludeMessage[] = [
   { text: 'Checking flight time with Tech Crew…', durationMs: 2000 },
@@ -22,6 +22,32 @@ function formatBlockTime(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+/**
+ * Calculate layover duration between arrival in station and departure from station
+ */
+function calculateStationLayover(
+  arrDate: string,
+  arrTime: string,
+  depDate: string,
+  depTime: string
+): string | null {
+  try {
+    const arrIso = `${arrDate}T${arrTime}:00`;
+    const depIso = `${depDate}T${depTime}:00`;
+    const arrMs = new Date(arrIso).getTime();
+    const depMs = new Date(depIso).getTime();
+    if (!isNaN(arrMs) && !isNaN(depMs) && depMs > arrMs) {
+      const diffMinutes = Math.round((depMs - arrMs) / 60000);
+      const h = Math.floor(diffMinutes / 60);
+      const m = diffMinutes % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 export const CrewCash: React.FC = () => {
@@ -83,6 +109,38 @@ export const CrewCash: React.FC = () => {
 
   const flightChipSummary = `SQ${outboundValidation.cleanFlightNo} → SQ${inboundValidation.cleanFlightNo} · ${outboundDateDisplay} → ${inboundDateDisplay}`;
 
+  // Station calculations
+  const outboundLastSector: Sector | undefined =
+    outboundSchedule && outboundSchedule.sectors.length > 0
+      ? outboundSchedule.sectors[outboundSchedule.sectors.length - 1]
+      : undefined;
+
+  const inboundFirstSector: Sector | undefined =
+    inboundSchedule && inboundSchedule.sectors.length > 0
+      ? inboundSchedule.sectors[0]
+      : undefined;
+
+  // Total Flight Minutes across all sectors
+  const totalOutboundMinutes =
+    outboundSchedule?.sectors.reduce((acc, s) => acc + (s.blockMinutes || 0), 0) || 0;
+  const totalInboundMinutes =
+    inboundSchedule?.sectors.reduce((acc, s) => acc + (s.blockMinutes || 0), 0) || 0;
+  const grandTotalFlightMinutes = totalOutboundMinutes + totalInboundMinutes;
+
+  // Station Layover duration
+  const stationLayover =
+    outboundLastSector &&
+    inboundFirstSector &&
+    outboundLastSector.arrDateLocal &&
+    inboundFirstSector.depDateLocal
+      ? calculateStationLayover(
+          outboundLastSector.arrDateLocal,
+          outboundLastSector.arrLocal,
+          inboundFirstSector.depDateLocal,
+          inboundFirstSector.depLocal
+        )
+      : null;
+
   return (
     <Layout>
       {/* 1. LOADING INTERLUDE (8s Minimum Duration) */}
@@ -110,7 +168,7 @@ export const CrewCash: React.FC = () => {
               Singapore to station.
             </h2>
 
-            {/* Pattern A: Flight Number Input */}
+            {/* Flight Number Input */}
             <div className="w-full mt-7 text-left">
               <FlightNumberInput
                 value={outboundValidation.flightNo}
@@ -122,7 +180,7 @@ export const CrewCash: React.FC = () => {
               />
             </div>
 
-            {/* Pattern B: Departure Block */}
+            {/* Departure Block */}
             {outboundValidation.isValid && outboundValidation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -138,7 +196,7 @@ export const CrewCash: React.FC = () => {
 
           <div className="flex-1 max-h-12 sm:max-h-16" />
 
-          {/* Pattern C: Progression CTA */}
+          {/* Progression CTA */}
           {outboundValidation.isValid && outboundValidation.flightNo.length > 0 && outboundDateISO && (
             <div className="shrink-0 pb-2">
               <RevealCTA
@@ -217,101 +275,194 @@ export const CrewCash: React.FC = () => {
         </div>
       )}
 
-      {/* 4. RESULT SCREEN (Single Viewport) */}
+      {/* 4. RESULT SCREEN — SECTOR & STATION TIMINGS */}
       {stage === 'result' && outboundSchedule && inboundSchedule && (
-        <div className="flex flex-col justify-between h-full py-2 animate-fade-in">
-          {/* Flight Chip at top */}
-          <div className="shrink-0 text-center pt-1">
+        <div className="flex flex-col h-full overflow-hidden py-1 animate-fade-in">
+          
+          {/* Top Flight Chip */}
+          <div className="shrink-0 text-center pt-1 pb-2 border-b border-border-subtle/50">
             <FlightChip label={flightChipSummary} />
           </div>
 
-          {/* Sector Cards Stack */}
-          <div className="my-auto w-full max-w-md mx-auto space-y-3 px-1">
+          {/* Scrollable Sector Cards Container */}
+          <div className="flex-1 overflow-y-auto py-3 space-y-3 px-1">
             
-            {/* Outbound Journey Card */}
+            {/* Station Layover & Rest Card */}
+            {outboundLastSector && inboundFirstSector && (
+              <div className="p-3.5 rounded-card bg-bg-surface border border-accent/40 shadow-sm space-y-2.5">
+                <div className="flex items-center justify-between border-b border-border-subtle/50 pb-2">
+                  <div className="flex items-center gap-1.5 text-accent text-xs font-semibold uppercase tracking-wider">
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Station Layover · {outboundLastSector.toCity || outboundLastSector.to}</span>
+                  </div>
+                  {stationLayover && (
+                    <span className="text-[11px] font-mono text-text-primary px-2 py-0.5 rounded bg-accent/15 border border-accent/30 font-semibold">
+                      {stationLayover} Rest
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-left">
+                  {/* Arrival in Station */}
+                  <div className="p-2 rounded bg-bg-elevated/70 border border-border-subtle/40">
+                    <span className="text-[10px] text-text-secondary uppercase font-medium block">
+                      Arrival in Station ({outboundLastSector.to})
+                    </span>
+                    <span className="text-base font-serif font-bold text-text-primary block mt-0.5">
+                      {outboundLastSector.arrLocal}
+                    </span>
+                    <span className="text-[10px] font-mono text-text-tertiary block">
+                      {outboundLastSector.arrDateLocal ? formatDateDisplay(outboundLastSector.arrDateLocal) : ''}
+                    </span>
+                  </div>
+
+                  {/* Departure from Station */}
+                  <div className="p-2 rounded bg-bg-elevated/70 border border-border-subtle/40">
+                    <span className="text-[10px] text-text-secondary uppercase font-medium block">
+                      Departure from Station ({inboundFirstSector.from})
+                    </span>
+                    <span className="text-base font-serif font-bold text-text-primary block mt-0.5">
+                      {inboundFirstSector.depLocal}
+                    </span>
+                    <span className="text-[10px] font-mono text-text-tertiary block">
+                      {inboundFirstSector.depDateLocal ? formatDateDisplay(inboundFirstSector.depDateLocal) : ''}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Total Flight Time Pill */}
+                <div className="flex items-center justify-between pt-1 text-xs">
+                  <span className="text-text-secondary flex items-center gap-1 text-[11px]">
+                    <Clock className="w-3 h-3 text-accent" />
+                    <span>Total Trip Flight Time</span>
+                  </span>
+                  <span className="font-serif italic text-accent font-semibold text-xs">
+                    {formatBlockTime(grandTotalFlightMinutes)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Outbound Journey Sectors Card */}
             <div className="p-4 rounded-card bg-bg-surface border border-border-subtle shadow-sm">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle/60 text-xs">
                 <span className="font-semibold text-accent tracking-wider uppercase text-[10px]">
-                  Outbound Flight
+                  Outbound &bull; {outboundSchedule.flightNo}
                 </span>
                 <span className="font-mono text-text-secondary text-[11px]">
-                  {outboundSchedule.flightNo} &bull; {outboundSchedule.aircraftType}
+                  {outboundSchedule.aircraftType}
                 </span>
               </div>
 
               {outboundSchedule.sectors.map((sec, idx) => (
                 <div key={idx} className={idx > 0 ? 'mt-3 pt-3 border-t border-border-subtle/40' : ''}>
                   <div className="flex items-center justify-between">
+                    {/* Origin */}
                     <div className="text-left">
-                      <span className="text-xs text-text-secondary block">{sec.fromCity || sec.from}</span>
+                      <span className="text-[10px] text-text-secondary block font-medium">
+                        {sec.fromCity || sec.from}
+                      </span>
                       <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
                         {sec.from}
                       </span>
-                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                      <span className="text-xs font-mono text-text-primary block mt-0.5 font-semibold">
                         {sec.depLocal}
                       </span>
+                      {sec.depDateLocal && (
+                        <span className="text-[9px] font-mono text-text-tertiary block">
+                          {formatDateDisplay(sec.depDateLocal)}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex flex-col items-center px-3">
+                    {/* Flight Time Duration */}
+                    <div className="flex flex-col items-center px-2">
                       <Plane className="w-4 h-4 text-accent rotate-90 my-1" strokeWidth={1.8} />
-                      <span className="font-serif italic text-accent text-xs">
+                      <span className="font-serif italic text-accent text-xs font-medium">
                         {formatBlockTime(sec.blockMinutes)}
                       </span>
+                      <span className="text-[9px] text-text-tertiary font-mono">Flight Time</span>
                     </div>
 
+                    {/* Destination / Station Arrival */}
                     <div className="text-right">
-                      <span className="text-xs text-text-secondary block">{sec.toCity || sec.to}</span>
+                      <span className="text-[10px] text-text-secondary block font-medium">
+                        {sec.toCity || sec.to}
+                      </span>
                       <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
                         {sec.to}
                       </span>
-                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                      <span className="text-xs font-mono text-text-primary block mt-0.5 font-semibold">
                         {sec.arrLocal}
                       </span>
+                      {sec.arrDateLocal && (
+                        <span className="text-[9px] font-mono text-text-tertiary block">
+                          {formatDateDisplay(sec.arrDateLocal)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Inbound Journey Card */}
+            {/* Inbound Journey Sectors Card */}
             <div className="p-4 rounded-card bg-bg-surface border border-border-subtle shadow-sm">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle/60 text-xs">
                 <span className="font-semibold text-accent tracking-wider uppercase text-[10px]">
-                  Inbound Flight
+                  Inbound &bull; {inboundSchedule.flightNo}
                 </span>
                 <span className="font-mono text-text-secondary text-[11px]">
-                  {inboundSchedule.flightNo} &bull; {inboundSchedule.aircraftType}
+                  {inboundSchedule.aircraftType}
                 </span>
               </div>
 
               {inboundSchedule.sectors.map((sec, idx) => (
                 <div key={idx} className={idx > 0 ? 'mt-3 pt-3 border-t border-border-subtle/40' : ''}>
                   <div className="flex items-center justify-between">
+                    {/* Origin / Station Departure */}
                     <div className="text-left">
-                      <span className="text-xs text-text-secondary block">{sec.fromCity || sec.from}</span>
+                      <span className="text-[10px] text-text-secondary block font-medium">
+                        {sec.fromCity || sec.from}
+                      </span>
                       <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
                         {sec.from}
                       </span>
-                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                      <span className="text-xs font-mono text-text-primary block mt-0.5 font-semibold">
                         {sec.depLocal}
                       </span>
+                      {sec.depDateLocal && (
+                        <span className="text-[9px] font-mono text-text-tertiary block">
+                          {formatDateDisplay(sec.depDateLocal)}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex flex-col items-center px-3">
+                    {/* Flight Time Duration */}
+                    <div className="flex flex-col items-center px-2">
                       <Plane className="w-4 h-4 text-accent rotate-90 my-1" strokeWidth={1.8} />
-                      <span className="font-serif italic text-accent text-xs">
+                      <span className="font-serif italic text-accent text-xs font-medium">
                         {formatBlockTime(sec.blockMinutes)}
                       </span>
+                      <span className="text-[9px] text-text-tertiary font-mono">Flight Time</span>
                     </div>
 
+                    {/* Destination */}
                     <div className="text-right">
-                      <span className="text-xs text-text-secondary block">{sec.toCity || sec.to}</span>
+                      <span className="text-[10px] text-text-secondary block font-medium">
+                        {sec.toCity || sec.to}
+                      </span>
                       <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
                         {sec.to}
                       </span>
-                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                      <span className="text-xs font-mono text-text-primary block mt-0.5 font-semibold">
                         {sec.arrLocal}
                       </span>
+                      {sec.arrDateLocal && (
+                        <span className="text-[9px] font-mono text-text-tertiary block">
+                          {formatDateDisplay(sec.arrDateLocal)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -320,12 +471,12 @@ export const CrewCash: React.FC = () => {
 
           </div>
 
-          {/* Action Buttons Footer */}
-          <div className="shrink-0 flex items-center justify-between gap-3 pt-2">
+          {/* Bottom Action Footer */}
+          <div className="shrink-0 flex items-center justify-between gap-3 pt-2 pb-1 border-t border-border-subtle/50">
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="px-5 py-3 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
+              className="px-5 py-2.5 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
             >
               Back to Home
             </button>
@@ -333,7 +484,7 @@ export const CrewCash: React.FC = () => {
             <button
               type="button"
               onClick={handleReset}
-              className="editorial-cta-btn flex items-center gap-1.5 px-6 py-3 rounded-full text-xs font-semibold tracking-wide"
+              className="editorial-cta-btn flex items-center gap-1.5 px-5 py-2.5 rounded-full text-xs font-semibold tracking-wide"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>New Calculation</span>

@@ -7,23 +7,44 @@ interface DepartureBlockProps {
   className?: string;
 }
 
+/**
+ * Return today's date ISO string in local timezone (YYYY-MM-DD)
+ */
 export function getTodayISO(): string {
   const now = new Date();
-  return now.toISOString().split('T')[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
+/**
+ * Return tomorrow's date ISO string in local timezone (YYYY-MM-DD)
+ */
 export function getTomorrowISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
+/**
+ * Return max date ISO string in local timezone (today + 42 days / 6 weeks)
+ */
 export function getMaxDateISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() + 42); // 6 weeks
-  return d.toISOString().split('T')[0];
+  d.setDate(d.getDate() + 42);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
+/**
+ * Format local ISO string (YYYY-MM-DD) into UK/Singapore display (e.g. 30 Aug 2026)
+ */
 export function formatDateDisplay(iso: string): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-').map(Number);

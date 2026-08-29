@@ -16,24 +16,171 @@ import { SQ_CONFIG } from './config';
 import { sqCache } from './cache';
 
 /**
- * Known active Singapore Airlines commercial flight numbers for offline sandbox fallback
+ * Standard IATA Airport Code to City Name Lookup
  */
-const KNOWN_ACTIVE_SQ_FLIGHTS: Record<string, { cabins: CabinCode[]; aircraft?: string }> = {
-  '11': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
-  '12': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
-  '21': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY'], aircraft: 'Airbus A350-900ULR' },
-  '22': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY'], aircraft: 'Airbus A350-900ULR' },
-  '25': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
-  '26': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
-  '308': { cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A380-800' },
-  '318': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A350-900' },
-  '321': { cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A380-800' },
-  '322': { cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A380-800' },
-  '631': { cabins: ['BUSINESS', 'ECONOMY'], aircraft: 'Boeing 787-10' },
-  '632': { cabins: ['BUSINESS', 'ECONOMY'], aircraft: 'Boeing 787-10' },
-  '830': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A350-900' },
-  '833': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A350-900' },
-  '890': { cabins: ['BUSINESS', 'ECONOMY'], aircraft: 'Airbus A350-900' },
+const AIRPORT_CITIES: Record<string, string> = {
+  SIN: 'Singapore',
+  LHR: 'London Heathrow',
+  FRA: 'Frankfurt',
+  JFK: 'New York JFK',
+  EWR: 'Newark',
+  LAX: 'Los Angeles',
+  SFO: 'San Francisco',
+  SEA: 'Seattle',
+  NRT: 'Tokyo Narita',
+  HND: 'Tokyo Haneda',
+  KIX: 'Osaka Kansai',
+  ICN: 'Seoul Incheon',
+  PVG: 'Shanghai Pudong',
+  PEK: 'Beijing Capital',
+  HKG: 'Hong Kong',
+  TPE: 'Taipei',
+  BKK: 'Bangkok',
+  DPS: 'Bali Denpasar',
+  SYD: 'Sydney',
+  MEL: 'Melbourne',
+  BNE: 'Brisbane',
+  PER: 'Perth',
+  AKL: 'Auckland',
+  CDG: 'Paris CDG',
+  ZRH: 'Zurich',
+  AMS: 'Amsterdam',
+  CPH: 'Copenhagen',
+  FCO: 'Rome Fiumicino',
+  MXP: 'Milan Malpensa',
+  BCN: 'Barcelona',
+  DXB: 'Dubai',
+  BOM: 'Mumbai',
+  DEL: 'Delhi',
+};
+
+/**
+ * Known active Singapore Airlines commercial flight schedules for offline fallback
+ */
+const KNOWN_ACTIVE_SQ_SCHEDULES: Record<
+  string,
+  {
+    aircraft: string;
+    cabins: CabinCode[];
+    sectors: Array<{
+      from: string;
+      to: string;
+      depTime: string;
+      arrTime: string;
+      arrDayOffset: number;
+      blockMinutes: number;
+    }>;
+  }
+> = {
+  '11': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'LAX', to: 'NRT', depTime: '15:50', arrTime: '19:00', arrDayOffset: 1, blockMinutes: 670 },
+      { from: 'NRT', to: 'SIN', depTime: '20:25', arrTime: '03:00', arrDayOffset: 1, blockMinutes: 395 },
+    ],
+  },
+  '12': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'NRT', depTime: '09:25', arrTime: '17:30', arrDayOffset: 0, blockMinutes: 425 },
+      { from: 'NRT', to: 'LAX', depTime: '19:00', arrTime: '13:15', arrDayOffset: 0, blockMinutes: 615 },
+    ],
+  },
+  '21': {
+    aircraft: 'Airbus A350-900ULR',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY'],
+    sectors: [
+      { from: 'EWR', to: 'SIN', depTime: '10:25', arrTime: '17:10', arrDayOffset: 1, blockMinutes: 1125 },
+    ],
+  },
+  '22': {
+    aircraft: 'Airbus A350-900ULR',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'EWR', depTime: '23:35', arrTime: '06:00', arrDayOffset: 1, blockMinutes: 1105 },
+    ],
+  },
+  '25': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'JFK', to: 'FRA', depTime: '20:15', arrTime: '09:50', arrDayOffset: 1, blockMinutes: 455 },
+      { from: 'FRA', to: 'SIN', depTime: '11:40', arrTime: '06:50', arrDayOffset: 1, blockMinutes: 730 },
+    ],
+  },
+  '26': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'FRA', depTime: '23:55', arrTime: '06:20', arrDayOffset: 1, blockMinutes: 745 },
+      { from: 'FRA', to: 'JFK', depTime: '08:35', arrTime: '11:10', arrDayOffset: 0, blockMinutes: 515 },
+    ],
+  },
+  '308': {
+    aircraft: 'Airbus A380-800',
+    cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'LHR', depTime: '09:00', arrTime: '15:40', arrDayOffset: 0, blockMinutes: 820 },
+    ],
+  },
+  '318': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'LHR', depTime: '12:45', arrTime: '19:10', arrDayOffset: 0, blockMinutes: 805 },
+    ],
+  },
+  '321': {
+    aircraft: 'Airbus A380-800',
+    cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'LHR', to: 'SIN', depTime: '22:05', arrTime: '18:10', arrDayOffset: 1, blockMinutes: 785 },
+    ],
+  },
+  '322': {
+    aircraft: 'Airbus A380-800',
+    cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'LHR', depTime: '23:45', arrTime: '06:25', arrDayOffset: 1, blockMinutes: 820 },
+    ],
+  },
+  '631': {
+    aircraft: 'Boeing 787-10',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'HND', to: 'SIN', depTime: '09:15', arrTime: '15:15', arrDayOffset: 0, blockMinutes: 420 },
+    ],
+  },
+  '632': {
+    aircraft: 'Boeing 787-10',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'HND', depTime: '08:00', arrTime: '15:55', arrDayOffset: 0, blockMinutes: 415 },
+    ],
+  },
+  '830': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'PVG', depTime: '09:45', arrTime: '15:05', arrDayOffset: 0, blockMinutes: 320 },
+    ],
+  },
+  '833': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'PVG', to: 'SIN', depTime: '16:25', arrTime: '21:50', arrDayOffset: 0, blockMinutes: 325 },
+    ],
+  },
+  '890': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'HKG', depTime: '07:30', arrTime: '11:20', arrDayOffset: 0, blockMinutes: 230 },
+    ],
+  },
 };
 
 /**
@@ -158,7 +305,6 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
 
     if (res.ok) {
       const data = await res.json();
-      // StatusCode 200 means flight was found
       if (data && data.statusCode === 200) {
         const foundCabins: CabinCode[] = [];
         
@@ -186,7 +332,6 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
         return result;
       }
 
-      // If statusCode is 101 or flight not found, return empty available cabins
       if (data && data.statusCode === 101) {
         const notFound: CabinConfig = {
           flightNo: `SQ${num}`,
@@ -201,9 +346,9 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
     console.warn('Live /getcabin fetch error:', err);
   }
 
-  // Offline / Sandbox network fallback: Only return cabins for known valid flights
-  if (KNOWN_ACTIVE_SQ_FLIGHTS[num]) {
-    const match = KNOWN_ACTIVE_SQ_FLIGHTS[num];
+  // Offline fallback for testing
+  if (KNOWN_ACTIVE_SQ_SCHEDULES[num]) {
+    const match = KNOWN_ACTIVE_SQ_SCHEDULES[num];
     const offlineResult: CabinConfig = {
       flightNo: `SQ${num}`,
       date: dateISO,
@@ -214,16 +359,15 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
   }
 
   // Flight does not exist
-  const emptyResult: CabinConfig = {
+  return {
     flightNo: `SQ${num}`,
     date: dateISO,
     available: [],
   };
-  return emptyResult;
 }
 
 /**
- * 2. Retrieve Flight Schedule & Timings from Live SIA Feed (/getcabin or /menu)
+ * 2. Retrieve Flight Schedule, Sector Timings, & Station Times from Live SIA Feed
  */
 export async function getFlightSchedule(flightNo: string, dateISO: string): Promise<FlightSchedule> {
   const num = normalizeFlightNumber(flightNo);
@@ -275,7 +419,9 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
 
           sectors.push({
             from,
+            fromCity: AIRPORT_CITIES[from] || from,
             to,
+            toCity: AIRPORT_CITIES[to] || to,
             depLocal: depTime,
             depDateLocal: depDate,
             arrLocal: arrTime,
@@ -300,12 +446,42 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
     console.warn('Live schedule fetch error:', err);
   }
 
-  const fallbackSchedule: FlightSchedule = {
+  // Fallback offline schedule matching exact route
+  if (KNOWN_ACTIVE_SQ_SCHEDULES[num]) {
+    const known = KNOWN_ACTIVE_SQ_SCHEDULES[num];
+    const sectors: Sector[] = known.sectors.map((sec) => {
+      const depDate = dateISO;
+      const dObj = new Date(dateISO);
+      dObj.setDate(dObj.getDate() + sec.arrDayOffset);
+      const arrDate = dObj.toISOString().split('T')[0];
+
+      return {
+        from: sec.from,
+        fromCity: AIRPORT_CITIES[sec.from] || sec.from,
+        to: sec.to,
+        toCity: AIRPORT_CITIES[sec.to] || sec.to,
+        depLocal: sec.depTime,
+        depDateLocal: depDate,
+        arrLocal: sec.arrTime,
+        arrDateLocal: arrDate,
+        blockMinutes: sec.blockMinutes,
+      };
+    });
+
+    const offlineSchedule: FlightSchedule = {
+      flightNo: `SQ${num}`,
+      date: dateISO,
+      sectors,
+      aircraftType: known.aircraft,
+    };
+    return offlineSchedule;
+  }
+
+  return {
     flightNo: `SQ${num}`,
     date: dateISO,
     sectors: [],
   };
-  return fallbackSchedule;
 }
 
 /**
