@@ -1,4 +1,8 @@
-export async function exportToPDF(element: HTMLElement, filename: string, paperWidthMm = 80): Promise<boolean> {
+export async function exportToPDF(
+  element: HTMLElement,
+  filename: string,
+  paperWidthMm: 108 | 210 = 108
+): Promise<boolean> {
   try {
     const html2canvas = (await import('html2canvas')).default;
     const { default: jsPDF } = await import('jspdf');
@@ -14,10 +18,14 @@ export async function exportToPDF(element: HTMLElement, filename: string, paperW
     const imgWidth = paperWidthMm;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
+    // Minimum standard portrait heights: A6 is ~148mm, A4 is ~297mm
+    const minHeight = paperWidthMm === 210 ? 297 : 148;
+    const pageHeight = Math.max(imgHeight + 10, minHeight);
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [paperWidthMm, Math.max(imgHeight + 10, 100)],
+      format: [paperWidthMm, pageHeight],
     });
 
     pdf.addImage(imgData, 'PNG', 0, 5, imgWidth, imgHeight);
