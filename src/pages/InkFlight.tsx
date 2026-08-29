@@ -38,7 +38,7 @@ export const InkFlight: React.FC = () => {
     flightNo?: string;
     dateISO?: string;
     dateDisplay?: string;
-    cabins?: CabinCode[];
+    cabin?: CabinCode;
   } | null;
 
   const initialTodayISO = navState?.dateISO || getTodayISO();
@@ -52,16 +52,10 @@ export const InkFlight: React.FC = () => {
   const [dateISO, setDateISO] = useState<string>(initialTodayISO);
   const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Cabin detection states
+  // Cabin detection states — Single Select
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
-  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>(
-    navState?.cabins && navState.cabins.length > 0
-      ? navState.cabins
-      : []
-  );
-  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
-    navState?.cabins && navState.cabins.length > 0 ? navState.cabins : []
-  );
+  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
+  const [selectedCabin, setSelectedCabin] = useState<CabinCode>(navState?.cabin || 'BUSINESS');
 
   // InkFlight Editor State
   const [editableMenu, setEditableMenu] = useState<MenuData | null>(null);
@@ -82,7 +76,6 @@ export const InkFlight: React.FC = () => {
   useEffect(() => {
     if (!validation.isValid || !dateISO || !validation.flightNo) {
       setAvailableCabins([]);
-      setSelectedCabins([]);
       return;
     }
 
@@ -96,9 +89,9 @@ export const InkFlight: React.FC = () => {
         setAvailableCabins(config.available);
         if (config.available.length > 0) {
           if (config.available.includes('BUSINESS')) {
-            setSelectedCabins(['BUSINESS']);
+            setSelectedCabin('BUSINESS');
           } else {
-            setSelectedCabins([config.available[0]]);
+            setSelectedCabin(config.available[0]);
           }
         }
       })
@@ -106,7 +99,7 @@ export const InkFlight: React.FC = () => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
         setAvailableCabins(['BUSINESS', 'ECONOMY']);
-        setSelectedCabins(['BUSINESS']);
+        setSelectedCabin('BUSINESS');
       });
 
     return () => {
@@ -114,14 +107,8 @@ export const InkFlight: React.FC = () => {
     };
   }, [validation.flightNo, validation.isValid, dateISO]);
 
-  const handleToggleCabin = (code: CabinCode) => {
-    if (selectedCabins.includes(code)) {
-      if (selectedCabins.length > 1) {
-        setSelectedCabins(selectedCabins.filter((c) => c !== code));
-      }
-    } else {
-      setSelectedCabins([...selectedCabins, code]);
-    }
+  const handleSelectCabin = (code: CabinCode) => {
+    setSelectedCabin(code);
   };
 
   // Start Fetch
@@ -130,8 +117,7 @@ export const InkFlight: React.FC = () => {
   };
 
   const executeMenuFetch = async () => {
-    const targetCabin = selectedCabins[0] || 'BUSINESS';
-    const menu = await getMenu(validation.flightNo, dateISO, targetCabin);
+    const menu = await getMenu(validation.flightNo, dateISO, selectedCabin);
     return menu;
   };
 
@@ -262,7 +248,7 @@ export const InkFlight: React.FC = () => {
       await exportToDOCX(
         `SQ${validation.cleanFlightNo}`,
         dateDisplay,
-        selectedCabins.join(', '),
+        selectedCabin,
         [...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])],
         includeDescriptions,
         `CrewKit_${validation.cleanFlightNo}_Menu`
@@ -274,11 +260,12 @@ export const InkFlight: React.FC = () => {
     }
   };
 
-  const cabinLabels = selectedCabins
-    .map((c) => (c === 'PREMIUM_ECONOMY' ? 'Prem Econ' : c.charAt(0) + c.slice(1).toLowerCase()))
-    .join(', ');
+  const cabinLabel =
+    selectedCabin === 'PREMIUM_ECONOMY'
+      ? 'Prem Econ'
+      : selectedCabin.charAt(0) + selectedCabin.slice(1).toLowerCase();
 
-  const flightSummaryLine = `SQ${validation.cleanFlightNo} · ${dateDisplay}${cabinLabels ? ` · ${cabinLabels}` : ''}`;
+  const flightSummaryLine = `SQ${validation.cleanFlightNo} · ${dateDisplay} · ${cabinLabel}`;
 
   return (
     <Layout>
@@ -308,7 +295,7 @@ export const InkFlight: React.FC = () => {
               Let's ready your homework.
             </h2>
 
-            {/* Pattern A: Flight Number Input */}
+            {/* Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={validation.flightNo}
@@ -320,7 +307,7 @@ export const InkFlight: React.FC = () => {
               />
             </div>
 
-            {/* Pattern B: Departure Block */}
+            {/* Departure Block */}
             {validation.isValid && validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -337,7 +324,7 @@ export const InkFlight: React.FC = () => {
             {isDetectingCabins && (
               <div className="w-full mt-5 text-left animate-fade-in">
                 <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
-                  Detected Cabin Classes
+                  Available Cabin Classes
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
@@ -347,7 +334,7 @@ export const InkFlight: React.FC = () => {
               </div>
             )}
 
-            {/* Detected Cabin Classes */}
+            {/* Single-Select Cabin Classes */}
             {!isDetectingCabins && availableCabins.length > 0 && (
               <div className="w-full mt-5 text-left animate-fade-in">
                 <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
@@ -358,10 +345,10 @@ export const InkFlight: React.FC = () => {
                     <CabinPill
                       key={code}
                       code={code}
-                      isSelected={selectedCabins.includes(code)}
-                      hasAnySelection={selectedCabins.length > 0}
+                      isSelected={selectedCabin === code}
+                      hasAnySelection={true}
                       delayIndex={idx}
-                      onToggle={handleToggleCabin}
+                      onToggle={handleSelectCabin}
                     />
                   ))}
                 </div>
@@ -372,7 +359,7 @@ export const InkFlight: React.FC = () => {
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
           {/* Progression CTA */}
-          {validation.isValid && validation.flightNo.length > 0 && dateISO && selectedCabins.length > 0 && (
+          {validation.isValid && validation.flightNo.length > 0 && dateISO && selectedCabin && (
             <div className="shrink-0 pb-2">
               <RevealCTA
                 label="Fetch Menu"
@@ -393,7 +380,7 @@ export const InkFlight: React.FC = () => {
           <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-border-subtle/50">
             <FlightChip label={flightSummaryLine} />
 
-            {/* Mobile Tab Switcher (Visible on mobile, hidden on lg screens) */}
+            {/* Mobile Tab Switcher */}
             <div className="flex sm:hidden items-center p-0.5 mt-2 rounded-full bg-bg-surface border border-border-subtle">
               <button
                 type="button"
@@ -634,7 +621,7 @@ export const InkFlight: React.FC = () => {
                     <span>{dateDisplay}</span>
                   </div>
                   <div className="text-[9px] text-neutral-600 text-left mt-0.5">
-                    CLASS: {selectedCabins.join(', ')}
+                    CLASS: {selectedCabin}
                   </div>
                 </div>
 

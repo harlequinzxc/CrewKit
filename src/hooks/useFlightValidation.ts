@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { isValidFlightNumber, normalizeFlightNumber } from '../lib/sq/endpoints';
 
-export function useFlightValidation(initialValue = '322', debounceMs = 400) {
+export function useFlightValidation(initialValue = '', debounceMs = 350) {
   const [flightNo, setFlightNo] = useState(initialValue);
   const [isChecking, setIsChecking] = useState(false);
-  const [isValid, setIsValid] = useState<boolean | null>(true);
+  const [isValid, setIsValid] = useState<boolean | null>(initialValue ? true : null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // If empty
     if (!flightNo || flightNo.trim() === '') {
       setIsChecking(false);
       setIsValid(null);
@@ -22,7 +21,7 @@ export function useFlightValidation(initialValue = '322', debounceMs = 400) {
       setIsChecking(false);
       setIsValid(valid);
       if (!valid) {
-        setError('Flight not found for this route');
+        setError('Please enter a valid SQ flight number (1–4 digits)');
       } else {
         setError(null);
       }
