@@ -1,7 +1,7 @@
 # CrewKit — Singapore Airlines Cabin Crew Progressive Web App (PWA)
 
-> **Current Version:** `v0.1.0` (Chunk 1: Project Scaffold)  
-> **Status:** Editorial "Quiet Luxury" Hollow Shell &amp; PWA Scaffold — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.  
+> **Current Version:** `v0.2.0`  
+> **Status:** Editorial "Quiet Luxury" PWA — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.  
 > **Active Working Branch:** `arena/01a04e46-crewkit`
 
 ---
@@ -20,7 +20,7 @@
 
 1. **CrewCash (`/crewcash`)**
    - Inflight hourly allowance &amp; location meal per diem calculator.
-   - Stepper wizard interface with multi-sector route chain visualizations (e.g., `SIN → NRT → LAX → NRT → SIN`).
+   - Stepper wizard interface with multi-sector route chain visualizations (`SIN → NRT → LAX → NRT → SIN`).
    - Sector timeline duration breakdowns and allowance tally placeholders.
 
 2. **SkyMenu (`/skymenu`)**
@@ -131,7 +131,7 @@ CrewKit/
 │   │   ├── BackButton.tsx      # Circular navigation back button
 │   │   ├── Layout.tsx          # Viewport shell with header, menu & version
 │   │   ├── Logo.tsx            # Geometric paper plane mark & Inter wordmark
-│   │   ├── NavCard.tsx         # Home 2x2 luxury action cards
+│   │   ├── NavCard.tsx         # Home 3-card luxury action cards
 │   │   ├── ThemeToggle.tsx     # Reactive light/dark theme switch
 │   │   └── WizardStepper.tsx   # Reusable whisper step indicator
 │   ├── context/
@@ -139,13 +139,13 @@ CrewKit/
 │   ├── hooks/
 │   │   └── useTheme.ts         # Theme hook
 │   ├── pages/
-│   │   ├── Home.tsx            # Main landing page & 2x2 tool grid
+│   │   ├── Home.tsx            # Main landing page & 3-card tool grid
 │   │   ├── CrewCash.tsx        # Inflight & layover allowance calculator
 │   │   ├── SkyMenu.tsx         # SIA inflight menu viewer
 │   │   ├── InkFlight.tsx       # Thermal slip print homework formatter
 │   │   └── Settings.tsx        # Rates, theme preferences & diagnostics
 │   └── config/
-│       └── version.ts          # Version definition (v0.1.0)
+│       └── version.ts          # Version definition (v0.2.0)
 ├── index.html                  # HTML entry point with meta tags & fonts
 ├── package.json
 ├── tsconfig.json
@@ -163,8 +163,8 @@ CrewKit/
 
 | Chunk | Version | Scope | Status |
 | :--- | :--- | :--- | :--- |
-| **Chunk 1** | `v0.1.0` | **Project Scaffold** — Hollow shell, PWA setup, single-viewport layouts, navigation, theme toggle | **Completed** |
-| **Chunk 2** | `v0.2.0` | **CrewCash Logic** — SIA sector data, meal rate tables, flight hours allowance calculator | *Planned* |
-| **Chunk 3** | `v0.3.0` | **SkyMenu Integration** — SIA flight menu data parsing, course display & filtering | *Planned* |
-| **Chunk 4** | `v0.4.0` | **InkFlight Formatter Engine** — Thermal printer layouts, slip customizer, multi-format export | *Planned* |
+| **Chunk 1** | `v0.2.0` | **Project Scaffold & UI Polish** — Hollow shell, PWA setup, single-viewport layouts, 3-card home grid, unified settings, dark/light mode, logo design | **Completed** |
+| **Chunk 2** | `v0.3.0` | **CrewCash Logic** — SIA sector data, meal rate tables, flight hours allowance calculator | *Planned* |
+| **Chunk 3** | `v0.4.0` | **SkyMenu Integration** — SIA flight menu data parsing, course display & filtering | *Planned* |
+| **Chunk 4** | `v0.5.0` | **InkFlight Formatter Engine** — Thermal printer layouts, slip customizer, multi-format export | *Planned* |
 | **Chunk 5** | `v1.0.0` | **Settings, Persistence & Offline Sync** — Local storage rates editor, JSON sync, full production release | *Planned* |

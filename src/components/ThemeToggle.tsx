@@ -7,30 +7,36 @@ interface ThemeToggleProps {
 }
 
 export const ThemeToggle: React.FC<ThemeToggleProps> = ({ showLabel = true }) => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
 
   return (
-    <div className="flex items-center justify-between w-full p-4 rounded-well bg-bg-elevated border border-border-subtle transition-all">
+    <div
+      onClick={toggleTheme}
+      className="flex items-center justify-between w-full p-4 rounded-card bg-bg-surface border border-border-subtle cursor-pointer hover:border-border-hover transition-all"
+    >
       {showLabel && (
-        <div className="flex flex-col">
-          <span className="text-sm font-medium text-text-primary">
-            {isDark ? 'Dark Mode' : 'Light Mode'}
+        <div className="flex flex-col select-none pr-3">
+          <span className="font-sans font-semibold text-sm sm:text-base text-text-primary">
+            Dark Mode
           </span>
           <span className="text-xs text-text-secondary mt-0.5">
-            {isDark ? 'Quiet luxury deep navy palette' : 'Warm paper reading palette'}
+            Quiet luxury deep navy palette
           </span>
         </div>
       )}
 
       {/* Segmented / Switch Pill */}
-      <div className="flex items-center p-1 bg-bg-surface border border-border-subtle rounded-full relative">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex items-center p-1 bg-bg-elevated border border-border-subtle rounded-full relative shrink-0"
+      >
         <button
           type="button"
           onClick={() => setTheme('dark')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
             isDark
-              ? 'bg-accent text-[#070B14] font-semibold shadow-sm'
+              ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
               : 'text-text-secondary hover:text-text-primary'
           }`}
           aria-label="Select dark mode"
@@ -43,7 +49,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ showLabel = true }) =>
           onClick={() => setTheme('light')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
             !isDark
-              ? 'bg-accent text-[#070B14] font-semibold shadow-sm'
+              ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
               : 'text-text-secondary hover:text-text-primary'
           }`}
           aria-label="Select light mode"

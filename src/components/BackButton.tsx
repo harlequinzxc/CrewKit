@@ -25,9 +25,9 @@ export const BackButton: React.FC<BackButtonProps> = ({ to = '/', onClick, label
     <button
       onClick={handleClick}
       aria-label={label || 'Go back to home'}
-      className="group flex items-center justify-center w-10 h-10 rounded-full bg-bg-elevated border border-border-subtle hover:border-border-medium hover:text-accent active:scale-95 transition-all shadow-sm"
+      className="group flex items-center justify-center w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-bg-elevated border border-border-subtle hover:border-border-hover active:scale-95 transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg-base"
     >
-      <ArrowLeft className="w-5 h-5 text-text-secondary group-hover:text-accent transition-colors" strokeWidth={1.75} />
+      <ArrowLeft className="w-4.5 h-4.5 text-text-secondary group-hover:text-accent transition-colors" strokeWidth={1.75} />
     </button>
   );
 };
