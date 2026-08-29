@@ -1,79 +1,66 @@
 import React from 'react';
 import { Layout } from '../components/Layout';
 import { NavCard } from '../components/NavCard';
-import { Calculator, Utensils, Printer, Settings, Plane } from 'lucide-react';
-import { APP_TAGLINE } from '../config/version';
+import { Calculator, Utensils, Printer, Settings } from 'lucide-react';
 
 export const Home: React.FC = () => {
   return (
     <Layout>
-      <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
+      <div className="flex flex-col justify-between h-full py-2 animate-fade-in">
         
-        {/* Centered Hero / Identity */}
-        <div className="flex flex-col items-center text-center my-auto py-2">
-          {/* Logo Mark */}
-          <div className="relative mb-3 group">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-bg-surface border border-border-medium flex items-center justify-center shadow-gold-glow/20 transition-all duration-300 group-hover:scale-105 group-hover:border-accent">
-              <Plane className="w-7 h-7 sm:w-8 sm:h-8 text-accent rotate-[-15deg]" strokeWidth={1.75} />
-            </div>
-            <div className="absolute -inset-1 rounded-2xl bg-accent/10 blur-md -z-10 opacity-70" />
-          </div>
+        {/* Generous empty top spacer */}
+        <div className="flex-1 max-h-8" />
 
+        {/* Editorial Hero Identity */}
+        <div className="flex flex-col items-center text-center px-2">
           {/* Eyebrow */}
           <span className="font-serif italic text-accent text-sm sm:text-base tracking-wide">
-            Singapore Airlines Companion
+            Singapore Airlines
           </span>
 
-          {/* App Title */}
-          <h1 className="font-sans font-bold text-3xl sm:text-4xl tracking-tight text-text-primary mt-1">
-            Crew<span className="text-accent font-serif font-normal italic">Kit</span>
+          {/* Headline */}
+          <h1 className="font-serif text-3xl sm:text-4xl font-normal text-text-primary mt-1 tracking-tight">
+            Your cabin crew <span className="italic text-accent-soft">companion.</span>
           </h1>
 
-          {/* Subtitle / Tagline */}
-          <p className="font-serif italic text-text-secondary text-sm sm:text-base mt-1 max-w-xs sm:max-w-sm">
-            {APP_TAGLINE} &mdash; <span className="text-accent-soft">effortless, fast &amp; offline</span>
+          <p className="text-xs sm:text-sm text-text-secondary mt-2 tracking-wide font-light max-w-xs">
+            Refined tools for allowances, inflight dining, and thermal print preparation.
           </p>
         </div>
 
+        {/* Generous middle spacer */}
+        <div className="flex-1 max-h-6" />
+
         {/* 2x2 Feature Grid */}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 my-auto">
+        <div className="grid grid-cols-2 gap-3 sm:gap-3.5 my-auto">
           <NavCard
             to="/crewcash"
             title="CrewCash"
-            description="Inflight allowance + meal rate calculator"
+            description="Allowance &amp; layover meal calculator"
             icon={Calculator}
-            badge="Calculator"
           />
           <NavCard
             to="/skymenu"
             title="SkyMenu"
-            description="Singapore Airlines inflight menu viewer"
+            description="Inflight menu &amp; wine list viewer"
             icon={Utensils}
-            badge="Menu"
           />
           <NavCard
             to="/inkflight"
             title="InkFlight"
-            description="Inflight menu homework formatter"
+            description="Thermal receipt homework formatter"
             icon={Printer}
-            badge="Formatter"
           />
           <NavCard
             to="/settings"
             title="Settings"
-            description="Rates, theme toggles & preferences"
+            description="Rates, theme &amp; backup preferences"
             icon={Settings}
-            badge="Prefs"
           />
         </div>
 
-        {/* Quick Help / Info Pill */}
-        <div className="mt-auto pt-2 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-bg-elevated/80 border border-border-subtle text-[11px] text-text-secondary">
-            <span className="w-2 h-2 rounded-full bg-accent/70 animate-pulse" />
-            <span>Chunk 1 Scaffold &bull; Select any tool to preview</span>
-          </div>
-        </div>
+        {/* Generous bottom spacer */}
+        <div className="flex-1 max-h-8" />
 
       </div>
     </Layout>
