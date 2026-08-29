@@ -22,7 +22,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const flightNumber = (body.flightNumber || req.query.flightNumber || req.query.flightNo || '').toString().replace(/\D/g, '');
     const flightDate = (body.flightDate || req.query.flightDate || req.query.date || new Date().toISOString().split('T')[0]).toString();
-    const cabinClass = (body.cabinClass || req.query.cabinClass || req.query.cabin || 'JCL').toString();
     const carrierId = (body.carrierId || req.query.carrierId || 'SQ').toString();
     const sessionId = (body.sessionId || req.query.sessionId || 'f47ac10b-58cc-4372-a567-0e02b2c3d479').toString();
 
@@ -30,11 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       carrierId,
       flightNumber,
       flightDate,
-      cabinClass,
       sessionId,
     };
 
-    const upstream = await fetch('https://cifp.auto.prod.c0.singaporeair.com/api/menu', {
+    const upstream = await fetch('https://cifp.auto.prod.c0.singaporeair.com/api/getcabin', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

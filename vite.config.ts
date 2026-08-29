@@ -9,11 +9,15 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     proxy: {
-      '/api/sq-menu': {
+      '/api': {
         target: 'https://cifp.auto.prod.c0.singaporeair.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/sq-menu/, '/api/menu'),
         secure: false,
+        headers: {
+          Origin: 'https://inflightmenu.singaporeair.com',
+          Referer: 'https://inflightmenu.singaporeair.com/',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
       },
     },
   },
@@ -22,11 +26,15 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     proxy: {
-      '/api/sq-menu': {
+      '/api': {
         target: 'https://cifp.auto.prod.c0.singaporeair.com',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/sq-menu/, '/api/menu'),
         secure: false,
+        headers: {
+          Origin: 'https://inflightmenu.singaporeair.com',
+          Referer: 'https://inflightmenu.singaporeair.com/',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        },
       },
     },
   },
