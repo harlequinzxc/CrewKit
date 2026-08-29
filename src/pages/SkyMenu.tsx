@@ -45,6 +45,7 @@ export const SkyMenu: React.FC = () => {
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
   const [selectedCabin, setSelectedCabin] = useState<CabinCode>('BUSINESS');
   const [aircraftType, setAircraftType] = useState<string>('');
+  const [flightNotFoundError, setFlightNotFoundError] = useState<string | null>(null);
 
   // Menu results
   const [menuData, setMenuData] = useState<MenuData | null>(null);
@@ -55,9 +56,16 @@ export const SkyMenu: React.FC = () => {
   const [selectedMealOption, setSelectedMealOption] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
-  // 1. Live Cabin Detection on Flight / Date Change
+  // 1. Live Cabin & Flight Existence Sanity Check on Flight / Date Change
   useEffect(() => {
-    if (!validation.isValid || !dateISO || !validation.flightNo) {
+    if (!validation.flightNo || validation.flightNo.trim().length === 0) {
+      setAvailableCabins([]);
+      setAircraftType('');
+      setFlightNotFoundError(null);
+      return;
+    }
+
+    if (!validation.isValid) {
       setAvailableCabins([]);
       setAircraftType('');
       return;
@@ -65,32 +73,38 @@ export const SkyMenu: React.FC = () => {
 
     let isSubscribed = true;
     setIsDetectingCabins(true);
+    setFlightNotFoundError(null);
 
     getCabinConfig(validation.flightNo, dateISO)
       .then((config) => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
-        setAvailableCabins(config.available);
-        setAircraftType(config.aircraftType || '');
-        if (config.available.length > 0) {
+        if (config.available && config.available.length > 0) {
+          setAvailableCabins(config.available);
+          setAircraftType(config.aircraftType || '');
+          setFlightNotFoundError(null);
           if (config.available.includes('BUSINESS')) {
             setSelectedCabin('BUSINESS');
           } else {
             setSelectedCabin(config.available[0]);
           }
+        } else {
+          setAvailableCabins([]);
+          setAircraftType('');
+          setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found or does not operate on ${dateDisplay}.`);
         }
       })
       .catch(() => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
-        setAvailableCabins(['BUSINESS', 'ECONOMY']);
-        setSelectedCabin('BUSINESS');
+        setAvailableCabins([]);
+        setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found.`);
       });
 
     return () => {
       isSubscribed = false;
     };
-  }, [validation.flightNo, validation.isValid, dateISO]);
+  }, [validation.flightNo, validation.isValid, dateISO, dateDisplay]);
 
   // Handle single cabin selection
   const handleSelectCabin = (code: CabinCode) => {
@@ -180,9 +194,9 @@ export const SkyMenu: React.FC = () => {
               <FlightNumberInput
                 value={validation.flightNo}
                 onChange={validation.setFlightNo}
-                isValid={validation.isValid}
-                isChecking={validation.isChecking}
-                error={validation.error}
+                isValid={validation.isValid && !flightNotFoundError}
+                isChecking={validation.isChecking || isDetectingCabins}
+                error={validation.error || flightNotFoundError}
                 placeholder="3 2 2"
               />
             </div>
@@ -212,13 +226,13 @@ export const SkyMenu: React.FC = () => {
                   <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
                 </div>
                 <p className="font-serif italic text-text-tertiary text-xs mt-2">
-                  Checking live flight cabin configuration…
+                  Verifying flight & cabins with Singapore Airlines…
                 </p>
               </div>
             )}
 
             {/* Single Select Cabin Class Pills */}
-            {!isDetectingCabins && availableCabins.length > 0 && (
+            {!isDetectingCabins && availableCabins.length > 0 && !flightNotFoundError && (
               <div className="w-full mt-5 text-left animate-fade-in">
                 <div className="flex items-center justify-between mb-2 select-none">
                   <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary">
@@ -250,16 +264,21 @@ export const SkyMenu: React.FC = () => {
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
           {/* Reveal CTA */}
-          {validation.isValid && validation.flightNo.length > 0 && dateISO && selectedCabin && (
-            <div className="shrink-0 pb-2">
-              <RevealCTA
-                label="Fetch Menu"
-                icon={Sparkles}
-                summary={flightSummaryLine}
-                onPress={handleStartFetch}
-              />
-            </div>
-          )}
+          {validation.isValid &&
+            validation.flightNo.length > 0 &&
+            dateISO &&
+            availableCabins.length > 0 &&
+            !flightNotFoundError &&
+            !isDetectingCabins && (
+              <div className="shrink-0 pb-2">
+                <RevealCTA
+                  label="Fetch Menu"
+                  icon={Sparkles}
+                  summary={flightSummaryLine}
+                  onPress={handleStartFetch}
+                />
+              </div>
+            )}
         </div>
       )}
 
@@ -378,7 +397,7 @@ export const SkyMenu: React.FC = () => {
                             {service.name}
                           </h3>
 
-                          {/* Parallel Menu Toggles (e.g. International vs Japanese Kaiseki) */}
+                          {/* Parallel Menu Toggles */}
                           {service.selections.length > 1 && (
                             <div className="flex items-center gap-1 p-0.5 rounded-full bg-bg-elevated border border-border-subtle">
                               {service.selections.map((sel) => (

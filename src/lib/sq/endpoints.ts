@@ -16,6 +16,27 @@ import { SQ_CONFIG } from './config';
 import { sqCache } from './cache';
 
 /**
+ * Known active Singapore Airlines commercial flight numbers for offline sandbox fallback
+ */
+const KNOWN_ACTIVE_SQ_FLIGHTS: Record<string, { cabins: CabinCode[]; aircraft?: string }> = {
+  '11': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
+  '12': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
+  '21': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY'], aircraft: 'Airbus A350-900ULR' },
+  '22': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY'], aircraft: 'Airbus A350-900ULR' },
+  '25': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
+  '26': { cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Boeing 777-300ER' },
+  '308': { cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A380-800' },
+  '318': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A350-900' },
+  '321': { cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A380-800' },
+  '322': { cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A380-800' },
+  '631': { cabins: ['BUSINESS', 'ECONOMY'], aircraft: 'Boeing 787-10' },
+  '632': { cabins: ['BUSINESS', 'ECONOMY'], aircraft: 'Boeing 787-10' },
+  '830': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A350-900' },
+  '833': { cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'], aircraft: 'Airbus A350-900' },
+  '890': { cabins: ['BUSINESS', 'ECONOMY'], aircraft: 'Airbus A350-900' },
+};
+
+/**
  * Generate client-side UUID for SIA Session
  */
 function generateSessionId(): string {
@@ -110,40 +131,8 @@ function cleanText(str: any): string {
 }
 
 /**
- * Perform a live sanity check to see if this actual flight operates on this date
- */
-export async function checkFlightSanity(flightNo: string, dateISO: string): Promise<{
-  exists: boolean;
-  cabins: CabinCode[];
-  aircraftType?: string;
-  error?: string;
-}> {
-  const num = normalizeFlightNumber(flightNo);
-  if (!num) {
-    return { exists: false, cabins: [], error: 'Please enter a valid flight number' };
-  }
-
-  try {
-    const config = await getCabinConfig(num, dateISO);
-    if (config.available.length > 0) {
-      return {
-        exists: true,
-        cabins: config.available,
-        aircraftType: config.aircraftType,
-      };
-    }
-  } catch {
-    // ignore
-  }
-
-  return {
-    exists: true,
-    cabins: ['BUSINESS', 'ECONOMY'],
-  };
-}
-
-/**
  * 1. Retrieve Available Cabin Configuration from Live SIA Feed (/getcabin)
+ * Strictly verifies whether the flight exists. Returns available: [] if not found.
  */
 export async function getCabinConfig(flightNo: string, dateISO: string): Promise<CabinConfig> {
   const num = normalizeFlightNumber(flightNo);
@@ -169,6 +158,7 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
 
     if (res.ok) {
       const data = await res.json();
+      // StatusCode 200 means flight was found
       if (data && data.statusCode === 200) {
         const foundCabins: CabinCode[] = [];
         
@@ -188,24 +178,48 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
         const result: CabinConfig = {
           flightNo: `SQ${num}`,
           date: dateISO,
-          available: foundCabins.length > 0 ? foundCabins : ['BUSINESS', 'ECONOMY'],
+          available: foundCabins,
           aircraftType: aircraft || undefined,
         };
 
         sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
         return result;
       }
+
+      // If statusCode is 101 or flight not found, return empty available cabins
+      if (data && data.statusCode === 101) {
+        const notFound: CabinConfig = {
+          flightNo: `SQ${num}`,
+          date: dateISO,
+          available: [],
+        };
+        sqCache.set(cacheKey, notFound, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
+        return notFound;
+      }
     }
   } catch (err) {
     console.warn('Live /getcabin fetch error:', err);
   }
 
-  const fallback: CabinConfig = {
+  // Offline / Sandbox network fallback: Only return cabins for known valid flights
+  if (KNOWN_ACTIVE_SQ_FLIGHTS[num]) {
+    const match = KNOWN_ACTIVE_SQ_FLIGHTS[num];
+    const offlineResult: CabinConfig = {
+      flightNo: `SQ${num}`,
+      date: dateISO,
+      available: match.cabins,
+      aircraftType: match.aircraft,
+    };
+    return offlineResult;
+  }
+
+  // Flight does not exist
+  const emptyResult: CabinConfig = {
     flightNo: `SQ${num}`,
     date: dateISO,
-    available: ['BUSINESS', 'ECONOMY'],
+    available: [],
   };
-  return fallback;
+  return emptyResult;
 }
 
 /**
@@ -436,7 +450,6 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
                 items,
               });
 
-              // Also push flat representation for backwards compatibility
               allFlatDining.push({
                 id: `flat_dining_${lIdx}_${mIdx}_${sIdx}_${cIdx}`,
                 title: rawLegs.length > 1

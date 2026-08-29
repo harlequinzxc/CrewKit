@@ -56,6 +56,7 @@ export const InkFlight: React.FC = () => {
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
   const [selectedCabin, setSelectedCabin] = useState<CabinCode>(navState?.cabin || 'BUSINESS');
+  const [flightNotFoundError, setFlightNotFoundError] = useState<string | null>(null);
 
   // InkFlight Editor State
   const [editableMenu, setEditableMenu] = useState<MenuData | null>(null);
@@ -74,38 +75,49 @@ export const InkFlight: React.FC = () => {
 
   // Cabin Detection
   useEffect(() => {
-    if (!validation.isValid || !dateISO || !validation.flightNo) {
+    if (!validation.flightNo || validation.flightNo.trim().length === 0) {
+      setAvailableCabins([]);
+      setFlightNotFoundError(null);
+      return;
+    }
+
+    if (!validation.isValid) {
       setAvailableCabins([]);
       return;
     }
 
     let isSubscribed = true;
     setIsDetectingCabins(true);
+    setFlightNotFoundError(null);
 
     getCabinConfig(validation.flightNo, dateISO)
       .then((config) => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
-        setAvailableCabins(config.available);
-        if (config.available.length > 0) {
+        if (config.available && config.available.length > 0) {
+          setAvailableCabins(config.available);
+          setFlightNotFoundError(null);
           if (config.available.includes('BUSINESS')) {
             setSelectedCabin('BUSINESS');
           } else {
             setSelectedCabin(config.available[0]);
           }
+        } else {
+          setAvailableCabins([]);
+          setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found or does not operate on ${dateDisplay}.`);
         }
       })
       .catch(() => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
-        setAvailableCabins(['BUSINESS', 'ECONOMY']);
-        setSelectedCabin('BUSINESS');
+        setAvailableCabins([]);
+        setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found.`);
       });
 
     return () => {
       isSubscribed = false;
     };
-  }, [validation.flightNo, validation.isValid, dateISO]);
+  }, [validation.flightNo, validation.isValid, dateISO, dateDisplay]);
 
   const handleSelectCabin = (code: CabinCode) => {
     setSelectedCabin(code);
@@ -300,9 +312,9 @@ export const InkFlight: React.FC = () => {
               <FlightNumberInput
                 value={validation.flightNo}
                 onChange={validation.setFlightNo}
-                isValid={validation.isValid}
-                isChecking={validation.isChecking}
-                error={validation.error}
+                isValid={validation.isValid && !flightNotFoundError}
+                isChecking={validation.isChecking || isDetectingCabins}
+                error={validation.error || flightNotFoundError}
                 placeholder="3 2 2"
               />
             </div>
@@ -335,7 +347,7 @@ export const InkFlight: React.FC = () => {
             )}
 
             {/* Single-Select Cabin Classes */}
-            {!isDetectingCabins && availableCabins.length > 0 && (
+            {!isDetectingCabins && availableCabins.length > 0 && !flightNotFoundError && (
               <div className="w-full mt-5 text-left animate-fade-in">
                 <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
                   Cabin Class for Printout
@@ -359,16 +371,21 @@ export const InkFlight: React.FC = () => {
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
           {/* Progression CTA */}
-          {validation.isValid && validation.flightNo.length > 0 && dateISO && selectedCabin && (
-            <div className="shrink-0 pb-2">
-              <RevealCTA
-                label="Fetch Menu"
-                icon={Sparkles}
-                summary={flightSummaryLine}
-                onPress={handleStartFetch}
-              />
-            </div>
-          )}
+          {validation.isValid &&
+            validation.flightNo.length > 0 &&
+            dateISO &&
+            availableCabins.length > 0 &&
+            !flightNotFoundError &&
+            !isDetectingCabins && (
+              <div className="shrink-0 pb-2">
+                <RevealCTA
+                  label="Fetch Menu"
+                  icon={Sparkles}
+                  summary={flightSummaryLine}
+                  onPress={handleStartFetch}
+                />
+              </div>
+            )}
         </div>
       )}
 
