@@ -32,13 +32,13 @@ export const CrewCash: React.FC = () => {
   // Wizard States: 'outbound' -> 'inbound' -> 'loading' -> 'result'
   const [stage, setStage] = useState<'outbound' | 'inbound' | 'loading' | 'result'>('outbound');
 
-  // Step 1: Outbound
-  const outboundValidation = useFlightValidation('322');
+  // Step 1: Outbound — initialized empty
+  const outboundValidation = useFlightValidation('');
   const [outboundDateISO, setOutboundDateISO] = useState<string>(initialTodayISO);
   const [outboundDateDisplay, setOutboundDateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Step 2: Inbound
-  const inboundValidation = useFlightValidation('321');
+  // Step 2: Inbound — initialized empty
+  const inboundValidation = useFlightValidation('');
   const [inboundDateISO, setInboundDateISO] = useState<string>(initialTodayISO);
   const [inboundDateDisplay, setInboundDateDisplay] = useState<string>(initialTodayDisplay);
 
@@ -49,7 +49,7 @@ export const CrewCash: React.FC = () => {
   // Handle Step 1 -> Step 2
   const handleProceedToInbound = () => {
     const num = parseInt(outboundValidation.flightNo, 10);
-    if (!isNaN(num) && (!inboundValidation.flightNo || inboundValidation.flightNo === '321')) {
+    if (!isNaN(num) && (!inboundValidation.flightNo || inboundValidation.flightNo === '')) {
       const returnNum = num % 2 === 0 ? (num - 1).toString() : (num + 1).toString();
       inboundValidation.setFlightNo(returnNum);
     }
@@ -76,6 +76,8 @@ export const CrewCash: React.FC = () => {
   };
 
   const handleReset = () => {
+    outboundValidation.setFlightNo('');
+    inboundValidation.setFlightNo('');
     setStage('outbound');
   };
 

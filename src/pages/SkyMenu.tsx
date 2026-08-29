@@ -25,16 +25,16 @@ export const SkyMenu: React.FC = () => {
   // Screen Stages: 'form' | 'loading' | 'result'
   const [stage, setStage] = useState<'form' | 'loading' | 'result'>('form');
 
-  // Flight validation
-  const validation = useFlightValidation('322');
+  // Flight validation — start with EMPTY input as requested
+  const validation = useFlightValidation('');
   const [dateISO, setDateISO] = useState<string>(initialTodayISO);
   const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
   // Cabin detection states
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
-  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>(['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY']);
-  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(['BUSINESS']);
-  const [aircraftType, setAircraftType] = useState<string>('Airbus A380-800');
+  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
+  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>([]);
+  const [aircraftType, setAircraftType] = useState<string>('');
 
   // Menu results
   const [menusByCabin, setMenusByCabin] = useState<Record<CabinCode, MenuData>>({} as Record<CabinCode, MenuData>);
@@ -42,11 +42,12 @@ export const SkyMenu: React.FC = () => {
   const [menuSegment, setMenuSegment] = useState<'dining' | 'drinks'>('dining');
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
-  // 1. Run Cabin Detection whenever flightNo or dateISO changes
+  // 1. Run Live Cabin Detection whenever flightNo or dateISO changes
   useEffect(() => {
     if (!validation.isValid || !dateISO || !validation.flightNo) {
       setAvailableCabins([]);
       setSelectedCabins([]);
+      setAircraftType('');
       return;
     }
 
@@ -59,10 +60,10 @@ export const SkyMenu: React.FC = () => {
         setIsDetectingCabins(false);
         setAvailableCabins(config.available);
         setAircraftType(config.aircraftType || '');
-        if (selectedCabins.length === 0 || !selectedCabins.some((c) => config.available.includes(c))) {
+        if (config.available.length > 0) {
           if (config.available.includes('BUSINESS')) {
             setSelectedCabins(['BUSINESS']);
-          } else if (config.available.length > 0) {
+          } else {
             setSelectedCabins([config.available[0]]);
           }
         }

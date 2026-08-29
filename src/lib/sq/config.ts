@@ -1,16 +1,14 @@
 /**
- * Singapore Airlines public endpoints & proxy configuration
- * The app remains fully stateless and client-side only.
+ * Singapore Airlines live endpoints & proxy configuration
  */
 export const SQ_CONFIG = {
-  // Configurable proxy URL (e.g., Cloudflare Worker or Vercel serverless proxy if direct CORS is blocked)
-  PROXY_BASE_URL:
-    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SQ_PROXY_URL) ||
-    "https://api.crewkit.internal/sq-proxy",
-  
+  // Live unauthenticated menu feed from Singapore Airlines
+  LIVE_MENU_API: "https://cifp.auto.prod.c0.singaporeair.com/api/menu",
+  ALT_MENU_API: "https://inflightmenu.singaporeair.com/api/menu",
+  PROXY_MENU_API: "/api/sq-menu",
+
   // Public SQ inflight menu endpoints
-  SQ_MENU_BASE: "https://www.singaporeair.com/en_UK/sg/flying-with-us/dining/inflight-menus/",
-  SQ_CABIN_FEED: "https://www.singaporeair.com/getcabin",
+  SQ_MENU_BASE: "https://inflightmenu.singaporeair.com/home",
   
   // Cache TTLs in milliseconds
   CACHE_TTL_CABIN_CONFIG: 24 * 60 * 60 * 1000, // 24 hours

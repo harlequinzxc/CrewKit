@@ -1,8 +1,10 @@
-import { CabinCode, CabinConfig, FlightSchedule, MenuData, MenuSection, Sector } from './types';
+import { CabinCode, CabinConfig, FlightSchedule, MenuData, MenuSection, Sector, MenuItem } from './types';
 import { SQ_CONFIG } from './config';
 import { sqCache } from './cache';
 
-// Known Singapore Airlines Route Database
+/**
+ * Known Singapore Airlines Flagship Route Database (Used for timing reference & offline resilience)
+ */
 const ROUTE_DATABASE: Record<string, {
   from: string;
   fromCity: string;
@@ -15,7 +17,6 @@ const ROUTE_DATABASE: Record<string, {
   depTime: string;
   arrTime: string;
 }> = {
-  // Flagship Multi-Sector & Long-Haul Routes
   '12': {
     from: 'SIN',
     fromCity: 'Singapore',
@@ -258,50 +259,156 @@ const ROUTE_DATABASE: Record<string, {
  * Validate flight number (1–4 digits)
  */
 export function isValidFlightNumber(flightNo: string): boolean {
+  if (!flightNo) return false;
   const clean = flightNo.replace(/\D/g, '');
   const num = parseInt(clean, 10);
   return !isNaN(num) && num >= 1 && num <= 9999;
 }
 
 /**
- * Clean numeric string representation (e.g., '0322' -> '322')
+ * Clean numeric string representation (e.g., 'SQ0322' -> '322')
  */
 export function normalizeFlightNumber(flightNo: string): string {
+  if (!flightNo) return '';
   const clean = flightNo.replace(/\D/g, '');
   const num = parseInt(clean, 10);
   return isNaN(num) ? '' : num.toString();
 }
 
 /**
- * 1. Retrieve Cabin Configuration & Available Classes
+ * Helper to normalize cabin code strings from API responses
+ */
+function normalizeCabinCode(str: string): CabinCode | null {
+  if (!str) return null;
+  const s = str.toUpperCase().trim().replace(/[^A-Z]/g, '');
+  if (s === 'SUITES' || s === 'SUITE' || s === 'R') return 'SUITES';
+  if (s === 'FIRST' || s === 'FIRSTCLASS' || s === 'F') return 'FIRST';
+  if (s === 'BUSINESS' || s === 'BUSINESSCLASS' || s === 'J' || s === 'C') return 'BUSINESS';
+  if (s === 'PREMIUMECONOMY' || s === 'PREMIUM' || s === 'PREMECON' || s === 'S' || s === 'W') return 'PREMIUM_ECONOMY';
+  if (s === 'ECONOMY' || s === 'ECONOMYCLASS' || s === 'Y') return 'ECONOMY';
+  return null;
+}
+
+/**
+ * Clean HTML entities and markup from API text strings
+ */
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Fetch raw live menu payload from Singapore Airlines Live Feed
+ */
+async function fetchLiveFeed(flightNo: string, dateISO: string): Promise<any | null> {
+  const num = normalizeFlightNumber(flightNo);
+  if (!num) return null;
+
+  const endpoints = [
+    `${SQ_CONFIG.LIVE_MENU_API}?flightNo=SQ${num}&date=${dateISO}`,
+    `${SQ_CONFIG.PROXY_MENU_API}?flightNo=SQ${num}&date=${dateISO}`,
+    `${SQ_CONFIG.ALT_MENU_API}?flightNo=SQ${num}&date=${dateISO}`,
+    `${SQ_CONFIG.LIVE_MENU_API}?flightNumber=SQ${num}&departureDate=${dateISO}`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && (json.response || json.data || json.flight || json.menus || json.cabins || Array.isArray(json))) {
+          return json;
+        }
+      }
+    } catch {
+      // Continue to next endpoint
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 1. Retrieve Cabin Configuration & Available Classes (Live SIA Feed + Fallback)
  */
 export async function getCabinConfig(flightNo: string, dateISO: string): Promise<CabinConfig> {
   const num = normalizeFlightNumber(flightNo);
+  if (!num) {
+    return { flightNo: '', date: dateISO, available: [], aircraftType: '' };
+  }
+
   const cacheKey = `cabin_${num}_${dateISO}`;
   const cached = sqCache.get<CabinConfig>(cacheKey);
   if (cached) return cached;
 
-  // Try network fetch to proxy if configured
+  // 1. Try Live Singapore Airlines Feed
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const res = await fetch(`${SQ_CONFIG.SQ_CABIN_FEED}?flightNo=SQ${num}&date=${dateISO}`, {
-      signal: controller.signal,
-      headers: { 'Accept': 'application/json' }
-    });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && Array.isArray(data.available)) {
-        sqCache.set(cacheKey, data, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
-        return data;
+    const rawData = await fetchLiveFeed(num, dateISO);
+    if (rawData) {
+      const rawCabins: string[] = [];
+      let detectedAircraft = '';
+
+      // Parse payload structures
+      const root = rawData.response || rawData.data || rawData;
+      
+      if (root.aircraftType || root.aircraft || root.flight?.aircraft) {
+        detectedAircraft = root.aircraftType || root.aircraft || root.flight?.aircraft || '';
+      }
+
+      if (Array.isArray(root.cabins)) {
+        root.cabins.forEach((c: any) => {
+          if (typeof c === 'string') rawCabins.push(c);
+          else if (c?.name || c?.code || c?.cabinClass) rawCabins.push(c.name || c.code || c.cabinClass);
+        });
+      } else if (root.menus && typeof root.menus === 'object') {
+        Object.keys(root.menus).forEach((k) => rawCabins.push(k));
+      } else if (root.cabinClasses && Array.isArray(root.cabinClasses)) {
+        root.cabinClasses.forEach((c: any) => rawCabins.push(c.name || c.code || c));
+      }
+
+      const availableCodes = Array.from(
+        new Set(
+          rawCabins
+            .map((c) => normalizeCabinCode(c))
+            .filter((c): c is CabinCode => c !== null)
+        )
+      );
+
+      if (availableCodes.length > 0) {
+        const result: CabinConfig = {
+          flightNo: `SQ${num}`,
+          date: dateISO,
+          available: availableCodes,
+          aircraftType: detectedAircraft || (availableCodes.includes('SUITES') ? 'Airbus A380-800' : 'Airbus A350-900'),
+        };
+        sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
+        return result;
       }
     }
-  } catch {
-    // Network or CORS blocked -> fallback to authoritative route database
+  } catch (err) {
+    console.warn('Live cabin feed parse skipped:', err);
   }
 
-  // Authoritative fallback
+  // 2. Authoritative Fallback Route Database
   const route = ROUTE_DATABASE[num];
   let available: CabinCode[] = ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'];
   let aircraftType = 'Airbus A350-900';
@@ -310,11 +417,10 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
     available = route.cabins;
     aircraftType = route.aircraft;
   } else {
-    // Standard heuristics for other flights
     const n = parseInt(num, 10);
     if (n < 50 || (n >= 300 && n <= 340)) {
-      available = ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'];
-      aircraftType = 'Airbus A350-900';
+      available = ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'];
+      aircraftType = 'Airbus A380-800';
     } else if (n >= 800 && n <= 990) {
       available = ['BUSINESS', 'ECONOMY'];
       aircraftType = 'Boeing 787-10 Dreamliner';
@@ -336,14 +442,58 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
 }
 
 /**
- * 2. Retrieve Flight Schedule & Timings
+ * 2. Retrieve Flight Schedule & Timings (Live SIA Feed + Fallback)
  */
 export async function getFlightSchedule(flightNo: string, dateISO: string): Promise<FlightSchedule> {
   const num = normalizeFlightNumber(flightNo);
+  if (!num) {
+    return { flightNo: '', date: dateISO, sectors: [] };
+  }
+
   const cacheKey = `schedule_${num}_${dateISO}`;
   const cached = sqCache.get<FlightSchedule>(cacheKey);
   if (cached) return cached;
 
+  // 1. Try Live Singapore Airlines Feed
+  try {
+    const rawData = await fetchLiveFeed(num, dateISO);
+    if (rawData) {
+      const root = rawData.response || rawData.data || rawData;
+      const sectors: Sector[] = [];
+      const aircraft = root.aircraftType || root.aircraft || root.flight?.aircraft || '';
+
+      if (Array.isArray(root.sectors) && root.sectors.length > 0) {
+        root.sectors.forEach((s: any) => {
+          sectors.push({
+            from: s.origin || s.from || 'SIN',
+            fromCity: s.originCity || s.fromCity || '',
+            to: s.destination || s.to || '',
+            toCity: s.destinationCity || s.toCity || '',
+            depLocal: s.departureTime || s.depTime || s.std || '09:00',
+            depDateLocal: s.departureDate || dateISO,
+            arrLocal: s.arrivalTime || s.arrTime || s.sta || '17:00',
+            arrDateLocal: s.arrivalDate || dateISO,
+            blockMinutes: s.blockMinutes || s.durationMinutes || 480,
+          });
+        });
+      }
+
+      if (sectors.length > 0) {
+        const scheduleResult: FlightSchedule = {
+          flightNo: `SQ${num}`,
+          date: dateISO,
+          sectors,
+          aircraftType: aircraft || 'Airbus A350-900',
+        };
+        sqCache.set(cacheKey, scheduleResult, SQ_CONFIG.CACHE_TTL_SCHEDULE);
+        return scheduleResult;
+      }
+    }
+  } catch (err) {
+    console.warn('Live schedule feed parse skipped:', err);
+  }
+
+  // 2. Authoritative Fallback
   const route = ROUTE_DATABASE[num];
   let sectors: Sector[] = [];
   let aircraftType = 'Airbus A350-900';
@@ -372,7 +522,6 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
       ];
     }
   } else {
-    // Generate calculated sector details for any valid flight number
     const n = parseInt(num, 10);
     const isOutbound = n % 2 === 0;
     const dest = isOutbound ? 'LHR' : 'SIN';
@@ -407,7 +556,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
 }
 
 /**
- * 3. Retrieve Inflight Dining & Drinks Menu
+ * 3. Retrieve Inflight Dining & Drinks Menu (Live SIA Feed + Rich Authentic Fallback)
  */
 export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCode): Promise<MenuData> {
   const num = normalizeFlightNumber(flightNo);
@@ -415,7 +564,149 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
   const cached = sqCache.get<MenuData>(cacheKey);
   if (cached) return cached;
 
-  // Build authentic Singapore Airlines Dining Course Sections
+  // 1. Try Live Singapore Airlines Feed
+  try {
+    const rawData = await fetchLiveFeed(num, dateISO);
+    if (rawData) {
+      const parsed = parseLiveSiaMenu(rawData, num, dateISO, cabin);
+      if (parsed && parsed.sections.length > 0) {
+        sqCache.set(cacheKey, parsed, SQ_CONFIG.CACHE_TTL_MENU);
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Live menu feed parsing error:', err);
+  }
+
+  // 2. Build Authentic Singapore Airlines Dining & Beverage Dataset
+  const generated = generateAuthenticSiaMenu(num, dateISO, cabin);
+  sqCache.set(cacheKey, generated, SQ_CONFIG.CACHE_TTL_MENU);
+  return generated;
+}
+
+/**
+ * Parse live JSON response from `cifp.auto.prod.c0.singaporeair.com/api/menu`
+ */
+function parseLiveSiaMenu(raw: any, flightNo: string, dateISO: string, targetCabin: CabinCode): MenuData | null {
+  try {
+    const root = raw.response || raw.data || raw;
+    const diningSections: MenuSection[] = [];
+    const drinksSections: MenuSection[] = [];
+
+    // Find the matching cabin block
+    let cabinData: any = null;
+    if (root.menus && typeof root.menus === 'object') {
+      for (const [k, v] of Object.entries(root.menus)) {
+        if (normalizeCabinCode(k) === targetCabin) {
+          cabinData = v;
+          break;
+        }
+      }
+    } else if (Array.isArray(root.cabinClasses || root.cabins)) {
+      const arr = root.cabinClasses || root.cabins;
+      cabinData = arr.find((c: any) => normalizeCabinCode(c.name || c.code || c.cabinClass) === targetCabin);
+    } else if (Array.isArray(root.mealServices || root.services)) {
+      cabinData = root;
+    }
+
+    if (cabinData) {
+      const services = cabinData.mealServices || cabinData.services || cabinData.meals || (Array.isArray(cabinData) ? cabinData : []);
+
+      // Extract Meal Services & Courses
+      if (Array.isArray(services)) {
+        services.forEach((service: any, sIdx: number) => {
+          const serviceTitle = service.name || service.title || service.mealType || `Meal Service ${sIdx + 1}`;
+          const courses = service.courses || service.sections || [service];
+
+          courses.forEach((course: any, cIdx: number) => {
+            const courseTitle = course.name || course.title || serviceTitle;
+            const rawItems = course.items || course.dishes || course.options || [];
+
+            const items: MenuItem[] = [];
+            rawItems.forEach((it: any, iIdx: number) => {
+              const title = stripHtml(it.name || it.title || it.dishName || '');
+              if (title) {
+                const desc = stripHtml(it.description || it.details || it.ingredients || '');
+                const tags: string[] = [];
+                if (it.signature || it.isSignature) tags.push('Signature');
+                if (it.halal || it.isHalal) tags.push('Halal');
+                if (it.bookTheCook || it.isBookTheCook) tags.push('Book the Cook');
+                if (it.tags && Array.isArray(it.tags)) {
+                  it.tags.forEach((t: string) => tags.push(stripHtml(t)));
+                }
+
+                items.push({
+                  id: `${targetCabin.toLowerCase()}_sec_${sIdx}_${cIdx}_${iIdx}`,
+                  title,
+                  description: desc || undefined,
+                  tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
+                  imageUrl: it.imageUrl || it.image || it.photo || undefined,
+                });
+              }
+            });
+
+            if (items.length > 0) {
+              diningSections.push({
+                id: `sec_${sIdx}_${cIdx}`,
+                title: courseTitle,
+                items,
+              });
+            }
+          });
+        });
+      }
+
+      // Extract Beverages / Drinks
+      const beverages = cabinData.beverages || cabinData.drinks || root.beverages || root.drinks || [];
+      if (Array.isArray(beverages)) {
+        beverages.forEach((bevCategory: any, bIdx: number) => {
+          const catTitle = bevCategory.name || bevCategory.title || 'Beverages';
+          const bevItems = bevCategory.items || bevCategory.drinks || [];
+
+          const items: MenuItem[] = [];
+          bevItems.forEach((it: any, iIdx: number) => {
+            const title = stripHtml(it.name || it.title || '');
+            if (title) {
+              items.push({
+                id: `bev_${bIdx}_${iIdx}`,
+                title,
+                description: stripHtml(it.description || it.vintage || '') || undefined,
+                tags: it.tags || [catTitle],
+              });
+            }
+          });
+
+          if (items.length > 0) {
+            drinksSections.push({
+              id: `bev_sec_${bIdx}`,
+              title: catTitle,
+              items,
+            });
+          }
+        });
+      }
+    }
+
+    if (diningSections.length > 0) {
+      return {
+        flightNo: `SQ${flightNo}`,
+        date: dateISO,
+        cabin: targetCabin,
+        sections: diningSections,
+        drinks: drinksSections.length > 0 ? drinksSections : generateBeverageSection(targetCabin),
+      };
+    }
+  } catch (err) {
+    console.warn('Error parsing live SIA payload:', err);
+  }
+
+  return null;
+}
+
+/**
+ * Generate full authentic Singapore Airlines dining & beverage courses
+ */
+function generateAuthenticSiaMenu(num: string, dateISO: string, cabin: CabinCode): MenuData {
   const diningSections: MenuSection[] = [];
 
   if (cabin === 'SUITES' || cabin === 'FIRST') {
@@ -646,7 +937,7 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
         items: [
           {
             id: 'ice_cream_econ',
-            title: 'Mini Magum Vanilla Ice Cream Bar',
+            title: 'Mini Magnum Vanilla Ice Cream Bar',
             description: 'Classic Belgian chocolate coating with velvety vanilla ice cream.',
             imageUrl: 'https://images.unsplash.com/photo-1497034825429-c343d7c6a68f?w=160&auto=format&fit=crop&q=80',
           }
@@ -655,8 +946,20 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
     );
   }
 
-  // Curated Drinks Menu (Wine, Champagne, Tea, Coffee)
-  const drinksSections: MenuSection[] = [
+  return {
+    flightNo: `SQ${num}`,
+    date: dateISO,
+    cabin,
+    sections: diningSections,
+    drinks: generateBeverageSection(cabin),
+  };
+}
+
+/**
+ * Generate Singapore Airlines fine beverage sections
+ */
+function generateBeverageSection(cabin: CabinCode): MenuSection[] {
+  return [
     {
       id: 'champagnes_wines',
       title: 'Champagne & Fine Wines',
@@ -688,7 +991,7 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
         {
           id: 'sling_1',
           title: 'Singapore Sling',
-          description: 'Dry gin, cherry brandy, Cointreau, Benedictine, pineapple juice, and Angostura bitters.',
+          description: 'Dry gin, cherry brandy, Cointreau, Bénédictine, pineapple juice, and Angostura bitters.',
           tags: ['Signature Cocktail'],
         },
         {
@@ -718,15 +1021,4 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
       ]
     }
   ];
-
-  const result: MenuData = {
-    flightNo: `SQ${num}`,
-    date: dateISO,
-    cabin,
-    sections: diningSections,
-    drinks: drinksSections,
-  };
-
-  sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_MENU);
-  return result;
 }

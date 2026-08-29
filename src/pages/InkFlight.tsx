@@ -47,8 +47,8 @@ export const InkFlight: React.FC = () => {
   // Screen Stages: 'form' | 'loading' | 'editor'
   const [stage, setStage] = useState<'form' | 'loading' | 'editor'>('form');
 
-  // Flight validation
-  const validation = useFlightValidation(navState?.flightNo || '322');
+  // Flight validation — start with EMPTY input unless passed from nav state
+  const validation = useFlightValidation(navState?.flightNo || '');
   const [dateISO, setDateISO] = useState<string>(initialTodayISO);
   const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
@@ -57,10 +57,10 @@ export const InkFlight: React.FC = () => {
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>(
     navState?.cabins && navState.cabins.length > 0
       ? navState.cabins
-      : ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY']
+      : []
   );
   const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
-    navState?.cabins && navState.cabins.length > 0 ? navState.cabins : ['BUSINESS']
+    navState?.cabins && navState.cabins.length > 0 ? navState.cabins : []
   );
 
   // InkFlight Editor State
@@ -94,10 +94,10 @@ export const InkFlight: React.FC = () => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
         setAvailableCabins(config.available);
-        if (selectedCabins.length === 0 || !selectedCabins.some((c) => config.available.includes(c))) {
+        if (config.available.length > 0) {
           if (config.available.includes('BUSINESS')) {
             setSelectedCabins(['BUSINESS']);
-          } else if (config.available.length > 0) {
+          } else {
             setSelectedCabins([config.available[0]]);
           }
         }
@@ -142,7 +142,7 @@ export const InkFlight: React.FC = () => {
     setStage('editor');
   };
 
-  // Auto-start fetch if navigated from SkyMenu
+  // Auto-start fetch if navigated with full parameters
   useEffect(() => {
     if (navState?.flightNo && navState?.dateISO && stage === 'form') {
       handleStartFetch();
