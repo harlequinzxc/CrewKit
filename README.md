@@ -1,22 +1,18 @@
 # CrewKit — Singapore Airlines Cabin Crew Progressive Web App (PWA)
 
 > **Current Version:** `v0.1.0` (Chunk 1: Project Scaffold)  
-> **Status:** Hollow Shell &amp; PWA Scaffold — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.  
+> **Status:** Editorial "Quiet Luxury" Hollow Shell &amp; PWA Scaffold — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.  
 > **Active Working Branch:** `arena/01a04e46-crewkit`
 
 ---
 
-## Overview
+## Brand Identity & Logo Specification
 
-**CrewKit** is an editorial, "quiet luxury" Progressive Web App (PWA) designed exclusively for Singapore Airlines cabin crew. Designed with refined typography, hairline gold accents, generous negative space, and single-viewport ergonomics, CrewKit provides immediate offline access to essential inflight tools without unnecessary bloat or complexity.
-
----
-
-## Development & Deployment Workflow
-
-- **Arena Session Branch:** All chunk developments, commits, and pushes are made directly to the active session branch `arena/01a04e46-crewkit`.
-- **Vercel Preview URL:** Pushing to `arena/01a04e46-crewkit` triggers automated preview builds on Vercel for testing and visual QA.
-- **Merge to Main:** After verifying the Vercel preview deployment for the completed chunk, changes are manually merged into `main` before progressing to subsequent chunks.
+- **Mark:** Rounded square (`radius: 24%`), filled with `#0B1E3E` (deep navy), containing a champagne-gold geometric abstract paper plane (`#C9A84C`) with slight ascent to the top-right.
+- **Wordmark:** `Inter SemiBold` — "Crew" in `--text-primary`, "Kit" in `--accent` gold. (No serif in logo).
+- **Nav Lockup:** `[mark 28px] [10px gap] [wordmark]` positioned in the top-left header across all pages.
+- **PWA Icons & Favicon:** 192×192 &amp; 512×512 PNG icons (including 80% safe-zone maskable variants), SVG vector favicon, and `.ico` generated with exact geometry.
+- **Strict Brand Constraints:** No SQ branding, no realistic aircraft vectors, no gradient fills on the icon, and no serif font in the logo.
 
 ---
 
@@ -50,20 +46,17 @@
 - **Single Viewport, Zero Scrolling:** Every page is structured with flexbox/grid containers locked to `100dvh` / `100vh` (`overflow-hidden`), guaranteeing zero accidental scrolling on iOS, Android, or desktop.
 - **Editorial Typography:** Google Fonts *Playfair Display* for elegant display headings and *Inter* for crisp, high-legibility UI labels.
 - **Color Palette (CSS Variables):**
-  - **Dark Mode (Default):** Deep near-black navy (`#070B14`), card surface (`#121826`), recessed wells (`#1A2234`), champagne gold accents (`#C9A84C`), soft gold highlights (`#E8D5A3`), and ivory text (`#F0ECE4`).
+  - **Dark Mode (Default):** Deep near-black navy (`#070B14`), card surface (`#121826`), recessed wells (`#161E30`), champagne gold accents (`#C9A84C`), soft gold highlights (`#E8D5A3`), and ivory text (`#F0ECE4`).
   - **Light Mode:** Warm paper (`#F5F2EB`), white surface (`#FFFFFF`), warm recessed wells (`#EAE5D9`), deep navy text (`#0B1E3E`), and rich gold accent (`#A88B2E`).
 - **Pill CTAs & Touch Targets:** All interactive elements feature minimum 44×44px hit targets with subtle tactile feedback (`scale(0.98)` on active press).
 
 ---
 
-## Tech Stack
+## Development & Deployment Workflow
 
-- **Framework:** React 18 + TypeScript
-- **Bundler & Tooling:** Vite 6
-- **Styling:** Tailwind CSS 3.4 + Custom CSS Variables
-- **Icons:** Lucide React
-- **Routing:** React Router DOM (client-side single page app)
-- **PWA Capabilities:** Standalone Manifest (`manifest.json`), Offline App Shell Caching (`sw.js`), Apple Web App meta tags, and SVG/PNG icon suite.
+- **Arena Session Branch:** All chunk developments, commits, and pushes are made directly to the active session branch `arena/01a04e46-crewkit`.
+- **Vercel Preview URL:** Pushing to `arena/01a04e46-crewkit` triggers automated preview builds on Vercel for testing and visual QA.
+- **Merge to Main:** After verifying the Vercel preview deployment for the completed chunk, changes are manually merged into `main` before progressing to subsequent chunks.
 
 ---
 
@@ -121,7 +114,7 @@ npm run preview
 CrewKit/
 ├── public/
 │   ├── favicon.ico             # 64x64 favicon
-│   ├── favicon.svg             # Vector luxury SVG favicon
+│   ├── favicon.svg             # Geometric paper plane SVG favicon
 │   ├── manifest.json           # PWA web app manifest
 │   ├── sw.js                   # App shell service worker cache
 │   └── icons/
@@ -137,9 +130,10 @@ CrewKit/
 │   ├── components/
 │   │   ├── BackButton.tsx      # Circular navigation back button
 │   │   ├── Layout.tsx          # Viewport shell with header, menu & version
+│   │   ├── Logo.tsx            # Geometric paper plane mark & Inter wordmark
 │   │   ├── NavCard.tsx         # Home 2x2 luxury action cards
 │   │   ├── ThemeToggle.tsx     # Reactive light/dark theme switch
-│   │   └── WizardStepper.tsx   # Reusable step indicator
+│   │   └── WizardStepper.tsx   # Reusable whisper step indicator
 │   ├── context/
 │   │   └── ThemeContext.tsx    # Theme provider with localStorage persistence
 │   ├── hooks/
@@ -174,5 +168,3 @@ CrewKit/
 | **Chunk 3** | `v0.3.0` | **SkyMenu Integration** — SIA flight menu data parsing, course display & filtering | *Planned* |
 | **Chunk 4** | `v0.4.0` | **InkFlight Formatter Engine** — Thermal printer layouts, slip customizer, multi-format export | *Planned* |
 | **Chunk 5** | `v1.0.0` | **Settings, Persistence & Offline Sync** — Local storage rates editor, JSON sync, full production release | *Planned* |
-
-> *Note: This repository represents Chunk 1 (Project Scaffold). All pages and UI steppers are fully navigable with live theme switching.*

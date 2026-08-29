@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { APP_VERSION, APP_NAME } from '../config/version';
+import { Logo } from './Logo';
 import {
   Menu,
   X,
@@ -8,7 +9,6 @@ import {
   SunMoon,
   MessageCircle,
   Settings,
-  Send,
   ExternalLink
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
@@ -38,22 +38,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         {/* Simplified Editorial Top Bar */}
         <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">
-          {/* LEFT: Logo mark + Wordmark */}
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 group focus:outline-none"
-            aria-label="CrewKit Home"
-          >
-            {/* Origami Paper Plane Emblem */}
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-accent group-hover:scale-105 transition-transform">
-              <Send className="w-5 h-5 text-accent rotate-[-20deg] drop-shadow-[0_2px_8px_rgba(201,168,76,0.3)]" strokeWidth={1.8} />
-            </div>
-            <div className="flex items-baseline">
-              <span className="font-serif text-xl tracking-tight text-text-primary">
-                Crew<span className="text-accent italic font-normal ml-0.5">Kit</span>
-              </span>
-            </div>
-          </Link>
+          {/* LEFT: Nav lockup [mark 28px] [10px gap] [wordmark] */}
+          <Logo to="/" size="sm" />
 
           {/* RIGHT: Single Circular Ghost Hamburger Button */}
           <button
