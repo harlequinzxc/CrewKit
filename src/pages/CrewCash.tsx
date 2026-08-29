@@ -1,221 +1,344 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { WizardStepper, StepItem } from '../components/WizardStepper';
-import {
-  ArrowRight,
-  ArrowLeft,
-  Clock,
-  DollarSign,
-  MapPin,
-  Sparkles
-} from 'lucide-react';
+import { FlightNumberInput } from '../components/FlightNumberInput';
+import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
+import { RevealCTA } from '../components/RevealCTA';
+import { FlightChip } from '../components/FlightChip';
+import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
+import { useFlightValidation } from '../hooks/useFlightValidation';
+import { getFlightSchedule } from '../lib/sq/endpoints';
+import { FlightSchedule } from '../lib/sq/types';
+import { ArrowRight, Plane, Wallet, RotateCcw } from 'lucide-react';
 
-const STEPS: StepItem[] = [
-  { id: 1, label: 'Flight Input' },
-  { id: 2, label: 'Sector Overview' },
-  { id: 3, label: 'Breakdown' },
+const CREWCASH_MESSAGES: InterludeMessage[] = [
+  { text: 'Checking flight time with Tech Crew…', durationMs: 2000 },
+  { text: 'Checking arrival time with Tech Crew…', durationMs: 2000 },
+  { text: 'Checking departure time…', durationMs: 2000 },
+  { text: 'Almost ready…', durationMs: 2000 },
 ];
 
+function formatBlockTime(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 export const CrewCash: React.FC = () => {
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [flightNo, setFlightNo] = useState<string>('12');
+  const navigate = useNavigate();
+  const initialTodayISO = getTodayISO();
+  const initialTodayDisplay = formatDateDisplay(initialTodayISO);
 
-  const handleNext = () => {
-    if (currentStep < 3) setCurrentStep(currentStep + 1);
+  // Wizard States: 'outbound' -> 'inbound' -> 'loading' -> 'result'
+  const [stage, setStage] = useState<'outbound' | 'inbound' | 'loading' | 'result'>('outbound');
+
+  // Step 1: Outbound
+  const outboundValidation = useFlightValidation('322');
+  const [outboundDateISO, setOutboundDateISO] = useState<string>(initialTodayISO);
+  const [outboundDateDisplay, setOutboundDateDisplay] = useState<string>(initialTodayDisplay);
+
+  // Step 2: Inbound
+  const inboundValidation = useFlightValidation('321');
+  const [inboundDateISO, setInboundDateISO] = useState<string>(initialTodayISO);
+  const [inboundDateDisplay, setInboundDateDisplay] = useState<string>(initialTodayDisplay);
+
+  // Results
+  const [outboundSchedule, setOutboundSchedule] = useState<FlightSchedule | null>(null);
+  const [inboundSchedule, setInboundSchedule] = useState<FlightSchedule | null>(null);
+
+  // Handle Step 1 -> Step 2
+  const handleProceedToInbound = () => {
+    const num = parseInt(outboundValidation.flightNo, 10);
+    if (!isNaN(num) && (!inboundValidation.flightNo || inboundValidation.flightNo === '321')) {
+      const returnNum = num % 2 === 0 ? (num - 1).toString() : (num + 1).toString();
+      inboundValidation.setFlightNo(returnNum);
+    }
+    setStage('inbound');
   };
 
-  const handlePrev = () => {
-    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  // Trigger Full-Screen Fetch Interlude
+  const handleStartCalculation = () => {
+    setStage('loading');
   };
+
+  const executeSchedulesFetch = async () => {
+    const [outSched, inSched] = await Promise.all([
+      getFlightSchedule(outboundValidation.flightNo, outboundDateISO),
+      getFlightSchedule(inboundValidation.flightNo, inboundDateISO),
+    ]);
+    return { outSched, inSched };
+  };
+
+  const handleFetchSuccess = (data: { outSched: FlightSchedule; inSched: FlightSchedule }) => {
+    setOutboundSchedule(data.outSched);
+    setInboundSchedule(data.inSched);
+    setStage('result');
+  };
+
+  const handleReset = () => {
+    setStage('outbound');
+  };
+
+  const flightChipSummary = `SQ${outboundValidation.cleanFlightNo} → SQ${inboundValidation.cleanFlightNo} · ${outboundDateDisplay} → ${inboundDateDisplay}`;
 
   return (
     <Layout>
-      <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
-        
-        {/* Whisper Stepper */}
-        <div className="shrink-0 mt-0.5">
-          <WizardStepper
-            steps={STEPS}
-            currentStep={currentStep}
-            onStepClick={(id) => setCurrentStep(id)}
-          />
-        </div>
+      {/* 1. LOADING INTERLUDE (8s Minimum Duration) */}
+      {stage === 'loading' && (
+        <FetchInterlude
+          flightChipText={flightChipSummary}
+          messages={CREWCASH_MESSAGES}
+          fetchTask={executeSchedulesFetch}
+          onSuccess={handleFetchSuccess}
+        />
+      )}
 
-        {/* Generous empty top spacer */}
-        <div className="flex-1 max-h-16 sm:max-h-24" />
+      {/* 2. STEP 1: OUTBOUND FORM */}
+      {stage === 'outbound' && (
+        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
+          <div className="flex-1 max-h-12 sm:max-h-16" />
 
-        {/* Editorial Hero & Form Group (Lower-Middle Viewport) */}
-        <div className="w-full my-auto flex flex-col items-center text-center">
-          
-          {/* STEP 1: Flight Input */}
-          {currentStep === 1 && (
-            <div className="w-full max-w-sm mx-auto flex flex-col items-center animate-fade-in">
-              <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
-                Flight Roster,
-              </span>
+          {/* Editorial Hero Block */}
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
+            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+              Departing,
+            </span>
 
-              <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
-                Calculate your allowance.
-              </h2>
+            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+              Singapore to station.
+            </h2>
 
-              {/* Form Input Group (Directly on background, NO card) */}
-              <div className="w-full mt-7 sm:mt-8 text-left">
-                <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2.5">
-                  Flight Number
-                </label>
+            {/* Pattern A: Flight Number Input */}
+            <div className="w-full mt-7 text-left">
+              <FlightNumberInput
+                value={outboundValidation.flightNo}
+                onChange={outboundValidation.setFlightNo}
+                isValid={outboundValidation.isValid}
+                isChecking={outboundValidation.isChecking}
+                error={outboundValidation.error}
+                placeholder="3 2 2"
+              />
+            </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-well bg-bg-elevated border border-border-subtle flex items-center justify-center text-accent font-semibold text-base tracking-wider shadow-sm shrink-0">
-                    SQ
-                  </div>
-
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={flightNo}
-                      onChange={(e) => setFlightNo(e.target.value)}
-                      placeholder="1 2"
-                      className="w-full h-14 px-4 rounded-well bg-bg-elevated border border-border-subtle text-text-primary placeholder:text-text-tertiary text-lg tracking-[0.15em] font-medium focus:outline-none focus:border-accent/80 focus:ring-1 focus:ring-accent/50 transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Route Chain Whisper Node */}
-                <div className="mt-4 p-3 rounded-well bg-bg-elevated/70 border border-border-subtle flex items-center justify-between text-xs">
-                  <span className="font-semibold text-accent">SIN</span>
-                  <ArrowRight className="w-3 h-3 text-text-tertiary" />
-                  <span className="text-text-primary">NRT</span>
-                  <ArrowRight className="w-3 h-3 text-text-tertiary" />
-                  <span className="text-text-primary">LAX</span>
-                  <ArrowRight className="w-3 h-3 text-text-tertiary" />
-                  <span className="text-text-primary">NRT</span>
-                  <ArrowRight className="w-3 h-3 text-text-tertiary" />
-                  <span className="font-semibold text-accent">SIN</span>
-                </div>
+            {/* Pattern B: Departure Block */}
+            {outboundValidation.isValid && outboundValidation.flightNo.length > 0 && (
+              <div className="w-full mt-5 text-left">
+                <DepartureBlock
+                  selectedDateISO={outboundDateISO}
+                  onDateSelect={(iso, display) => {
+                    setOutboundDateISO(iso);
+                    setOutboundDateDisplay(display);
+                  }}
+                />
               </div>
+            )}
+          </div>
+
+          <div className="flex-1 max-h-12 sm:max-h-16" />
+
+          {/* Pattern C: Progression CTA */}
+          {outboundValidation.isValid && outboundValidation.flightNo.length > 0 && outboundDateISO && (
+            <div className="shrink-0 pb-2">
+              <RevealCTA
+                label="Proceed"
+                icon={ArrowRight}
+                summary={`SQ${outboundValidation.cleanFlightNo} · ${outboundDateDisplay}`}
+                onPress={handleProceedToInbound}
+              />
             </div>
           )}
+        </div>
+      )}
 
-          {/* STEP 2: Sector Overview */}
-          {currentStep === 2 && (
-            <div className="w-full max-w-sm mx-auto flex flex-col items-center animate-fade-in">
-              <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
-                Duty Sectors,
-              </span>
+      {/* 3. STEP 2: INBOUND FORM */}
+      {stage === 'inbound' && (
+        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
+          {/* Top Outbound Summary Chip (Tappable to edit) */}
+          <div className="shrink-0 text-center pt-1">
+            <FlightChip
+              label={`Outbound · SQ${outboundValidation.cleanFlightNo} · ${outboundDateDisplay}`}
+              onClick={() => setStage('outbound')}
+            />
+          </div>
 
-              <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
-                Here is your journey.
-              </h2>
+          <div className="flex-1 max-h-8 sm:max-h-12" />
 
-              {/* Sector Cards Stack (Clean without heavy borders) */}
-              <div className="w-full mt-5 space-y-2 text-left">
-                {[
-                  { route: 'SIN → NRT', time: '6h 45m', loc: 'Tokyo (24h layover)', rate: '$140' },
-                  { route: 'NRT → LAX', time: '9h 55m', loc: 'Los Angeles (48h layover)', rate: '$180' },
-                  { route: 'LAX → NRT', time: '11h 20m', loc: 'Tokyo (24h layover)', rate: '$140' },
-                  { route: 'NRT → SIN', time: '7h 15m', loc: 'Singapore Base', rate: 'Base' },
-                ].map((s, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 rounded-well bg-bg-elevated border border-border-subtle flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-5 h-5 rounded-full bg-accent/15 text-accent text-[10px] font-bold flex items-center justify-center">
-                        {idx + 1}
+          {/* Editorial Hero Block */}
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
+            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+              Returning,
+            </span>
+
+            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+              Station back to Singapore.
+            </h2>
+
+            {/* Inbound Flight Number Input */}
+            <div className="w-full mt-6 text-left">
+              <FlightNumberInput
+                value={inboundValidation.flightNo}
+                onChange={inboundValidation.setFlightNo}
+                isValid={inboundValidation.isValid}
+                isChecking={inboundValidation.isChecking}
+                error={inboundValidation.error}
+                placeholder="3 2 1"
+              />
+            </div>
+
+            {/* Inbound Departure Block */}
+            {inboundValidation.isValid && inboundValidation.flightNo.length > 0 && (
+              <div className="w-full mt-5 text-left">
+                <DepartureBlock
+                  selectedDateISO={inboundDateISO}
+                  onDateSelect={(iso, display) => {
+                    setInboundDateISO(iso);
+                    setInboundDateDisplay(display);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 max-h-8 sm:max-h-12" />
+
+          {/* Calculate CTA */}
+          {inboundValidation.isValid && inboundValidation.flightNo.length > 0 && inboundDateISO && (
+            <div className="shrink-0 pb-2">
+              <RevealCTA
+                label="Calculate"
+                icon={<Wallet className="w-4 h-4 text-[#0B1E3E]" />}
+                summary={`SQ${inboundValidation.cleanFlightNo} · ${inboundDateDisplay}`}
+                onPress={handleStartCalculation}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. RESULT SCREEN (Single Viewport) */}
+      {stage === 'result' && outboundSchedule && inboundSchedule && (
+        <div className="flex flex-col justify-between h-full py-2 animate-fade-in">
+          {/* Flight Chip at top */}
+          <div className="shrink-0 text-center pt-1">
+            <FlightChip label={flightChipSummary} />
+          </div>
+
+          {/* Sector Cards Stack */}
+          <div className="my-auto w-full max-w-md mx-auto space-y-3 px-1">
+            
+            {/* Outbound Journey Card */}
+            <div className="p-4 rounded-card bg-bg-surface border border-border-subtle shadow-sm">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle/60 text-xs">
+                <span className="font-semibold text-accent tracking-wider uppercase text-[10px]">
+                  Outbound Flight
+                </span>
+                <span className="font-mono text-text-secondary text-[11px]">
+                  {outboundSchedule.flightNo} &bull; {outboundSchedule.aircraftType}
+                </span>
+              </div>
+
+              {outboundSchedule.sectors.map((sec, idx) => (
+                <div key={idx} className={idx > 0 ? 'mt-3 pt-3 border-t border-border-subtle/40' : ''}>
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <span className="text-xs text-text-secondary block">{sec.fromCity || sec.from}</span>
+                      <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
+                        {sec.from}
                       </span>
-                      <div>
-                        <span className="text-xs font-semibold text-text-primary">{s.route}</span>
-                        <span className="text-[10px] text-text-secondary ml-2">{s.time}</span>
-                        <span className="text-[10px] text-text-tertiary block flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-2.5 h-2.5" /> {s.loc}
-                        </span>
-                      </div>
+                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                        {sec.depLocal}
+                      </span>
                     </div>
-                    <span className="text-xs font-mono text-accent font-medium">{s.rate}</span>
+
+                    <div className="flex flex-col items-center px-3">
+                      <Plane className="w-4 h-4 text-accent rotate-90 my-1" strokeWidth={1.8} />
+                      <span className="font-serif italic text-accent text-xs">
+                        {formatBlockTime(sec.blockMinutes)}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-xs text-text-secondary block">{sec.toCity || sec.to}</span>
+                      <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
+                        {sec.to}
+                      </span>
+                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                        {sec.arrLocal}
+                      </span>
+                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          )}
 
-          {/* STEP 3: Allowance Breakdown */}
-          {currentStep === 3 && (
-            <div className="w-full max-w-sm mx-auto flex flex-col items-center animate-fade-in">
-              <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
-                Summary,
-              </span>
-
-              <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
-                Your estimated payout.
-              </h2>
-
-              <div className="w-full mt-5 space-y-2.5 text-left">
-                <div className="p-3 rounded-well bg-bg-elevated border border-border-subtle flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Clock className="w-4 h-4 text-accent" />
-                    <span className="text-xs font-medium text-text-primary">Inflight Hourly Allowance</span>
-                  </div>
-                  <span className="font-mono text-sm font-semibold text-text-primary">$0.00</span>
-                </div>
-
-                <div className="p-3 rounded-well bg-bg-elevated border border-border-subtle flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <DollarSign className="w-4 h-4 text-accent" />
-                    <span className="text-xs font-medium text-text-primary">Station Meal Per Diem</span>
-                  </div>
-                  <span className="font-mono text-sm font-semibold text-text-primary">$0.00</span>
-                </div>
-
-                <div className="p-3.5 rounded-well bg-gradient-to-r from-bg-elevated to-bg-surface border border-accent/40 flex items-center justify-between shadow-[0_0_20px_rgba(201,168,76,0.15)]">
-                  <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-accent block">
-                      Total Estimated
-                    </span>
-                    <span className="text-[11px] text-text-secondary">All sectors combined</span>
-                  </div>
-                  <span className="font-mono text-2xl font-bold text-accent">$0.00</span>
-                </div>
+            {/* Inbound Journey Card */}
+            <div className="p-4 rounded-card bg-bg-surface border border-border-subtle shadow-sm">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-border-subtle/60 text-xs">
+                <span className="font-semibold text-accent tracking-wider uppercase text-[10px]">
+                  Inbound Flight
+                </span>
+                <span className="font-mono text-text-secondary text-[11px]">
+                  {inboundSchedule.flightNo} &bull; {inboundSchedule.aircraftType}
+                </span>
               </div>
+
+              {inboundSchedule.sectors.map((sec, idx) => (
+                <div key={idx} className={idx > 0 ? 'mt-3 pt-3 border-t border-border-subtle/40' : ''}>
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <span className="text-xs text-text-secondary block">{sec.fromCity || sec.from}</span>
+                      <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
+                        {sec.from}
+                      </span>
+                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                        {sec.depLocal}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-center px-3">
+                      <Plane className="w-4 h-4 text-accent rotate-90 my-1" strokeWidth={1.8} />
+                      <span className="font-serif italic text-accent text-xs">
+                        {formatBlockTime(sec.blockMinutes)}
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-xs text-text-secondary block">{sec.toCity || sec.to}</span>
+                      <span className="font-serif text-xl sm:text-2xl font-semibold text-text-primary">
+                        {sec.to}
+                      </span>
+                      <span className="text-xs font-mono text-text-primary block mt-0.5">
+                        {sec.arrLocal}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
 
+          </div>
+
+          {/* Action Buttons Footer */}
+          <div className="shrink-0 flex items-center justify-between gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="px-5 py-3 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
+            >
+              Back to Home
+            </button>
+
+            <button
+              type="button"
+              onClick={handleReset}
+              className="editorial-cta-btn flex items-center gap-1.5 px-6 py-3 rounded-full text-xs font-semibold tracking-wide"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>New Calculation</span>
+            </button>
+          </div>
         </div>
-
-        {/* Generous empty bottom spacer */}
-        <div className="flex-1 max-h-16 sm:max-h-24" />
-
-        {/* Centered Primary Pill CTA */}
-        <div className="shrink-0 flex flex-col items-center gap-2 pb-2">
-          {currentStep < 3 ? (
-            <button
-              onClick={handleNext}
-              className="editorial-cta-btn flex items-center justify-center gap-2 rounded-full px-8 py-3.5 min-w-[200px] text-sm font-semibold tracking-wide"
-            >
-              <span>Continue</span>
-              <ArrowRight className="w-4 h-4 text-[#0B1E3E]" strokeWidth={2.2} />
-            </button>
-          ) : (
-            <button
-              onClick={() => setCurrentStep(1)}
-              className="editorial-cta-btn flex items-center justify-center gap-2 rounded-full px-8 py-3.5 min-w-[200px] text-sm font-semibold tracking-wide"
-            >
-              <Sparkles className="w-4 h-4 text-[#0B1E3E]" strokeWidth={2.2} />
-              <span>Recalculate</span>
-            </button>
-          )}
-
-          {currentStep > 1 && (
-            <button
-              onClick={handlePrev}
-              className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors py-1 px-3"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Previous Step</span>
-            </button>
-          )}
-        </div>
-
-      </div>
+      )}
     </Layout>
   );
 };
