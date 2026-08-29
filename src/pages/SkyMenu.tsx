@@ -10,7 +10,7 @@ import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import { getCabinConfig, getMenu } from '../lib/sq/endpoints';
 import { CabinCode, MenuData } from '../lib/sq/types';
-import { Sparkles, ChevronDown, ChevronUp, Printer, ArrowLeft, Utensils, Wine } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp, ArrowLeft, Utensils, Wine } from 'lucide-react';
 
 const SKYMENU_MESSAGES: InterludeMessage[] = [
   { text: 'Retrieving menu from seat pocket…', durationMs: 3000 },
@@ -380,25 +380,15 @@ export const SkyMenu: React.FC = () => {
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
+              <span>Change Flight</span>
             </button>
 
             <button
               type="button"
-              onClick={() => {
-                navigate('/inkflight', {
-                  state: {
-                    flightNo: validation.cleanFlightNo,
-                    dateISO,
-                    dateDisplay,
-                    cabins: selectedCabins,
-                  },
-                });
-              }}
-              className="editorial-cta-btn flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-semibold tracking-wide"
+              onClick={() => navigate('/')}
+              className="px-5 py-2.5 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
             >
-              <Printer className="w-3.5 h-3.5 text-[#0B1E3E]" />
-              <span>Reformat for print &rarr;</span>
+              Back to Home
             </button>
           </div>
 
