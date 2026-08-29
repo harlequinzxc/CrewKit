@@ -37,6 +37,12 @@ const AIRPORT_CITIES: Record<string, string> = {
   TPE: 'Taipei',
   BKK: 'Bangkok',
   DPS: 'Bali Denpasar',
+  PEN: 'Penang',
+  KNO: 'Medan Kualanamu',
+  KUL: 'Kuala Lumpur',
+  HKT: 'Phuket',
+  CGK: 'Jakarta',
+  SUB: 'Surabaya',
   SYD: 'Sydney',
   MEL: 'Melbourne',
   BNE: 'Brisbane',
@@ -102,6 +108,20 @@ const KNOWN_ACTIVE_SQ_SCHEDULES: Record<
       { from: 'SIN', to: 'EWR', depTime: '23:35', arrTime: '06:00', arrDayOffset: 1, blockMinutes: 1105 },
     ],
   },
+  '23': {
+    aircraft: 'Airbus A350-900ULR',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY'],
+    sectors: [
+      { from: 'JFK', to: 'SIN', depTime: '22:30', arrTime: '05:20', arrDayOffset: 2, blockMinutes: 1130 },
+    ],
+  },
+  '24': {
+    aircraft: 'Airbus A350-900ULR',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'JFK', depTime: '00:05', arrTime: '07:05', arrDayOffset: 0, blockMinutes: 1140 },
+    ],
+  },
   '25': {
     aircraft: 'Boeing 777-300ER',
     cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
@@ -116,6 +136,146 @@ const KNOWN_ACTIVE_SQ_SCHEDULES: Record<
     sectors: [
       { from: 'SIN', to: 'FRA', depTime: '23:55', arrTime: '06:20', arrDayOffset: 1, blockMinutes: 745 },
       { from: 'FRA', to: 'JFK', depTime: '08:35', arrTime: '11:10', arrDayOffset: 0, blockMinutes: 515 },
+    ],
+  },
+  '33': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SFO', to: 'SIN', depTime: '21:50', arrTime: '05:35', arrDayOffset: 2, blockMinutes: 945 },
+    ],
+  },
+  '34': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'SFO', depTime: '17:40', arrTime: '17:35', arrDayOffset: 0, blockMinutes: 895 },
+    ],
+  },
+  '37': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'LAX', to: 'SIN', depTime: '23:40', arrTime: '07:30', arrDayOffset: 2, blockMinutes: 1010 },
+    ],
+  },
+  '38': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'LAX', depTime: '20:45', arrTime: '21:55', arrDayOffset: 0, blockMinutes: 970 },
+    ],
+  },
+  '106': {
+    aircraft: 'Boeing 737-800',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'KUL', depTime: '08:30', arrTime: '09:35', arrDayOffset: 0, blockMinutes: 65 },
+    ],
+  },
+  '107': {
+    aircraft: 'Boeing 737-800',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'KUL', to: 'SIN', depTime: '10:25', arrTime: '11:30', arrDayOffset: 0, blockMinutes: 65 },
+    ],
+  },
+  '118': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'KUL', depTime: '18:40', arrTime: '19:40', arrDayOffset: 0, blockMinutes: 60 },
+    ],
+  },
+  '119': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'KUL', to: 'SIN', depTime: '20:30', arrTime: '21:30', arrDayOffset: 0, blockMinutes: 60 },
+    ],
+  },
+  '133': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'PEN', to: 'SIN', depTime: '10:45', arrTime: '12:10', arrDayOffset: 0, blockMinutes: 85 },
+    ],
+  },
+  '134': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'PEN', depTime: '08:30', arrTime: '09:55', arrDayOffset: 0, blockMinutes: 85 },
+    ],
+  },
+  '135': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'PEN', to: 'SIN', depTime: '14:55', arrTime: '16:20', arrDayOffset: 0, blockMinutes: 85 },
+    ],
+  },
+  '136': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'PEN', depTime: '12:40', arrTime: '14:05', arrDayOffset: 0, blockMinutes: 85 },
+    ],
+  },
+  '137': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'PEN', to: 'SIN', depTime: '17:15', arrTime: '18:40', arrDayOffset: 0, blockMinutes: 85 },
+    ],
+  },
+  '138': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'PEN', depTime: '15:00', arrTime: '16:25', arrDayOffset: 0, blockMinutes: 85 },
+    ],
+  },
+  '221': {
+    aircraft: 'Airbus A380-800',
+    cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'SYD', depTime: '20:40', arrTime: '06:15', arrDayOffset: 1, blockMinutes: 455 },
+    ],
+  },
+  '222': {
+    aircraft: 'Airbus A380-800',
+    cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SYD', to: 'SIN', depTime: '15:00', arrTime: '21:20', arrDayOffset: 0, blockMinutes: 500 },
+    ],
+  },
+  '237': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'MEL', depTime: '23:55', arrTime: '09:15', arrDayOffset: 1, blockMinutes: 440 },
+    ],
+  },
+  '238': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'MEL', to: 'SIN', depTime: '11:30', arrTime: '17:35', arrDayOffset: 0, blockMinutes: 485 },
+    ],
+  },
+  '306': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'LHR', depTime: '01:10', arrTime: '07:45', arrDayOffset: 0, blockMinutes: 815 },
+    ],
+  },
+  '305': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'LHR', to: 'SIN', depTime: '15:05', arrTime: '11:15', arrDayOffset: 1, blockMinutes: 790 },
     ],
   },
   '308': {
@@ -146,6 +306,20 @@ const KNOWN_ACTIVE_SQ_SCHEDULES: Record<
       { from: 'SIN', to: 'LHR', depTime: '23:45', arrTime: '06:25', arrDayOffset: 1, blockMinutes: 820 },
     ],
   },
+  '325': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'FRA', to: 'SIN', depTime: '22:00', arrTime: '16:45', arrDayOffset: 1, blockMinutes: 705 },
+    ],
+  },
+  '326': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'FRA', depTime: '13:55', arrTime: '20:40', arrDayOffset: 0, blockMinutes: 765 },
+    ],
+  },
   '631': {
     aircraft: 'Boeing 787-10',
     cabins: ['BUSINESS', 'ECONOMY'],
@@ -158,6 +332,48 @@ const KNOWN_ACTIVE_SQ_SCHEDULES: Record<
     cabins: ['BUSINESS', 'ECONOMY'],
     sectors: [
       { from: 'SIN', to: 'HND', depTime: '08:00', arrTime: '15:55', arrDayOffset: 0, blockMinutes: 415 },
+    ],
+  },
+  '637': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'NRT', to: 'SIN', depTime: '11:10', arrTime: '17:45', arrDayOffset: 0, blockMinutes: 455 },
+    ],
+  },
+  '638': {
+    aircraft: 'Boeing 777-300ER',
+    cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'NRT', depTime: '23:55', arrTime: '08:00', arrDayOffset: 1, blockMinutes: 425 },
+    ],
+  },
+  '707': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'BKK', to: 'SIN', depTime: '12:15', arrTime: '15:50', arrDayOffset: 0, blockMinutes: 155 },
+    ],
+  },
+  '708': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'BKK', depTime: '09:30', arrTime: '11:00', arrDayOffset: 0, blockMinutes: 150 },
+    ],
+  },
+  '725': {
+    aircraft: 'Boeing 737-800',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'HKT', to: 'SIN', depTime: '14:10', arrTime: '17:05', arrDayOffset: 0, blockMinutes: 115 },
+    ],
+  },
+  '726': {
+    aircraft: 'Boeing 737-800',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'HKT', depTime: '12:20', arrTime: '13:10', arrDayOffset: 0, blockMinutes: 110 },
     ],
   },
   '830': {
@@ -179,6 +395,41 @@ const KNOWN_ACTIVE_SQ_SCHEDULES: Record<
     cabins: ['BUSINESS', 'ECONOMY'],
     sectors: [
       { from: 'SIN', to: 'HKG', depTime: '07:30', arrTime: '11:20', arrDayOffset: 0, blockMinutes: 230 },
+    ],
+  },
+  '891': {
+    aircraft: 'Airbus A350-900',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'HKG', to: 'SIN', depTime: '12:30', arrTime: '16:20', arrDayOffset: 0, blockMinutes: 230 },
+    ],
+  },
+  '942': {
+    aircraft: 'Boeing 787-10',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'DPS', depTime: '09:15', arrTime: '12:05', arrDayOffset: 0, blockMinutes: 170 },
+    ],
+  },
+  '943': {
+    aircraft: 'Boeing 787-10',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'DPS', to: 'SIN', depTime: '13:05', arrTime: '15:55', arrDayOffset: 0, blockMinutes: 170 },
+    ],
+  },
+  '994': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'SIN', to: 'KNO', depTime: '07:40', arrTime: '08:10', arrDayOffset: 0, blockMinutes: 90 },
+    ],
+  },
+  '995': {
+    aircraft: 'Boeing 737 MAX 8',
+    cabins: ['BUSINESS', 'ECONOMY'],
+    sectors: [
+      { from: 'KNO', to: 'SIN', depTime: '08:55', arrTime: '11:25', arrDayOffset: 0, blockMinutes: 90 },
     ],
   },
 };
