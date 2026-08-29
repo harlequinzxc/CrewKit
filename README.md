@@ -1,13 +1,22 @@
 # CrewKit — Singapore Airlines Cabin Crew Progressive Web App (PWA)
 
 > **Current Version:** `v0.1.0` (Chunk 1: Project Scaffold)  
-> **Status:** Hollow Shell &amp; PWA Scaffold — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.
+> **Status:** Hollow Shell &amp; PWA Scaffold — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.  
+> **Active Working Branch:** `arena/01a04e46-crewkit`
 
 ---
 
 ## Overview
 
 **CrewKit** is an editorial, "quiet luxury" Progressive Web App (PWA) designed exclusively for Singapore Airlines cabin crew. Designed with refined typography, hairline gold accents, generous negative space, and single-viewport ergonomics, CrewKit provides immediate offline access to essential inflight tools without unnecessary bloat or complexity.
+
+---
+
+## Development & Deployment Workflow
+
+- **Arena Session Branch:** All chunk developments, commits, and pushes are made directly to the active session branch `arena/01a04e46-crewkit`.
+- **Vercel Preview URL:** Pushing to `arena/01a04e46-crewkit` triggers automated preview builds on Vercel for testing and visual QA.
+- **Merge to Main:** After verifying the Vercel preview deployment for the completed chunk, changes are manually merged into `main` before progressing to subsequent chunks.
 
 ---
 

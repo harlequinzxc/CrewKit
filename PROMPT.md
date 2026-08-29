@@ -8,23 +8,25 @@ This document records the master prompts, development chunks, version milestones
 
 | Chunk | Branch | Target Version | Focus Area | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Chunk 1** | `chunk-1` | `v0.1.0` | Project Scaffold — Hollow shell, PWA setup, all pages, navigation, settings, dark/light mode | Completed |
-| **Chunk 2** | `chunk-2` | `v0.2.0` | CrewCash — Allowance calculations, sector routing, per diem database | Planned |
-| **Chunk 3** | `chunk-3` | `v0.3.0` | SkyMenu — Menu scraper / data parser, cabin class courses | Planned |
-| **Chunk 4** | `chunk-4` | `v0.4.0` | InkFlight — Thermal slip formatter engine, custom layouts, PDF/DOCX export | Planned |
-| **Chunk 5** | `chunk-5` | `v1.0.0` | Rates customizer, offline sync, PWA production release | Planned |
+| **Chunk 1** | `arena/01a04e46-crewkit` | `v0.1.0` | Project Scaffold — Hollow shell, PWA setup, all pages, navigation, settings, dark/light mode | Completed |
+| **Chunk 2** | `arena/01a04e46-crewkit` | `v0.2.0` | CrewCash — Allowance calculations, sector routing, per diem database | Planned |
+| **Chunk 3** | `arena/01a04e46-crewkit` | `v0.3.0` | SkyMenu — Menu scraper / data parser, cabin class courses | Planned |
+| **Chunk 4** | `arena/01a04e46-crewkit` | `v0.4.0` | InkFlight — Thermal slip formatter engine, custom layouts, PDF/DOCX export | Planned |
+| **Chunk 5** | `arena/01a04e46-crewkit` | `v1.0.0` | Rates customizer, offline sync, PWA production release | Planned |
 
 ---
 
-## Conventions & Rules
+## Conventions & Workflow Rules (Updated)
 
 ### Versioning (SemVer)
 - Semantic Versioning format `MAJOR.MINOR.PATCH` (e.g. `0.1.0`).
 - The current version is defined in `src/config/version.ts` and `package.json`.
 - The version number is displayed subtly on every page in the layout footer.
 
-### Branch Naming
-- Each discrete development chunk corresponds to a local branch named `chunk-X` (e.g., `chunk-1`, `chunk-2`).
+### Branch & Deployment Strategy
+- **Session Branch Rule:** All chunk commits and pushes are made directly to the active session branch `arena/01a04e46-crewkit`.
+- **Vercel Preview URL:** Pushing to `arena/01a04e46-crewkit` triggers automated preview builds on Vercel for visual verification and testing.
+- **Manual Main Merge:** Once the Vercel preview deployment for a chunk is approved by the user, the branch is manually merged into `main` before starting the next chunk.
 
 ### Commit Message Format
 - Structured as: `chunk-X: <short summary> (vX.Y.Z)`
@@ -53,12 +55,12 @@ You are building a Progressive Web App (PWA) called "CrewKit" — a toolkit for 
 - Support dark mode and light mode (default to system preference, toggle in Settings). Use CSS variables or Tailwind dark mode.
 - Mobile-first responsive design that also works well on desktop.
 
-=== VERSION CONTROL ===
+=== VERSION CONTROL (UPDATED) ===
 - Use Semantic Versioning (SemVer). This Chunk 1 scaffold is version 0.1.0.
 - Display the version number subtly in the bottom corner of every page.
-- Each chunk will be a new git branch named "chunk-X" (this one is "chunk-1").
-- Make a git commit with the message: "chunk-1: project scaffold — hollow shell with PWA setup, all pages, navigation, settings page, dark/light mode (v0.1.0)"
-- DO NOT push or create a pull request. Only commit locally on the branch.
+- Work is restricted to the session branch "arena/01a04e46-crewkit".
+- Commit and push directly to "arena/01a04e46-crewkit" so Vercel preview URL can be checked before manual merge into main.
+- Commit message format: "chunk-1: project scaffold — hollow shell with PWA setup, all pages, navigation, settings page, dark/light mode (v0.1.0)"
 
 === APP STRUCTURE ===
 
@@ -135,7 +137,7 @@ Dark mode (DEFAULT primary aesthetic):
 Light mode:
 - --bg-base:        #F5F2EB          /* warm paper */
 - --bg-surface:     #FFFFFF
-- --bg-elevated:    #EE honoured E8
+- --bg-elevated:    #EAE5D9
 - --border-subtle:  rgba(11, 30, 62, 0.08)
 - --border-medium:  rgba(11, 30, 62, 0.14)
 - --text-primary:   #0B1E3E          /* deep navy */
@@ -227,47 +229,6 @@ Light mode:
 - Service worker: Register a basic service worker that caches the app shell for offline capability.
 - Apple-specific meta tags for iOS PWA support (apple-mobile-web-app-capable, apple-mobile-web-app-status-bar-style, apple-touch-icon).
 - Viewport meta tag for mobile.
-
-=== FILE & FOLDER STRUCTURE ===
-Organize the project cleanly:
-
-crewkit/
-├── public/
-│   ├── manifest.json
-│   ├── sw.js (service worker)
-│   ├── icons/
-│   │   ├── icon-192.png
-│   │   └── icon-512.png
-│   └── favicon.ico
-├── src/
-│   ├── main.tsx
-│   ├── App.tsx
-│   ├── index.css (Tailwind imports + CSS variables for theming)
-│   ├── components/
-│   │   ├── Layout.tsx (shell with version display)
-│   │   ├── BackButton.tsx
-│   │   ├── WizardStepper.tsx (reusable step indicator)
-│   │   ├── ThemeToggle.tsx
-│   │   └── NavCard.tsx (home page cards)
-│   ├── pages/
-│   │   ├── Home.tsx
-│   │   ├── CrewCash.tsx
-│   │   ├── SkyMenu.tsx
-│   │   ├── InkFlight.tsx
-│   │   └── Settings.tsx
-│   ├── context/
-│   │   └── ThemeContext.tsx
-│   ├── hooks/
-│   │   └── useTheme.ts
-│   └── config/
-│       └── version.ts (export const APP_VERSION = "0.1.0")
-├── README.md
-├── PROMPT.md
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-├── tailwind.config.js
-└── postcss.config.js
 ```
 
 ---
