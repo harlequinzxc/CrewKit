@@ -9,7 +9,7 @@ export async function exportToPNG(element: HTMLElement, filename: string): Promi
     });
 
     return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
+      canvas.toBlob((blob: Blob | null) => {
         if (!blob) {
           resolve(false);
           return;
