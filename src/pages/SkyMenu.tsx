@@ -199,7 +199,7 @@ export const SkyMenu: React.FC = () => {
                   <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
                 </div>
                 <p className="font-serif italic text-text-tertiary text-xs mt-2">
-                  Checking aircraft configuration…
+                  Checking live aircraft configuration…
                 </p>
               </div>
             )}
@@ -311,66 +311,78 @@ export const SkyMenu: React.FC = () => {
 
           {/* Scrollable Menu Items Container */}
           <div className="flex-1 overflow-y-auto px-1 py-3 space-y-4">
-            {activeSections.map((section) => {
-              const isCollapsed = collapsedSections[section.id];
-              return (
-                <div key={section.id} className="rounded-card bg-bg-surface border border-border-subtle overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => toggleSectionCollapse(section.id)}
-                    className="w-full px-4 py-2.5 bg-bg-elevated/80 flex items-center justify-between text-left border-b border-border-subtle/50"
-                  >
-                    <span className="font-serif text-sm font-semibold text-text-primary">
-                      {section.title}
-                    </span>
-                    {isCollapsed ? (
-                      <ChevronDown className="w-4 h-4 text-text-tertiary" />
-                    ) : (
-                      <ChevronUp className="w-4 h-4 text-text-tertiary" />
-                    )}
-                  </button>
+            {activeSections.length === 0 ? (
+              <div className="p-8 text-center my-auto flex flex-col items-center justify-center h-full">
+                <span className="font-serif italic text-accent text-base mb-1">
+                  Menu Not Loaded
+                </span>
+                <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
+                  No {menuSegment} items returned for SQ{validation.cleanFlightNo} on {dateDisplay}.
+                  Singapore Airlines digital inflight menus are typically published up to 6 weeks in advance.
+                </p>
+              </div>
+            ) : (
+              activeSections.map((section) => {
+                const isCollapsed = collapsedSections[section.id];
+                return (
+                  <div key={section.id} className="rounded-card bg-bg-surface border border-border-subtle overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleSectionCollapse(section.id)}
+                      className="w-full px-4 py-2.5 bg-bg-elevated/80 flex items-center justify-between text-left border-b border-border-subtle/50"
+                    >
+                      <span className="font-serif text-sm font-semibold text-text-primary">
+                        {section.title}
+                      </span>
+                      {isCollapsed ? (
+                        <ChevronDown className="w-4 h-4 text-text-tertiary" />
+                      ) : (
+                        <ChevronUp className="w-4 h-4 text-text-tertiary" />
+                      )}
+                    </button>
 
-                  {!isCollapsed && (
-                    <div className="p-3 space-y-3">
-                      {section.items.map((item) => (
-                        <div key={item.id} className="flex gap-3 items-start">
-                          {item.imageUrl && (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.title}
-                              className="w-14 h-14 rounded-lg object-cover bg-bg-elevated border border-border-subtle shrink-0"
-                              loading="lazy"
-                            />
-                          )}
-                          <div className="flex-1 text-left">
-                            <h4 className="font-sans font-semibold text-xs sm:text-sm text-text-primary leading-snug">
-                              {item.title}
-                            </h4>
-                            {item.description && (
-                              <p className="font-sans text-[0.78rem] text-text-secondary mt-0.5 line-clamp-2 leading-relaxed">
-                                {item.description}
-                              </p>
+                    {!isCollapsed && (
+                      <div className="p-3 space-y-3">
+                        {section.items.map((item) => (
+                          <div key={item.id} className="flex gap-3 items-start">
+                            {item.imageUrl && (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="w-14 h-14 rounded-lg object-cover bg-bg-elevated border border-border-subtle shrink-0"
+                                loading="lazy"
+                              />
                             )}
-                            {item.tags && item.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1.5">
-                                {item.tags.map((tag, tIdx) => (
-                                  <span
-                                    key={tIdx}
-                                    className="text-[9px] px-1.5 py-0.5 rounded bg-bg-elevated text-accent/90 border border-accent/25"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                            <div className="flex-1 text-left">
+                              <h4 className="font-sans font-semibold text-xs sm:text-sm text-text-primary leading-snug">
+                                {item.title}
+                              </h4>
+                              {item.description && (
+                                <p className="font-sans text-[0.78rem] text-text-secondary mt-0.5 line-clamp-2 leading-relaxed">
+                                  {item.description}
+                                </p>
+                              )}
+                              {item.tags && item.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {item.tags.map((tag, tIdx) => (
+                                    <span
+                                      key={tIdx}
+                                      className="text-[9px] px-1.5 py-0.5 rounded bg-bg-elevated text-accent/90 border border-accent/25"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Sticky Bottom Action Row */}
