@@ -1,4 +1,3 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { MenuSection } from '../sq/types';
 
 export async function exportToDOCX(
@@ -10,7 +9,9 @@ export async function exportToDOCX(
   filename: string
 ): Promise<boolean> {
   try {
-    const docChildren: Paragraph[] = [
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+
+    const docChildren: InstanceType<typeof Paragraph>[] = [
       // Title
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -43,7 +44,6 @@ export async function exportToDOCX(
     sections
       .filter((s) => !s.hidden)
       .forEach((section) => {
-        // Section Header
         docChildren.push(
           new Paragraph({
             heading: HeadingLevel.HEADING_2,
@@ -59,7 +59,6 @@ export async function exportToDOCX(
           })
         );
 
-        // Section Items
         section.items
           .filter((item) => !item.hidden)
           .forEach((item) => {

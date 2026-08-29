@@ -4,7 +4,9 @@
  */
 export const SQ_CONFIG = {
   // Configurable proxy URL (e.g., Cloudflare Worker or Vercel serverless proxy if direct CORS is blocked)
-  PROXY_BASE_URL: (import.meta.env.VITE_SQ_PROXY_URL as string) || "https://api.crewkit.internal/sq-proxy",
+  PROXY_BASE_URL:
+    (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SQ_PROXY_URL) ||
+    "https://api.crewkit.internal/sq-proxy",
   
   // Public SQ inflight menu endpoints
   SQ_MENU_BASE: "https://www.singaporeair.com/en_UK/sg/flying-with-us/dining/inflight-menus/",

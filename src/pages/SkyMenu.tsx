@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock } from '../components/DepartureBlock';
+import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
 import { FlightChip } from '../components/FlightChip';
@@ -19,20 +19,22 @@ const SKYMENU_MESSAGES: InterludeMessage[] = [
 
 export const SkyMenu: React.FC = () => {
   const navigate = useNavigate();
+  const initialTodayISO = getTodayISO();
+  const initialTodayDisplay = formatDateDisplay(initialTodayISO);
 
   // Screen Stages: 'form' | 'loading' | 'result'
   const [stage, setStage] = useState<'form' | 'loading' | 'result'>('form');
 
   // Flight validation
   const validation = useFlightValidation('322');
-  const [dateISO, setDateISO] = useState<string>('');
-  const [dateDisplay, setDateDisplay] = useState<string>('');
+  const [dateISO, setDateISO] = useState<string>(initialTodayISO);
+  const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
   // Cabin detection states
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
-  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
-  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>([]);
-  const [aircraftType, setAircraftType] = useState<string>('');
+  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>(['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY']);
+  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(['BUSINESS']);
+  const [aircraftType, setAircraftType] = useState<string>('Airbus A380-800');
 
   // Menu results
   const [menusByCabin, setMenusByCabin] = useState<Record<CabinCode, MenuData>>({} as Record<CabinCode, MenuData>);
@@ -50,7 +52,6 @@ export const SkyMenu: React.FC = () => {
 
     let isSubscribed = true;
     setIsDetectingCabins(true);
-    setSelectedCabins([]);
 
     getCabinConfig(validation.flightNo, dateISO)
       .then((config) => {
@@ -58,11 +59,12 @@ export const SkyMenu: React.FC = () => {
         setIsDetectingCabins(false);
         setAvailableCabins(config.available);
         setAircraftType(config.aircraftType || '');
-        // default select first available class (e.g. BUSINESS)
-        if (config.available.includes('BUSINESS')) {
-          setSelectedCabins(['BUSINESS']);
-        } else if (config.available.length > 0) {
-          setSelectedCabins([config.available[0]]);
+        if (selectedCabins.length === 0 || !selectedCabins.some((c) => config.available.includes(c))) {
+          if (config.available.includes('BUSINESS')) {
+            setSelectedCabins(['BUSINESS']);
+          } else if (config.available.length > 0) {
+            setSelectedCabins([config.available[0]]);
+          }
         }
       })
       .catch(() => {
@@ -122,7 +124,6 @@ export const SkyMenu: React.FC = () => {
     }));
   };
 
-  // Format cabin summary for CTA
   const cabinLabels = selectedCabins
     .map((c) => (c === 'PREMIUM_ECONOMY' ? 'Prem Econ' : c.charAt(0) + c.slice(1).toLowerCase()))
     .join(', ');
@@ -248,7 +249,7 @@ export const SkyMenu: React.FC = () => {
         </div>
       )}
 
-      {/* 3. RESULT SCREEN — MENU DISPLAY (Single Viewport with Inner Scrollable Content) */}
+      {/* 3. RESULT SCREEN — MENU DISPLAY */}
       {stage === 'result' && currentMenu && (
         <div className="flex flex-col h-full overflow-hidden animate-fade-in">
           
@@ -256,7 +257,7 @@ export const SkyMenu: React.FC = () => {
           <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-border-subtle/50">
             <FlightChip label={flightSummaryLine} />
 
-            {/* Cabin Tab Bar (If multiple cabins selected) */}
+            {/* Cabin Tab Bar */}
             {selectedCabins.length > 1 && (
               <div className="flex items-center gap-1.5 mt-2.5 p-1 rounded-full bg-bg-elevated border border-border-subtle">
                 {selectedCabins.map((c) => (
@@ -307,13 +308,12 @@ export const SkyMenu: React.FC = () => {
             </div>
           </div>
 
-          {/* Scrollable Menu Items Container (The ONLY scrollable zone) */}
+          {/* Scrollable Menu Items Container */}
           <div className="flex-1 overflow-y-auto px-1 py-3 space-y-4">
             {activeSections.map((section) => {
               const isCollapsed = collapsedSections[section.id];
               return (
                 <div key={section.id} className="rounded-card bg-bg-surface border border-border-subtle overflow-hidden">
-                  {/* Section Title Header */}
                   <button
                     type="button"
                     onClick={() => toggleSectionCollapse(section.id)}
@@ -329,7 +329,6 @@ export const SkyMenu: React.FC = () => {
                     )}
                   </button>
 
-                  {/* Section Item Cards */}
                   {!isCollapsed && (
                     <div className="p-3 space-y-3">
                       {section.items.map((item) => (

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock } from '../components/DepartureBlock';
+import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { FlightChip } from '../components/FlightChip';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
@@ -26,19 +26,21 @@ function formatBlockTime(minutes: number): string {
 
 export const CrewCash: React.FC = () => {
   const navigate = useNavigate();
+  const initialTodayISO = getTodayISO();
+  const initialTodayDisplay = formatDateDisplay(initialTodayISO);
 
   // Wizard States: 'outbound' -> 'inbound' -> 'loading' -> 'result'
   const [stage, setStage] = useState<'outbound' | 'inbound' | 'loading' | 'result'>('outbound');
 
   // Step 1: Outbound
   const outboundValidation = useFlightValidation('322');
-  const [outboundDateISO, setOutboundDateISO] = useState<string>('');
-  const [outboundDateDisplay, setOutboundDateDisplay] = useState<string>('');
+  const [outboundDateISO, setOutboundDateISO] = useState<string>(initialTodayISO);
+  const [outboundDateDisplay, setOutboundDateDisplay] = useState<string>(initialTodayDisplay);
 
   // Step 2: Inbound
   const inboundValidation = useFlightValidation('321');
-  const [inboundDateISO, setInboundDateISO] = useState<string>('');
-  const [inboundDateDisplay, setInboundDateDisplay] = useState<string>('');
+  const [inboundDateISO, setInboundDateISO] = useState<string>(initialTodayISO);
+  const [inboundDateDisplay, setInboundDateDisplay] = useState<string>(initialTodayDisplay);
 
   // Results
   const [outboundSchedule, setOutboundSchedule] = useState<FlightSchedule | null>(null);
@@ -46,7 +48,6 @@ export const CrewCash: React.FC = () => {
 
   // Handle Step 1 -> Step 2
   const handleProceedToInbound = () => {
-    // If inbound is empty, guess reasonable return flight number
     const num = parseInt(outboundValidation.flightNo, 10);
     if (!isNaN(num) && (!inboundValidation.flightNo || inboundValidation.flightNo === '321')) {
       const returnNum = num % 2 === 0 ? (num - 1).toString() : (num + 1).toString();
@@ -119,7 +120,7 @@ export const CrewCash: React.FC = () => {
               />
             </div>
 
-            {/* Pattern B: Departure Block (Reveals on valid flight) */}
+            {/* Pattern B: Departure Block */}
             {outboundValidation.isValid && outboundValidation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -188,7 +189,7 @@ export const CrewCash: React.FC = () => {
             {inboundValidation.isValid && inboundValidation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
-                  selectedDateISO={inboundDateISO || outboundDateISO}
+                  selectedDateISO={inboundDateISO}
                   onDateSelect={(iso, display) => {
                     setInboundDateISO(iso);
                     setInboundDateDisplay(display);

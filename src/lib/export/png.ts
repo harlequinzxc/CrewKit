@@ -1,7 +1,6 @@
-import html2canvas from 'html2canvas';
-
 export async function exportToPNG(element: HTMLElement, filename: string): Promise<boolean> {
   try {
+    const html2canvas = (await import('html2canvas')).default;
     const canvas = await html2canvas(element, {
       scale: 2, // 2x DPR for crisp thermal print rendering
       backgroundColor: '#FFFFFF',
@@ -16,17 +15,15 @@ export async function exportToPNG(element: HTMLElement, filename: string): Promi
           return;
         }
 
-        // Check if Web Share API with files is supported on mobile
         const file = new File([blob], `${filename}.png`, { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: filename,
-          }).then(() => resolve(true)).catch(() => {
-            // Fall back to direct download
-            downloadBlob(blob, `${filename}.png`);
-            resolve(true);
-          });
+          navigator
+            .share({ files: [file], title: filename })
+            .then(() => resolve(true))
+            .catch(() => {
+              downloadBlob(blob, `${filename}.png`);
+              resolve(true);
+            });
         } else {
           downloadBlob(blob, `${filename}.png`);
           resolve(true);

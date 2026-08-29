@@ -7,25 +7,24 @@ interface DepartureBlockProps {
   className?: string;
 }
 
-// Helpers for formatted date representations
-function getTodayISO(): string {
+export function getTodayISO(): string {
   const now = new Date();
   return now.toISOString().split('T')[0];
 }
 
-function getTomorrowISO(): string {
+export function getTomorrowISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
   return d.toISOString().split('T')[0];
 }
 
-function getMaxDateISO(): string {
+export function getMaxDateISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 42); // 6 weeks
   return d.toISOString().split('T')[0];
 }
 
-function formatDateDisplay(iso: string): string {
+export function formatDateDisplay(iso: string): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-').map(Number);
   const dateObj = new Date(y, m - 1, d);
@@ -45,8 +44,13 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
   const tomorrowISO = getTomorrowISO();
   const maxDateISO = getMaxDateISO();
 
-  const [activePreset, setActivePreset] = useState<'today' | 'tomorrow' | 'custom'>('today');
-  const [customDate, setCustomDate] = useState<string>(todayISO);
+  const [activePreset, setActivePreset] = useState<'today' | 'tomorrow' | 'custom'>(() => {
+    if (selectedDateISO === tomorrowISO) return 'tomorrow';
+    if (selectedDateISO && selectedDateISO !== todayISO) return 'custom';
+    return 'today';
+  });
+
+  const [customDate, setCustomDate] = useState<string>(selectedDateISO || todayISO);
 
   useEffect(() => {
     if (selectedDateISO) {
@@ -58,11 +62,8 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
         setActivePreset('custom');
         setCustomDate(selectedDateISO);
       }
-    } else {
-      // default today
-      onDateSelect(todayISO, formatDateDisplay(todayISO));
     }
-  }, []);
+  }, [selectedDateISO, todayISO, tomorrowISO]);
 
   const handleSelectToday = () => {
     setActivePreset('today');
@@ -80,7 +81,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
   };
 
   return (
-    <div className={`w-full text-left transition-all duration-400 animate-fade-in ${className}`}>
+    <div className={`w-full text-left transition-all duration-300 animate-fade-in ${className}`}>
       {/* Overline Label */}
       <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2.5 select-none">
         Departure

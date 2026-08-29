@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock } from '../components/DepartureBlock';
+import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
 import { FlightChip } from '../components/FlightChip';
@@ -15,62 +15,74 @@ import { exportToPDF } from '../lib/export/pdf';
 import { exportToDOCX } from '../lib/export/docx';
 import {
   Sparkles,
-  GripVertical,
+  Printer,
+  Download,
+  FileText,
+  FileCode,
   Eye,
   EyeOff,
-  Image as ImageIcon,
-  FileText,
-  FileDown,
   RotateCcw,
   Sliders,
-  CheckCircle2
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 const INKFLIGHT_MESSAGES: InterludeMessage[] = [
   { text: 'Retrieving menu from seat pocket…', durationMs: 3000 },
-  { text: 'Almost ready…', durationMs: 2000 },
+  { text: 'Formatting print receipt…', durationMs: 2000 },
 ];
 
 export const InkFlight: React.FC = () => {
   const location = useLocation();
-  const prefill = location.state as { flightNo?: string; dateISO?: string; dateDisplay?: string; cabins?: CabinCode[] } | undefined;
+  const navState = location.state as {
+    flightNo?: string;
+    dateISO?: string;
+    dateDisplay?: string;
+    cabins?: CabinCode[];
+  } | null;
 
+  const initialTodayISO = navState?.dateISO || getTodayISO();
+  const initialTodayDisplay = navState?.dateDisplay || formatDateDisplay(initialTodayISO);
+
+  // Screen Stages: 'form' | 'loading' | 'editor'
   const [stage, setStage] = useState<'form' | 'loading' | 'editor'>('form');
 
   // Flight validation
-  const validation = useFlightValidation(prefill?.flightNo || '322');
-  const [dateISO, setDateISO] = useState<string>(prefill?.dateISO || '');
-  const [dateDisplay, setDateDisplay] = useState<string>(prefill?.dateDisplay || '');
+  const validation = useFlightValidation(navState?.flightNo || '322');
+  const [dateISO, setDateISO] = useState<string>(initialTodayISO);
+  const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Cabin detection
+  // Cabin detection states
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
-  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
-  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(prefill?.cabins || ['BUSINESS']);
+  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>(
+    navState?.cabins && navState.cabins.length > 0
+      ? navState.cabins
+      : ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY']
+  );
+  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
+    navState?.cabins && navState.cabins.length > 0 ? navState.cabins : ['BUSINESS']
+  );
 
-  // Menu data per cabin
-  const [menusByCabin, setMenusByCabin] = useState<Record<CabinCode, MenuData>>({} as Record<CabinCode, MenuData>);
-  const [originalMenus, setOriginalMenus] = useState<Record<CabinCode, MenuData>>({} as Record<CabinCode, MenuData>);
-  const [activeTabCabin, setActiveTabCabin] = useState<CabinCode>('BUSINESS');
+  // InkFlight Editor State
+  const [editableMenu, setEditableMenu] = useState<MenuData | null>(null);
+  const [includeHeaders, setIncludeHeaders] = useState<boolean>(true);
+  const [includeDescriptions, setIncludeDescriptions] = useState<boolean>(false);
+  const [includeDrinks, setIncludeDrinks] = useState<boolean>(true);
+  const [compactMode, setCompactMode] = useState<boolean>(false);
+  const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>('58mm');
+  const [isExporting, setIsExporting] = useState<boolean>(false);
 
-  // Mobile split view tab ('edit' | 'preview')
-  const [mobileTab, setMobileTab] = useState<'edit' | 'preview'>('preview');
+  // Mobile Tab View: 'editor' | 'preview'
+  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('preview');
 
-  // Layout toggles
-  const [includeHeaders, setIncludeHeaders] = useState(true);
-  const [includeDescriptions, setIncludeDescriptions] = useState(true);
-  const [includeDrinks, setIncludeDrinks] = useState(true);
-  const [compactMode, setCompactMode] = useState(false);
-  const [paperWidthMm, setPaperWidthMm] = useState<58 | 80>(80);
-
-  // Export states
-  const [exportFeedback, setExportFeedback] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
+  // Receipt DOM element ref for PNG/PDF capture
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  // 1. Run Cabin Detection
+  // Cabin Detection
   useEffect(() => {
     if (!validation.isValid || !dateISO || !validation.flightNo) {
       setAvailableCabins([]);
+      setSelectedCabins([]);
       return;
     }
 
@@ -82,7 +94,7 @@ export const InkFlight: React.FC = () => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
         setAvailableCabins(config.available);
-        if (selectedCabins.length === 0) {
+        if (selectedCabins.length === 0 || !selectedCabins.some((c) => config.available.includes(c))) {
           if (config.available.includes('BUSINESS')) {
             setSelectedCabins(['BUSINESS']);
           } else if (config.available.length > 0) {
@@ -94,6 +106,7 @@ export const InkFlight: React.FC = () => {
         if (!isSubscribed) return;
         setIsDetectingCabins(false);
         setAvailableCabins(['BUSINESS', 'ECONOMY']);
+        setSelectedCabins(['BUSINESS']);
       });
 
     return () => {
@@ -111,145 +124,165 @@ export const InkFlight: React.FC = () => {
     }
   };
 
-  // 2. Fetch Menu
+  // Start Fetch
   const handleStartFetch = () => {
     setStage('loading');
   };
 
   const executeMenuFetch = async () => {
-    const results = await Promise.all(
-      selectedCabins.map(async (cab) => {
-        const menu = await getMenu(validation.flightNo, dateISO, cab);
-        return { cabin: cab, menu };
-      })
-    );
-
-    const map: Record<CabinCode, MenuData> = {} as Record<CabinCode, MenuData>;
-    results.forEach((r) => {
-      // deep clone for editing
-      map[r.cabin] = JSON.parse(JSON.stringify(r.menu));
-    });
-    return map;
+    const targetCabin = selectedCabins[0] || 'BUSINESS';
+    const menu = await getMenu(validation.flightNo, dateISO, targetCabin);
+    return menu;
   };
 
-  const handleFetchSuccess = (data: Record<CabinCode, MenuData>) => {
-    setMenusByCabin(JSON.parse(JSON.stringify(data)));
-    setOriginalMenus(JSON.parse(JSON.stringify(data)));
-    if (selectedCabins.length > 0) {
-      setActiveTabCabin(selectedCabins[0]);
-    }
+  const handleFetchSuccess = (data: MenuData) => {
+    // Deep clone to allow editing
+    const cloned = JSON.parse(JSON.stringify(data)) as MenuData;
+    setEditableMenu(cloned);
     setStage('editor');
   };
 
-  // Editor mutation handlers
-  const currentMenu = menusByCabin[activeTabCabin];
-
-  const handleToggleSectionVisibility = (secId: string) => {
-    if (!currentMenu) return;
-    const updated = { ...menusByCabin };
-    const menu = updated[activeTabCabin];
-    const target = menu.sections.find((s) => s.id === secId) || menu.drinks.find((s) => s.id === secId);
-    if (target) {
-      target.hidden = !target.hidden;
-      setMenusByCabin(updated);
+  // Auto-start fetch if navigated from SkyMenu
+  useEffect(() => {
+    if (navState?.flightNo && navState?.dateISO && stage === 'form') {
+      handleStartFetch();
     }
+  }, []);
+
+  // Editor Actions
+  const toggleSectionVisibility = (secId: string) => {
+    if (!editableMenu) return;
+    setEditableMenu({
+      ...editableMenu,
+      sections: editableMenu.sections.map((sec) =>
+        sec.id === secId ? { ...sec, hidden: !sec.hidden } : sec
+      ),
+      drinks: editableMenu.drinks.map((sec) =>
+        sec.id === secId ? { ...sec, hidden: !sec.hidden } : sec
+      ),
+    });
   };
 
-  const handleToggleItemVisibility = (secId: string, itemId: string) => {
-    if (!currentMenu) return;
-    const updated = { ...menusByCabin };
-    const menu = updated[activeTabCabin];
-    const targetSec = menu.sections.find((s) => s.id === secId) || menu.drinks.find((s) => s.id === secId);
-    if (targetSec) {
-      const item = targetSec.items.find((i) => i.id === itemId);
-      if (item) {
-        item.hidden = !item.hidden;
-        setMenusByCabin(updated);
-      }
-    }
+  const toggleItemVisibility = (secId: string, itemId: string) => {
+    if (!editableMenu) return;
+    const updateSec = (sections: MenuSection[]) =>
+      sections.map((sec) =>
+        sec.id === secId
+          ? {
+              ...sec,
+              items: sec.items.map((it) =>
+                it.id === itemId ? { ...it, hidden: !it.hidden } : it
+              ),
+            }
+          : sec
+      );
+
+    setEditableMenu({
+      ...editableMenu,
+      sections: updateSec(editableMenu.sections),
+      drinks: updateSec(editableMenu.drinks),
+    });
   };
 
-  const handleMoveSection = (secIndex: number, direction: 'up' | 'down') => {
-    if (!currentMenu) return;
-    const updated = { ...menusByCabin };
-    const menu = updated[activeTabCabin];
-    const sections = [...menu.sections];
-    const targetIdx = direction === 'up' ? secIndex - 1 : secIndex + 1;
-    if (targetIdx >= 0 && targetIdx < sections.length) {
-      const temp = sections[secIndex];
-      sections[secIndex] = sections[targetIdx];
-      sections[targetIdx] = temp;
-      menu.sections = sections;
-      setMenusByCabin(updated);
-    }
+  const updateItemTitle = (secId: string, itemId: string, newTitle: string) => {
+    if (!editableMenu) return;
+    const updateSec = (sections: MenuSection[]) =>
+      sections.map((sec) =>
+        sec.id === secId
+          ? {
+              ...sec,
+              items: sec.items.map((it) =>
+                it.id === itemId ? { ...it, title: newTitle } : it
+              ),
+            }
+          : sec
+      );
+
+    setEditableMenu({
+      ...editableMenu,
+      sections: updateSec(editableMenu.sections),
+      drinks: updateSec(editableMenu.drinks),
+    });
   };
 
-  const handleResetEditor = () => {
-    if (originalMenus[activeTabCabin]) {
-      setMenusByCabin({
-        ...menusByCabin,
-        [activeTabCabin]: JSON.parse(JSON.stringify(originalMenus[activeTabCabin])),
+  const moveItem = (secId: string, itemIdx: number, direction: 'up' | 'down') => {
+    if (!editableMenu) return;
+    const updateSec = (sections: MenuSection[]) =>
+      sections.map((sec) => {
+        if (sec.id !== secId) return sec;
+        const newItems = [...sec.items];
+        const targetIdx = direction === 'up' ? itemIdx - 1 : itemIdx + 1;
+        if (targetIdx < 0 || targetIdx >= newItems.length) return sec;
+        const temp = newItems[itemIdx];
+        newItems[itemIdx] = newItems[targetIdx];
+        newItems[targetIdx] = temp;
+        return { ...sec, items: newItems };
       });
-    }
+
+    setEditableMenu({
+      ...editableMenu,
+      sections: updateSec(editableMenu.sections),
+      drinks: updateSec(editableMenu.drinks),
+    });
   };
 
-  // Exports
-  const generateFilename = (ext: string) => {
-    const cleanDate = (dateDisplay || 'Date').replace(/\s+/g, '');
-    return `SQ${validation.cleanFlightNo}-${cleanDate}-${activeTabCabin}.${ext}`;
-  };
-
-  const handleExportPNG = async () => {
+  // Export handlers
+  const handleExportPng = async () => {
     if (!receiptRef.current) return;
     setIsExporting(true);
-    const success = await exportToPNG(receiptRef.current, generateFilename('png').replace('.png', ''));
-    setIsExporting(false);
-    if (success) {
-      setExportFeedback('PNG Thermal Slip Exported');
-      setTimeout(() => setExportFeedback(null), 3000);
+    try {
+      await exportToPNG(receiptRef.current, `CrewKit_${validation.cleanFlightNo}_Receipt.png`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPdf = async () => {
     if (!receiptRef.current) return;
     setIsExporting(true);
-    const success = await exportToPDF(receiptRef.current, generateFilename('pdf').replace('.pdf', ''), paperWidthMm);
-    setIsExporting(false);
-    if (success) {
-      setExportFeedback('PDF Thermal Slip Exported');
-      setTimeout(() => setExportFeedback(null), 3000);
+    try {
+      await exportToPDF(
+        receiptRef.current,
+        `CrewKit_${validation.cleanFlightNo}_Receipt`,
+        paperWidth === '58mm' ? 58 : 80
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const handleExportDOCX = async () => {
-    if (!currentMenu) return;
+  const handleExportDocx = async () => {
+    if (!editableMenu) return;
     setIsExporting(true);
-    const allSections = [...currentMenu.sections, ...(includeDrinks ? currentMenu.drinks : [])];
-    const success = await exportToDOCX(
-      `SQ${validation.cleanFlightNo}`,
-      dateDisplay,
-      activeTabCabin,
-      allSections,
-      includeDescriptions && !compactMode,
-      generateFilename('docx').replace('.docx', '')
-    );
-    setIsExporting(false);
-    if (success) {
-      setExportFeedback('DOCX Document Exported');
-      setTimeout(() => setExportFeedback(null), 3000);
+    try {
+      await exportToDOCX(
+        `SQ${validation.cleanFlightNo}`,
+        dateDisplay,
+        selectedCabins.join(', '),
+        [...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])],
+        includeDescriptions,
+        `CrewKit_${validation.cleanFlightNo}_Menu`
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
     }
   };
 
-  const flightSummaryLine = `SQ${validation.cleanFlightNo} · ${dateDisplay} · ${activeTabCabin}`;
+  const cabinLabels = selectedCabins
+    .map((c) => (c === 'PREMIUM_ECONOMY' ? 'Prem Econ' : c.charAt(0) + c.slice(1).toLowerCase()))
+    .join(', ');
 
-  // Combined sections for thermal receipt
-  const receiptSections: MenuSection[] = currentMenu
-    ? [...currentMenu.sections.filter((s) => !s.hidden), ...(includeDrinks ? currentMenu.drinks.filter((s) => !s.hidden) : [])]
-    : [];
+  const flightSummaryLine = `SQ${validation.cleanFlightNo} · ${dateDisplay}${cabinLabels ? ` · ${cabinLabels}` : ''}`;
 
   return (
     <Layout>
-      {/* 1. LOADING INTERLUDE */}
+      {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
       {stage === 'loading' && (
         <FetchInterlude
           flightChipText={flightSummaryLine}
@@ -259,7 +292,7 @@ export const InkFlight: React.FC = () => {
         />
       )}
 
-      {/* 2. FORM STAGE */}
+      {/* 2. FORM FLOW */}
       {stage === 'form' && (
         <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
           <div className="flex-1 max-h-8 sm:max-h-12" />
@@ -272,10 +305,10 @@ export const InkFlight: React.FC = () => {
 
             {/* Headline */}
             <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
-              Let&apos;s ready your homework.
+              Let's ready your homework.
             </h2>
 
-            {/* Flight Input */}
+            {/* Pattern A: Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={validation.flightNo}
@@ -287,7 +320,7 @@ export const InkFlight: React.FC = () => {
               />
             </div>
 
-            {/* Departure Date */}
+            {/* Pattern B: Departure Block */}
             {validation.isValid && validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -300,7 +333,7 @@ export const InkFlight: React.FC = () => {
               </div>
             )}
 
-            {/* Cabin Detection skeleton */}
+            {/* Cabin Detection Loading Skeleton */}
             {isDetectingCabins && (
               <div className="w-full mt-5 text-left animate-fade-in">
                 <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
@@ -309,15 +342,16 @@ export const InkFlight: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
                   <div className="h-8 w-24 rounded-full bg-bg-elevated animate-pulse" />
+                  <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
                 </div>
               </div>
             )}
 
-            {/* Detected Cabin Pills */}
+            {/* Detected Cabin Classes */}
             {!isDetectingCabins && availableCabins.length > 0 && (
               <div className="w-full mt-5 text-left animate-fade-in">
                 <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
-                  Detected Cabin Classes
+                  Cabin Class for Printout
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {availableCabins.map((code, idx) => (
@@ -337,13 +371,13 @@ export const InkFlight: React.FC = () => {
 
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
-          {/* CTA */}
+          {/* Progression CTA */}
           {validation.isValid && validation.flightNo.length > 0 && dateISO && selectedCabins.length > 0 && (
             <div className="shrink-0 pb-2">
               <RevealCTA
                 label="Fetch Menu"
                 icon={Sparkles}
-                summary={`SQ${validation.cleanFlightNo} · ${dateDisplay}`}
+                summary={flightSummaryLine}
                 onPress={handleStartFetch}
               />
             </div>
@@ -351,324 +385,340 @@ export const InkFlight: React.FC = () => {
         </div>
       )}
 
-      {/* 3. EDITOR + PREVIEW SPLIT (Single Viewport) */}
-      {stage === 'editor' && currentMenu && (
+      {/* 3. EDITOR & RECEIPT PREVIEW (Split Layout) */}
+      {stage === 'editor' && editableMenu && (
         <div className="flex flex-col h-full overflow-hidden animate-fade-in">
           
-          {/* Top Header Row */}
-          <div className="shrink-0 flex items-center justify-between pb-2 border-b border-border-subtle/50">
+          {/* Top Bar with Flight Chip & Mobile Tab Switcher */}
+          <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-border-subtle/50">
             <FlightChip label={flightSummaryLine} />
 
-            {/* Mobile Edit / Preview Tab Switch */}
-            <div className="flex lg:hidden items-center p-0.5 rounded-full bg-bg-elevated border border-border-subtle">
+            {/* Mobile Tab Switcher (Visible on mobile, hidden on lg screens) */}
+            <div className="flex sm:hidden items-center p-0.5 mt-2 rounded-full bg-bg-surface border border-border-subtle">
               <button
                 type="button"
-                onClick={() => setMobileTab('edit')}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  mobileTab === 'edit'
+                onClick={() => setMobileTab('editor')}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  mobileTab === 'editor'
                     ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
                     : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
-                Edit
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Customise</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMobileTab('preview')}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
                   mobileTab === 'preview'
                     ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
                     : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
-                Preview
+                <Printer className="w-3.5 h-3.5" />
+                <span>Receipt Preview</span>
               </button>
             </div>
           </div>
 
-          {/* Cabin Switcher Tabs (If multi-cabin) */}
-          {selectedCabins.length > 1 && (
-            <div className="shrink-0 flex items-center gap-1.5 py-1.5 overflow-x-auto select-none">
-              {selectedCabins.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setActiveTabCabin(c)}
-                  className={`px-3 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all ${
-                    activeTabCabin === c
-                      ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
-                      : 'bg-bg-elevated text-text-secondary hover:text-text-primary border border-border-subtle'
-                  }`}
-                >
-                  {c === 'PREMIUM_ECONOMY' ? 'Prem Econ' : c.charAt(0) + c.slice(1).toLowerCase()}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Split Workspace Area (Editor Left 40%, Preview Right 60% on Desktop ≥900px) */}
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 my-1 overflow-hidden">
+          {/* Main Content Area (Split Grid on desktop, Tabbed on mobile) */}
+          <div className="flex-1 overflow-hidden grid grid-cols-1 sm:grid-cols-2 gap-3 py-2 min-h-0">
             
-            {/* LEFT PANEL: EDITOR (Visible on desktop OR mobileTab === 'edit') */}
+            {/* LEFT PANEL: Customize Controls & Reordering */}
             <div
-              className={`lg:col-span-5 flex-col h-full overflow-hidden bg-bg-surface rounded-card border border-border-subtle p-3 ${
-                mobileTab === 'edit' ? 'flex' : 'hidden lg:flex'
+              className={`flex-col h-full overflow-y-auto space-y-3 pr-1 ${
+                mobileTab === 'editor' ? 'flex' : 'hidden sm:flex'
               }`}
             >
-              {/* Global Layout Toggles */}
-              <div className="shrink-0 pb-2 mb-2 border-b border-border-subtle/60 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1 font-semibold text-accent text-[11px] uppercase tracking-wider">
-                    <Sliders className="w-3.5 h-3.5" /> Thermal Format
-                  </span>
-                  {/* Paper Width Toggle */}
-                  <div className="flex items-center p-0.5 rounded-full bg-bg-elevated border border-border-subtle text-[10px]">
-                    <button
-                      type="button"
-                      onClick={() => setPaperWidthMm(58)}
-                      className={`px-2 py-0.5 rounded-full font-mono ${
-                        paperWidthMm === 58 ? 'bg-accent text-[#0B1E3E] font-bold' : 'text-text-secondary'
-                      }`}
-                    >
-                      58mm
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaperWidthMm(80)}
-                      className={`px-2 py-0.5 rounded-full font-mono ${
-                        paperWidthMm === 80 ? 'bg-accent text-[#0B1E3E] font-bold' : 'text-text-secondary'
-                      }`}
-                    >
-                      80mm
-                    </button>
-                  </div>
+              {/* Global Receipt Toggles Card */}
+              <div className="p-3 rounded-card bg-bg-surface border border-border-subtle space-y-2.5 text-xs">
+                <div className="font-semibold text-text-primary text-[11px] uppercase tracking-wider pb-1 border-b border-border-subtle/50">
+                  Receipt Formatting
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                  <label className="flex items-center gap-1.5 text-text-secondary cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeHeaders}
-                      onChange={(e) => setIncludeHeaders(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-accent rounded"
-                    />
-                    <span>Headers</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 text-text-secondary cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeDescriptions}
-                      onChange={(e) => setIncludeDescriptions(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-accent rounded"
-                    />
-                    <span>Descriptions</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 text-text-secondary cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeDrinks}
-                      onChange={(e) => setIncludeDrinks(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-accent rounded"
-                    />
-                    <span>Drinks</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 text-text-secondary cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={compactMode}
-                      onChange={(e) => setCompactMode(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-accent rounded"
-                    />
-                    <span>Compact Mode</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Scrollable Reorder & Visibility List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-2 text-left">
-                {currentMenu.sections.map((sec, secIdx) => (
-                  <div
-                    key={sec.id}
-                    className={`p-2 rounded-well border text-xs transition-all ${
-                      sec.hidden ? 'bg-bg-elevated/40 border-border-subtle/40 opacity-50' : 'bg-bg-elevated border-border-subtle'
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIncludeHeaders(!includeHeaders)}
+                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                      includeHeaders
+                        ? 'bg-accent/15 border-accent text-accent font-medium'
+                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <GripVertical className="w-3.5 h-3.5 text-text-tertiary" />
-                        <span className="font-semibold text-text-primary">{sec.title}</span>
-                      </div>
+                    <span>Headers</span>
+                    <span className="text-[10px] font-mono">{includeHeaders ? 'ON' : 'OFF'}</span>
+                  </button>
 
-                      <div className="flex items-center gap-1">
-                        {secIdx > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleMoveSection(secIdx, 'up')}
-                            className="text-[10px] px-1 text-text-tertiary hover:text-accent"
-                          >
-                            ▲
-                          </button>
-                        )}
-                        {secIdx < currentMenu.sections.length - 1 && (
-                          <button
-                            type="button"
-                            onClick={() => handleMoveSection(secIdx, 'down')}
-                            className="text-[10px] px-1 text-text-tertiary hover:text-accent"
-                          >
-                            ▼
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleSectionVisibility(sec.id)}
-                          className="p-1 text-text-secondary hover:text-accent"
-                          aria-label="Toggle section"
-                        >
-                          {sec.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-accent" />}
-                        </button>
-                      </div>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => setIncludeDescriptions(!includeDescriptions)}
+                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                      includeDescriptions
+                        ? 'bg-accent/15 border-accent text-accent font-medium'
+                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                    }`}
+                  >
+                    <span>Descriptions</span>
+                    <span className="text-[10px] font-mono">{includeDescriptions ? 'ON' : 'OFF'}</span>
+                  </button>
 
-                    {/* Section items list */}
-                    {!sec.hidden && (
-                      <div className="mt-1.5 pl-5 space-y-1 border-t border-border-subtle/40 pt-1">
-                        {sec.items.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between text-[11px]">
-                            <span className={item.hidden ? 'line-through text-text-tertiary truncate max-w-[140px]' : 'text-text-secondary truncate max-w-[140px]'}>
-                              {item.title}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleItemVisibility(sec.id, item.id)}
-                              className="text-text-tertiary hover:text-accent"
-                            >
-                              {item.hidden ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3 text-accent" />}
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setIncludeDrinks(!includeDrinks)}
+                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                      includeDrinks
+                        ? 'bg-accent/15 border-accent text-accent font-medium'
+                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                    }`}
+                  >
+                    <span>Drinks List</span>
+                    <span className="text-[10px] font-mono">{includeDrinks ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaperWidth(paperWidth === '58mm' ? '80mm' : '58mm')}
+                    className="px-2.5 py-1.5 rounded-md border bg-bg-elevated border-border-subtle text-text-secondary text-left flex items-center justify-between"
+                  >
+                    <span>Paper Width</span>
+                    <span className="text-[10px] font-mono text-accent">{paperWidth}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCompactMode(!compactMode)}
+                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between col-span-2 ${
+                      compactMode
+                        ? 'bg-accent/15 border-accent text-accent font-medium'
+                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                    }`}
+                  >
+                    <span>Compact Mode</span>
+                    <span className="text-[10px] font-mono">{compactMode ? 'ON' : 'OFF'}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Reset Revert Button */}
-              <div className="shrink-0 pt-2 border-t border-border-subtle/50 flex justify-between items-center text-[10px]">
-                <button
-                  type="button"
-                  onClick={handleResetEditor}
-                  className="flex items-center gap-1 text-text-secondary hover:text-accent transition-colors"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span>Revert to default order</span>
-                </button>
+              {/* Items Customization List */}
+              <div className="space-y-3">
+                {[...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])].map(
+                  (sec) => (
+                    <div
+                      key={sec.id}
+                      className={`rounded-card bg-bg-surface border transition-opacity ${
+                        sec.hidden ? 'opacity-40 border-border-subtle/50' : 'border-border-subtle'
+                      }`}
+                    >
+                      <div className="p-2.5 bg-bg-elevated/70 flex items-center justify-between border-b border-border-subtle/40">
+                        <span className="font-serif text-xs font-semibold text-text-primary">
+                          {sec.title}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionVisibility(sec.id)}
+                          className="p-1 rounded text-text-tertiary hover:text-text-primary"
+                          title={sec.hidden ? 'Show Section' : 'Hide Section'}
+                        >
+                          {sec.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      {!sec.hidden && (
+                        <div className="p-2 space-y-1.5">
+                          {sec.items.map((it, idx) => (
+                            <div
+                              key={it.id}
+                              className={`flex items-center gap-1.5 p-1.5 rounded-md bg-bg-elevated/40 border border-border-subtle/40 ${
+                                it.hidden ? 'opacity-35' : ''
+                              }`}
+                            >
+                              {/* Reorder up/down buttons */}
+                              <div className="flex flex-col shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => moveItem(sec.id, idx, 'up')}
+                                  className="text-text-tertiary hover:text-accent disabled:opacity-20 p-0.5"
+                                >
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === sec.items.length - 1}
+                                  onClick={() => moveItem(sec.id, idx, 'down')}
+                                  className="text-text-tertiary hover:text-accent disabled:opacity-20 p-0.5"
+                                >
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+
+                              {/* Editable Title */}
+                              <input
+                                type="text"
+                                value={it.title}
+                                onChange={(e) => updateItemTitle(sec.id, it.id, e.target.value)}
+                                className="flex-1 bg-transparent border-0 text-text-primary text-[11px] font-sans focus:outline-none focus:ring-1 focus:ring-accent/40 rounded px-1"
+                              />
+
+                              {/* Toggle visibility */}
+                              <button
+                                type="button"
+                                onClick={() => toggleItemVisibility(sec.id, it.id)}
+                                className="p-1 rounded text-text-tertiary hover:text-text-primary shrink-0"
+                              >
+                                {it.hidden ? (
+                                  <EyeOff className="w-3 h-3 text-red-400" />
+                                ) : (
+                                  <Eye className="w-3 h-3 text-emerald-400" />
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
               </div>
             </div>
 
-            {/* RIGHT PANEL: THERMAL RECEIPT CANVAS (Visible on desktop OR mobileTab === 'preview') */}
+            {/* RIGHT PANEL: Live Thermal Receipt Canvas */}
             <div
-              className={`lg:col-span-7 flex flex-col items-center justify-center h-full overflow-hidden bg-bg-surface/50 rounded-card border border-border-subtle p-2 sm:p-3 ${
-                mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
+              className={`h-full overflow-y-auto flex flex-col items-center justify-start ${
+                mobileTab === 'preview' ? 'flex' : 'hidden sm:flex'
               }`}
             >
-              {/* Receipt Scroll Container */}
-              <div className="w-full h-full overflow-y-auto flex justify-center py-2">
-                {/* Pure B&W Thermal Canvas Element */}
-                <div
-                  ref={receiptRef}
-                  style={{
-                    width: paperWidthMm === 58 ? '260px' : '320px',
-                  }}
-                  className={`bg-white text-black p-4 font-mono shadow-2xl border border-gray-300 select-none ${
-                    compactMode ? 'text-[10px] leading-tight' : 'text-xs leading-normal'
-                  }`}
-                >
-                  {/* Header */}
-                  <div className="text-center pb-2 border-b-2 border-dashed border-black">
-                    <p className="font-bold text-sm tracking-widest">*** SINGAPORE AIRLINES ***</p>
-                    <p className="text-[10px] tracking-wider mt-0.5">INFLIGHT MENU SLIP</p>
-                    <div className="flex justify-between text-[10px] font-bold mt-1.5 border-t border-dotted border-black pt-1">
-                      <span>SQ {validation.cleanFlightNo}</span>
-                      <span>{dateDisplay}</span>
-                      <span>{activeTabCabin}</span>
-                    </div>
+              <div
+                ref={receiptRef}
+                className="bg-white text-black p-5 shadow-2xl rounded-sm font-mono text-[11px] leading-tight select-none border border-neutral-300"
+                style={{
+                  width: paperWidth === '58mm' ? '280px' : '360px',
+                  maxWidth: '100%',
+                }}
+              >
+                {/* Receipt Header */}
+                <div className="text-center pb-3 border-b-2 border-dashed border-black">
+                  <div className="font-bold text-sm tracking-wider uppercase">SINGAPORE AIRLINES</div>
+                  <div className="text-[10px] mt-0.5 font-sans font-medium">INFLIGHT MENU RECEIPT</div>
+                  <div className="mt-2 text-[10px] text-neutral-800 flex justify-between">
+                    <span>FLIGHT: SQ{validation.cleanFlightNo}</span>
+                    <span>{dateDisplay}</span>
                   </div>
+                  <div className="text-[9px] text-neutral-600 text-left mt-0.5">
+                    CLASS: {selectedCabins.join(', ')}
+                  </div>
+                </div>
 
-                  {/* Sections and Items */}
-                  <div className="py-2 space-y-2.5">
-                    {receiptSections.map((sec) => (
-                      <div key={sec.id}>
+                {/* Receipt Sections & Items */}
+                <div className="py-2.5 space-y-3">
+                  {editableMenu.sections
+                    .filter((sec) => !sec.hidden)
+                    .map((sec) => (
+                      <div key={sec.id} className="space-y-1">
                         {includeHeaders && (
-                          <div className="font-bold uppercase tracking-wider text-[11px] border-b border-black pb-0.5 mb-1">
-                            [{sec.title}]
+                          <div className="font-bold uppercase text-[10px] tracking-wide border-b border-black pb-0.5">
+                            * {sec.title} *
                           </div>
                         )}
-                        <div className="space-y-1">
+                        <div className="space-y-1 pt-0.5">
                           {sec.items
-                            .filter((i) => !i.hidden)
-                            .map((item) => (
-                              <div key={item.id}>
-                                <p className="font-semibold text-[11px]">• {item.title}</p>
-                                {includeDescriptions && !compactMode && item.description && (
-                                  <p className="text-[9px] text-gray-700 pl-3 leading-tight">{item.description}</p>
+                            .filter((it) => !it.hidden)
+                            .map((it) => (
+                              <div key={it.id} className="pl-1">
+                                <div className="font-bold">- {it.title}</div>
+                                {includeDescriptions && it.description && (
+                                  <div className="text-[9px] text-neutral-700 pl-3 leading-snug">
+                                    {it.description}
+                                  </div>
                                 )}
                               </div>
                             ))}
                         </div>
                       </div>
                     ))}
-                  </div>
 
-                  {/* Footer */}
-                  <div className="text-center pt-2 border-t-2 border-dashed border-black text-[9px] text-gray-600">
-                    <p>— CREWKIT INKFLIGHT SLIP —</p>
-                    <p className="text-[8px] mt-0.5">Thermal Print Ready &bull; Non-Official</p>
-                  </div>
+                  {/* Drinks Section if enabled */}
+                  {includeDrinks &&
+                    editableMenu.drinks
+                      .filter((sec) => !sec.hidden)
+                      .map((sec) => (
+                        <div key={sec.id} className="space-y-1 pt-1">
+                          {includeHeaders && (
+                            <div className="font-bold uppercase text-[10px] tracking-wide border-b border-black pb-0.5">
+                              * {sec.title} *
+                            </div>
+                          )}
+                          <div className="space-y-1 pt-0.5">
+                            {sec.items
+                              .filter((it) => !it.hidden)
+                              .map((it) => (
+                                <div key={it.id} className="pl-1">
+                                  <div className="font-bold">- {it.title}</div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      ))}
+                </div>
+
+                {/* Receipt Footer */}
+                <div className="pt-3 border-t-2 border-dashed border-black text-center text-[9px] space-y-0.5 text-neutral-600">
+                  <div>* CREW STUDY GUIDE ONLY *</div>
+                  <div>Generated via CrewKit</div>
+                  <div className="pt-1">*** HAVE A SAFE FLIGHT ***</div>
                 </div>
               </div>
             </div>
 
           </div>
 
-          {/* Feedback Toast */}
-          {exportFeedback && (
-            <div className="shrink-0 flex items-center justify-center gap-1.5 py-1 px-3 mb-1 rounded-full bg-success/20 border border-success/40 text-success text-[11px] font-medium animate-fade-in">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{exportFeedback}</span>
+          {/* Sticky Bottom Export Bar */}
+          <div className="shrink-0 flex items-center justify-between gap-2 pt-2 pb-1 border-t border-border-subtle/50">
+            <button
+              type="button"
+              onClick={() => setStage('form')}
+              className="flex items-center gap-1 px-3 py-2 rounded-full border border-border-subtle hover:border-border-hover text-[11px] font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={handleExportPng}
+                className="flex items-center gap-1 px-3 py-2 rounded-full bg-bg-surface border border-border-subtle hover:border-accent text-[11px] font-medium text-text-primary transition-all active:scale-95"
+                title="Download PNG image"
+              >
+                <Download className="w-3 h-3 text-accent" />
+                <span>PNG</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={handleExportPdf}
+                className="flex items-center gap-1 px-3 py-2 rounded-full bg-bg-surface border border-border-subtle hover:border-accent text-[11px] font-medium text-text-primary transition-all active:scale-95"
+                title="Download PDF document"
+              >
+                <FileText className="w-3 h-3 text-accent" />
+                <span>PDF</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={handleExportDocx}
+                className="editorial-cta-btn flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-semibold tracking-wide"
+                title="Download Microsoft Word document"
+              >
+                <FileCode className="w-3 h-3 text-[#0B1E3E]" />
+                <span>DOCX</span>
+              </button>
             </div>
-          )}
-
-          {/* EXPORT BAR (Always visible at bottom) */}
-          <div className="shrink-0 grid grid-cols-3 gap-2 pt-2 border-t border-border-subtle/50">
-            <button
-              type="button"
-              disabled={isExporting}
-              onClick={handleExportPNG}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-bg-elevated border border-accent/40 text-accent hover:bg-accent/15 text-xs font-semibold active:scale-95 transition-all shadow-sm disabled:opacity-50"
-            >
-              <ImageIcon className="w-4 h-4" />
-              <span>PNG</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isExporting}
-              onClick={handleExportDOCX}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-bg-elevated border border-accent/40 text-accent hover:bg-accent/15 text-xs font-semibold active:scale-95 transition-all shadow-sm disabled:opacity-50"
-            >
-              <FileText className="w-4 h-4" />
-              <span>DOCX</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isExporting}
-              onClick={handleExportPDF}
-              className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-full bg-bg-elevated border border-accent/40 text-accent hover:bg-accent/15 text-xs font-semibold active:scale-95 transition-all shadow-sm disabled:opacity-50"
-            >
-              <FileDown className="w-4 h-4" />
-              <span>PDF</span>
-            </button>
           </div>
 
         </div>

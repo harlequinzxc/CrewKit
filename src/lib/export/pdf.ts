@@ -1,8 +1,8 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-
 export async function exportToPDF(element: HTMLElement, filename: string, paperWidthMm = 80): Promise<boolean> {
   try {
+    const html2canvas = (await import('html2canvas')).default;
+    const { default: jsPDF } = await import('jspdf');
+
     const canvas = await html2canvas(element, {
       scale: 2,
       backgroundColor: '#FFFFFF',
@@ -14,7 +14,6 @@ export async function exportToPDF(element: HTMLElement, filename: string, paperW
     const imgWidth = paperWidthMm;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    // Create custom sized PDF matching thermal receipt paper dimensions
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -22,7 +21,7 @@ export async function exportToPDF(element: HTMLElement, filename: string, paperW
     });
 
     pdf.addImage(imgData, 'PNG', 0, 5, imgWidth, imgHeight);
-    
+
     const blob = pdf.output('blob');
     const file = new File([blob], `${filename}.pdf`, { type: 'application/pdf' });
 
