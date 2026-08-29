@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Default: Dark Theme */
+  --bg-base: #070B14;
+  --bg-surface: #121826;
+  --bg-elevated: #1A2234;
+  --border-subtle: rgba(201, 168, 76, 0.12);
+  --border-medium: rgba(201, 168, 76, 0.22);
+  --text-primary: #F0ECE4;
+  --text-secondary: #8B95A8;
+  --text-tertiary: #5C6578;
+  --accent: #C9A84C;
+  --accent-soft: #E8D5A3;
+  --accent-dim: #8A7333;
+  --accent-glow: rgba(201, 168, 76, 0.35);
+  --danger: #C45B5B;
+  --success: #5BA88A;
+}
+
+html.light {
+  --bg-base: #F5F2EB;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #EAE5D9;
+  --border-subtle: rgba(11, 30, 62, 0.08);
+  --border-medium: rgba(11, 30, 62, 0.14);
+  --text-primary: #0B1E3E;
+  --text-secondary: #5C6B80;
+  --text-tertiary: #8B95A8;
+  --accent: #A88B2E;
+  --accent-soft: #C9A84C;
+  --accent-dim: #7A6620;
+  --accent-glow: rgba(168, 139, 46, 0.25);
+  --danger: #C45B5B;
+  --success: #5BA88A;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+/* Page entrance animations */
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInScale 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Utilities */
+.gold-gradient-text {
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--accent) 50%, var(--accent-dim) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-gradient-btn {
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--accent) 100%);
+  color: #070B14;
+  box-shadow: 0 2px 14px var(--accent-glow);
+}
+
+.gold-gradient-btn:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+
+.gold-gradient-btn:active {
+  transform: scale(0.98);
+}
+
+/* Glass panel */
+.glass-panel {
+  background-color: var(--bg-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-medium);
+}

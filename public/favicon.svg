@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8D5A3" />
+      <stop offset="50%" stop-color="#C9A84C" />
+      <stop offset="100%" stop-color="#8A7333" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#121826" />
+      <stop offset="100%" stop-color="#070B14" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Base Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="url(#goldGrad)" stroke-width="6" stroke-opacity="0.4" />
+  
+  <!-- Inner Border Glow -->
+  <rect width="456" height="456" x="28" y="28" rx="88" fill="none" stroke="url(#goldGrad)" stroke-width="2" stroke-opacity="0.2" />
+
+  <!-- Monogram CK & Flight Emblem -->
+  <g transform="translate(0, 0)" filter="url(#glow)">
+    <!-- Stylized Modern Geometric Wings / Plane Motif -->
+    <path d="M 256 120 L 350 214 L 300 214 L 256 170 L 212 214 L 162 214 Z" fill="url(#goldGrad)" opacity="0.9" />
+    <!-- Monogram Letters -->
+    <text x="256" y="340" 
+          text-anchor="middle" 
+          font-family="'Playfair Display', Georgia, serif" 
+          font-weight="700" 
+          font-size="148" 
+          letter-spacing="6" 
+          fill="url(#goldGrad)">CK</text>
+    <text x="256" y="390" 
+          text-anchor="middle" 
+          font-family="'Inter', sans-serif" 
+          font-weight="500" 
+          font-size="24" 
+          letter-spacing="14" 
+          fill="#8B95A8">CREWKIT</text>
+  </g>
+</svg>
