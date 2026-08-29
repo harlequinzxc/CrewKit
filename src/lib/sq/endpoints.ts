@@ -3,7 +3,29 @@ import { SQ_CONFIG } from './config';
 import { sqCache } from './cache';
 
 /**
- * Known Singapore Airlines Flagship Route Database (Used for timing reference & offline resilience)
+ * Format date helpers for multiple SQ API format variants
+ */
+function formatDateVariants(iso: string): { iso: string; ddmmyyyy: string; ddMonYyyy: string; ddMONyyyy: string } {
+  if (!iso || !iso.includes('-')) {
+    const today = new Date().toISOString().split('T')[0];
+    return formatDateVariants(today);
+  }
+  const [y, m, d] = iso.split('-');
+  const dateObj = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const mon = months[dateObj.getMonth()] || 'Jan';
+  const dd = d.padStart(2, '0');
+
+  return {
+    iso,
+    ddmmyyyy: `${dd}-${m}-${y}`,
+    ddMonYyyy: `${dd}${mon}${y}`,
+    ddMONyyyy: `${dd}${mon.toUpperCase()}${y}`,
+  };
+}
+
+/**
+ * Known Singapore Airlines Flagship Route Database (Used for schedule timings reference)
  */
 const ROUTE_DATABASE: Record<string, {
   from: string;
@@ -281,11 +303,11 @@ export function normalizeFlightNumber(flightNo: string): string {
 function normalizeCabinCode(str: string): CabinCode | null {
   if (!str) return null;
   const s = str.toUpperCase().trim().replace(/[^A-Z]/g, '');
-  if (s === 'SUITES' || s === 'SUITE' || s === 'R') return 'SUITES';
-  if (s === 'FIRST' || s === 'FIRSTCLASS' || s === 'F') return 'FIRST';
-  if (s === 'BUSINESS' || s === 'BUSINESSCLASS' || s === 'J' || s === 'C') return 'BUSINESS';
-  if (s === 'PREMIUMECONOMY' || s === 'PREMIUM' || s === 'PREMECON' || s === 'S' || s === 'W') return 'PREMIUM_ECONOMY';
-  if (s === 'ECONOMY' || s === 'ECONOMYCLASS' || s === 'Y') return 'ECONOMY';
+  if (s.includes('SUITE') || s === 'R') return 'SUITES';
+  if (s.includes('FIRST') || s === 'F') return 'FIRST';
+  if (s.includes('BUSINESS') || s === 'BIZ' || s === 'J' || s === 'C') return 'BUSINESS';
+  if (s.includes('PREMIUM') || s.includes('PREM') || s === 'PE' || s === 'S' || s === 'W') return 'PREMIUM_ECONOMY';
+  if (s.includes('ECONOMY') || s.includes('ECON') || s === 'Y') return 'ECONOMY';
   return null;
 }
 
@@ -312,17 +334,29 @@ async function fetchLiveFeed(flightNo: string, dateISO: string): Promise<any | n
   const num = normalizeFlightNumber(flightNo);
   if (!num) return null;
 
-  const endpoints = [
-    `${SQ_CONFIG.LIVE_MENU_API}?flightNo=SQ${num}&date=${dateISO}`,
-    `${SQ_CONFIG.PROXY_MENU_API}?flightNo=SQ${num}&date=${dateISO}`,
-    `${SQ_CONFIG.ALT_MENU_API}?flightNo=SQ${num}&date=${dateISO}`,
-    `${SQ_CONFIG.LIVE_MENU_API}?flightNumber=SQ${num}&departureDate=${dateISO}`,
+  const dates = formatDateVariants(dateISO);
+
+  // List of live endpoints and local / Vercel relay paths
+  const endpoints: string[] = [
+    // 1. Vercel Serverless Function / local relay (bypasses CORS restrictions)
+    `/api/menu?flightNo=SQ${num}&date=${dates.iso}`,
+    `/api/menu?flightNo=${num}&date=${dates.iso}`,
+    
+    // 2. Local Vite Proxy
+    `${SQ_CONFIG.PROXY_MENU_API}?flightNo=SQ${num}&date=${dates.iso}`,
+    
+    // 3. Direct Singapore Airlines Live Unauthenticated Feed
+    `${SQ_CONFIG.LIVE_MENU_API}?flightNo=SQ${num}&date=${dates.iso}`,
+    `${SQ_CONFIG.LIVE_MENU_API}?flightNumber=SQ${num}&departureDate=${dates.iso}`,
+    `${SQ_CONFIG.LIVE_MENU_API}?flightNo=SQ${num}&date=${dates.ddMonYyyy}`,
+    `${SQ_CONFIG.LIVE_MENU_API}?flightNo=SQ${num}&date=${dates.ddMONyyyy}`,
+    `${SQ_CONFIG.ALT_MENU_API}?flightNo=SQ${num}&date=${dates.iso}`,
   ];
 
   for (const url of endpoints) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
 
       const res = await fetch(url, {
         signal: controller.signal,
@@ -335,12 +369,12 @@ async function fetchLiveFeed(flightNo: string, dateISO: string): Promise<any | n
 
       if (res.ok) {
         const json = await res.json();
-        if (json && (json.response || json.data || json.flight || json.menus || json.cabins || Array.isArray(json))) {
+        if (json && (json.response || json.data || json.flight || json.menus || json.cabins || json.mealServices || Array.isArray(json))) {
           return json;
         }
       }
     } catch {
-      // Continue to next endpoint
+      // Continue trying fallback endpoints
     }
   }
 
@@ -367,22 +401,21 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
       const rawCabins: string[] = [];
       let detectedAircraft = '';
 
-      // Parse payload structures
       const root = rawData.response || rawData.data || rawData;
       
-      if (root.aircraftType || root.aircraft || root.flight?.aircraft) {
-        detectedAircraft = root.aircraftType || root.aircraft || root.flight?.aircraft || '';
+      if (root.aircraftType || root.aircraft || root.flight?.aircraft || root.flight?.aircraftType) {
+        detectedAircraft = root.aircraftType || root.aircraft || root.flight?.aircraft || root.flight?.aircraftType || '';
       }
 
       if (Array.isArray(root.cabins)) {
         root.cabins.forEach((c: any) => {
           if (typeof c === 'string') rawCabins.push(c);
-          else if (c?.name || c?.code || c?.cabinClass) rawCabins.push(c.name || c.code || c.cabinClass);
+          else if (c?.name || c?.code || c?.cabinClass || c?.cabin) rawCabins.push(c.name || c.code || c.cabinClass || c.cabin);
         });
       } else if (root.menus && typeof root.menus === 'object') {
         Object.keys(root.menus).forEach((k) => rawCabins.push(k));
       } else if (root.cabinClasses && Array.isArray(root.cabinClasses)) {
-        root.cabinClasses.forEach((c: any) => rawCabins.push(c.name || c.code || c));
+        root.cabinClasses.forEach((c: any) => rawCabins.push(c.name || c.code || c.cabinClass || c));
       }
 
       const availableCodes = Array.from(
@@ -405,7 +438,7 @@ export async function getCabinConfig(flightNo: string, dateISO: string): Promise
       }
     }
   } catch (err) {
-    console.warn('Live cabin feed parse skipped:', err);
+    console.warn('Live cabin feed parse error:', err);
   }
 
   // 2. Authoritative Fallback Route Database
@@ -490,7 +523,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
       }
     }
   } catch (err) {
-    console.warn('Live schedule feed parse skipped:', err);
+    console.warn('Live schedule feed parse error:', err);
   }
 
   // 2. Authoritative Fallback
@@ -556,7 +589,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
 }
 
 /**
- * 3. Retrieve Inflight Dining & Drinks Menu (Live SIA Feed + Rich Authentic Fallback)
+ * 3. Retrieve Inflight Dining & Drinks Menu (Live SIA Feed + Rich Fallback)
  */
 export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCode): Promise<MenuData> {
   const num = normalizeFlightNumber(flightNo);
@@ -593,7 +626,7 @@ function parseLiveSiaMenu(raw: any, flightNo: string, dateISO: string, targetCab
     const diningSections: MenuSection[] = [];
     const drinksSections: MenuSection[] = [];
 
-    // Find the matching cabin block
+    // 1. Find matching cabin data in response
     let cabinData: any = null;
     if (root.menus && typeof root.menus === 'object') {
       for (const [k, v] of Object.entries(root.menus)) {
@@ -604,46 +637,51 @@ function parseLiveSiaMenu(raw: any, flightNo: string, dateISO: string, targetCab
       }
     } else if (Array.isArray(root.cabinClasses || root.cabins)) {
       const arr = root.cabinClasses || root.cabins;
-      cabinData = arr.find((c: any) => normalizeCabinCode(c.name || c.code || c.cabinClass) === targetCabin);
+      cabinData = arr.find((c: any) => normalizeCabinCode(c.name || c.code || c.cabinClass || c.cabin) === targetCabin);
     } else if (Array.isArray(root.mealServices || root.services)) {
       cabinData = root;
+    } else if (typeof root === 'object') {
+      cabinData = root[targetCabin] || root[targetCabin.toLowerCase()] || root;
     }
 
     if (cabinData) {
+      // 2. Extract meal services / courses
       const services = cabinData.mealServices || cabinData.services || cabinData.meals || (Array.isArray(cabinData) ? cabinData : []);
 
-      // Extract Meal Services & Courses
       if (Array.isArray(services)) {
         services.forEach((service: any, sIdx: number) => {
-          const serviceTitle = service.name || service.title || service.mealType || `Meal Service ${sIdx + 1}`;
-          const courses = service.courses || service.sections || [service];
+          const serviceTitle = service.name || service.title || service.mealType || service.serviceName || `Meal Service ${sIdx + 1}`;
+          const courses = service.courses || service.sections || service.categories || [service];
 
           courses.forEach((course: any, cIdx: number) => {
-            const courseTitle = course.name || course.title || serviceTitle;
-            const rawItems = course.items || course.dishes || course.options || [];
+            const courseTitle = course.name || course.title || course.courseName || serviceTitle;
+            const rawItems = course.items || course.dishes || course.options || course.menuItems || (Array.isArray(course) ? course : []);
 
             const items: MenuItem[] = [];
-            rawItems.forEach((it: any, iIdx: number) => {
-              const title = stripHtml(it.name || it.title || it.dishName || '');
-              if (title) {
-                const desc = stripHtml(it.description || it.details || it.ingredients || '');
-                const tags: string[] = [];
-                if (it.signature || it.isSignature) tags.push('Signature');
-                if (it.halal || it.isHalal) tags.push('Halal');
-                if (it.bookTheCook || it.isBookTheCook) tags.push('Book the Cook');
-                if (it.tags && Array.isArray(it.tags)) {
-                  it.tags.forEach((t: string) => tags.push(stripHtml(t)));
-                }
+            if (Array.isArray(rawItems)) {
+              rawItems.forEach((it: any, iIdx: number) => {
+                const title = stripHtml(it.name || it.title || it.dishName || it.dish || '');
+                if (title) {
+                  const desc = stripHtml(it.description || it.details || it.ingredients || it.desc || '');
+                  const tags: string[] = [];
+                  if (it.signature || it.isSignature) tags.push('Signature');
+                  if (it.halal || it.isHalal) tags.push('Halal');
+                  if (it.bookTheCook || it.isBookTheCook) tags.push('Book the Cook');
+                  if (it.icp || it.isIcp) tags.push('Culinary Panel');
+                  if (it.tags && Array.isArray(it.tags)) {
+                    it.tags.forEach((t: string) => tags.push(stripHtml(t)));
+                  }
 
-                items.push({
-                  id: `${targetCabin.toLowerCase()}_sec_${sIdx}_${cIdx}_${iIdx}`,
-                  title,
-                  description: desc || undefined,
-                  tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
-                  imageUrl: it.imageUrl || it.image || it.photo || undefined,
-                });
-              }
-            });
+                  items.push({
+                    id: `${targetCabin.toLowerCase()}_sec_${sIdx}_${cIdx}_${iIdx}`,
+                    title,
+                    description: desc || undefined,
+                    tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
+                    imageUrl: it.imageUrl || it.image || it.photo || it.photoUrl || undefined,
+                  });
+                }
+              });
+            }
 
             if (items.length > 0) {
               diningSections.push({
@@ -656,25 +694,27 @@ function parseLiveSiaMenu(raw: any, flightNo: string, dateISO: string, targetCab
         });
       }
 
-      // Extract Beverages / Drinks
-      const beverages = cabinData.beverages || cabinData.drinks || root.beverages || root.drinks || [];
+      // 3. Extract beverage lists
+      const beverages = cabinData.beverages || cabinData.drinks || cabinData.wineList || root.beverages || root.drinks || [];
       if (Array.isArray(beverages)) {
         beverages.forEach((bevCategory: any, bIdx: number) => {
-          const catTitle = bevCategory.name || bevCategory.title || 'Beverages';
-          const bevItems = bevCategory.items || bevCategory.drinks || [];
+          const catTitle = bevCategory.name || bevCategory.title || bevCategory.category || 'Beverages';
+          const bevItems = bevCategory.items || bevCategory.drinks || bevCategory.wines || [];
 
           const items: MenuItem[] = [];
-          bevItems.forEach((it: any, iIdx: number) => {
-            const title = stripHtml(it.name || it.title || '');
-            if (title) {
-              items.push({
-                id: `bev_${bIdx}_${iIdx}`,
-                title,
-                description: stripHtml(it.description || it.vintage || '') || undefined,
-                tags: it.tags || [catTitle],
-              });
-            }
-          });
+          if (Array.isArray(bevItems)) {
+            bevItems.forEach((it: any, iIdx: number) => {
+              const title = stripHtml(it.name || it.title || it.wineName || '');
+              if (title) {
+                items.push({
+                  id: `bev_${bIdx}_${iIdx}`,
+                  title,
+                  description: stripHtml(it.description || it.vintage || it.region || '') || undefined,
+                  tags: it.tags || [catTitle],
+                });
+              }
+            });
+          }
 
           if (items.length > 0) {
             drinksSections.push({
