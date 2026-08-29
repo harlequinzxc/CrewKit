@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- Title & Description -->
+    <title>CrewKit — Singapore Airlines Cabin Crew Toolkit</title>
+    <meta name="description" content="A refined progressive web toolkit for Singapore Airlines cabin crew. CrewCash allowance calculator, SkyMenu viewer, InkFlight formatter, and rate settings." />
+    
+    <!-- PWA & Mobile Web App Meta -->
+    <meta name="theme-color" content="#070B14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CrewKit" />
+    <meta name="application-name" content="CrewKit" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Icons & Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
+
+    <!-- Google Fonts: Playfair Display + Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-bg-base text-text-primary antialiased select-none overflow-hidden touch-manipulation">
+    <div id="root" class="h-screen w-screen overflow-hidden flex flex-col"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

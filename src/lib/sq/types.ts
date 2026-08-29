@@ -1,0 +1,93 @@
+export type CabinCode = "SUITES" | "FIRST" | "BUSINESS" | "PREMIUM_ECONOMY" | "ECONOMY";
+
+export type CabinConfig = {
+  flightNo: string;
+  date: string;
+  available: CabinCode[];
+  aircraftType?: string;
+};
+
+export type Sector = {
+  from: string;
+  fromCity?: string;
+  to: string;
+  toCity?: string;
+  depLocal: string;
+  depDateLocal?: string;
+  arrLocal: string;
+  arrDateLocal?: string;
+  blockMinutes: number;
+};
+
+export type FlightSchedule = {
+  flightNo: string;
+  date: string;
+  sectors: Sector[];
+  aircraftType?: string;
+};
+
+export type MenuItem = {
+  id: string;
+  title: string;
+  description?: string;
+  footnote?: string;
+  tags?: string[];
+  imageUrl?: string;
+  hidden?: boolean;
+};
+
+export type MenuSection = {
+  id: string;
+  title: string;
+  items: MenuItem[];
+  hidden?: boolean;
+};
+
+export type MealCourse = {
+  id: string;
+  name: string;
+  maxSequence?: number;
+  items: MenuItem[];
+};
+
+export type MealSelection = {
+  id: string;
+  name: string;
+  courses: MealCourse[];
+};
+
+export type MealService = {
+  id: string;
+  name: string;
+  selections: MealSelection[];
+};
+
+export type AmenityItem = {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+};
+
+export type LegMenuData = {
+  legId: string;
+  origin: string;
+  destination: string;
+  departureLocalDate?: string;
+  arrivalLocalDate?: string;
+  mealServices: MealService[];
+  drinks: MenuSection[];
+  snacks: MenuItem[];
+  amenities: AmenityItem[];
+};
+
+export type MenuData = {
+  flightNo: string;
+  date: string;
+  cabin: CabinCode;
+  aircraftType?: string;
+  legs: LegMenuData[];
+  // Backwards compatible flat views for export tools
+  sections: MenuSection[];
+  drinks: MenuSection[];
+};
