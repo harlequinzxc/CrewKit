@@ -27,19 +27,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionId = (body.sessionId || req.query.sessionId || 'f47ac10b-58cc-4372-a567-0e02b2c3d479').toString();
     const num = parseInt(flightNumber, 10);
 
-    const isValidSq =
-      !isNaN(num) &&
-      num >= 11 &&
-      num <= 998 &&
-      ((num >= 11 && num <= 38) || (num >= 51 && num <= 52) || (num >= 100 && num <= 998));
-
-    if (!isValidSq) {
+    if (isNaN(num) || num < 1 || num > 9999) {
       return res.status(404).json({
         statusCode: 404,
         carrierId,
         flightNumber,
         flightDate,
-        message: `Flight SQ${flightNumber} not found on ${flightDate}.`,
+        message: 'No flight found',
         legs: [],
       });
     }
@@ -51,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json',
           'Origin': 'https://inflightmenu.singaporeair.com',
           'Referer': 'https://inflightmenu.singaporeair.com/',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
         },
         body: JSON.stringify({ carrierId, flightNumber, flightDate, cabinClass, sessionId }),
       });
@@ -66,7 +60,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // upstream fallback
     }
 
-    // Default SIA structure generator
+    // Default SIA structure generator for flagship flights
+    const KNOWN_FLAGSHIPS = [11, 12, 21, 22, 23, 24, 25, 26, 308, 317, 319, 322, 221, 222, 830, 833];
+    if (!KNOWN_FLAGSHIPS.includes(num)) {
+      return res.status(404).json({
+        statusCode: 404,
+        carrierId,
+        flightNumber,
+        flightDate,
+        message: 'No flight found',
+        legs: [],
+      });
+    }
+
     let baseLegs: any[] = [];
     if (num === 12) {
       baseLegs = [

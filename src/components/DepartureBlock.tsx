@@ -98,17 +98,23 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
     onDateSelect(tomorrowISO, formatDateDisplay(tomorrowISO));
   };
 
+  // Fixed: Opening custom picker allows user to choose without automatically jumping to today
   const handleOpenCustomPicker = () => {
     setActivePreset('custom');
-    const targetDate = customDate || todayISO;
-    setCustomDate(targetDate);
-    const val = validateFlightDate(targetDate);
-    setDateError(val.error);
-    onDateSelect(targetDate, formatDateDisplay(targetDate));
+    setDateError(null);
+    if (selectedDateISO && selectedDateISO !== todayISO && selectedDateISO !== tomorrowISO) {
+      setCustomDate(selectedDateISO);
+    } else {
+      setCustomDate('');
+    }
   };
 
   const handleCustomDateChange = (val: string) => {
     setCustomDate(val);
+    if (!val) {
+      setDateError(null);
+      return;
+    }
     const valResult = validateFlightDate(val);
     if (!valResult.valid) {
       setDateError(valResult.error);
@@ -125,7 +131,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
         htmlFor="departure-date-picker"
         className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none"
       >
-        DEPARTURE DATE
+        DATE
       </label>
 
       {/* Mode 1: Sliding Pill Selection */}
@@ -209,11 +215,6 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
           {dateError}
         </div>
       )}
-
-      {/* Publication window helper */}
-      <p className="font-sans text-[0.68rem] text-mist-400 mt-2 ml-0.5 select-none">
-        Singapore Airlines menus are normally published up to eight days before departure.
-      </p>
     </div>
   );
 };

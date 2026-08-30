@@ -59,7 +59,7 @@ function createSiaMockPlugin(): Plugin {
           JSON.stringify({
             ok: false,
             code: 'BAD_INPUT',
-            message: 'A valid flight number and departure date are required.',
+            message: 'No flight found',
           })
         );
       }
@@ -71,7 +71,7 @@ function createSiaMockPlugin(): Plugin {
           JSON.stringify({
             ok: false,
             code: 'BAD_INPUT',
-            message: 'A valid flight number and departure date are required.',
+            message: 'No flight found',
           })
         );
       }
@@ -84,7 +84,7 @@ function createSiaMockPlugin(): Plugin {
           JSON.stringify({
             ok: false,
             code: 'BAD_DATE',
-            message: 'A valid YYYY-MM-DD date is required.',
+            message: 'No flight found',
           })
         );
       }
@@ -96,7 +96,7 @@ function createSiaMockPlugin(): Plugin {
           JSON.stringify({
             ok: false,
             code: 'BAD_DATE',
-            message: 'A valid calendar date is required.',
+            message: 'No flight found',
           })
         );
       }
@@ -109,7 +109,7 @@ function createSiaMockPlugin(): Plugin {
           JSON.stringify({
             ok: false,
             code: 'BAD_DATE',
-            message: 'Choose an upcoming departure date.',
+            message: 'No flight found',
           })
         );
       }
@@ -155,14 +155,12 @@ function createSiaMockPlugin(): Plugin {
           const sc = Number(upstreamData?.statusCode);
 
           if (sc === 101 || sc === 404) {
-            const dateObj2 = new Date(y, m - 1, d);
-            const dateLong = dateObj2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
             res.writeHead(404);
             return res.end(
               JSON.stringify({
                 ok: false,
                 code: 'NOT_FOUND',
-                message: `No Singapore Airlines flight or published menu was found for SQ ${flightNum} on ${dateLong}.`,
+                message: 'No flight found',
               })
             );
           }
@@ -180,7 +178,7 @@ function createSiaMockPlugin(): Plugin {
                 JSON.stringify({
                   ok: false,
                   code: 'NO_CABINS',
-                  message: 'This flight was found, but no inflight-menu cabins are available yet.',
+                  message: 'No flight found',
                 })
               );
             }
@@ -225,13 +223,11 @@ function createSiaMockPlugin(): Plugin {
         }
       }
 
-      // Mock fallback for valid commercial SQ flights in local dev environment
-      const isValidSqCommercial =
-        (num >= 11 && num <= 38) || (num >= 51 && num <= 52) || (num >= 100 && num <= 998);
-
-      if (isValidSqCommercial) {
+      // Local fallback ONLY for authentic SQ flagship routes if offline
+      const KNOWN_DEV_SQ = [11, 12, 21, 22, 23, 24, 25, 26, 308, 317, 319, 322, 221, 222, 830, 833];
+      if (KNOWN_DEV_SQ.includes(num)) {
         const cabins =
-          num === 12 || num === 11 || num === 26 || num === 25 || num === 322
+          num === 12 || num === 11 || num === 26 || num === 25 || num === 322 || num === 308 || num === 221 || num === 830
             ? [
                 { code: 'FCL', label: 'Suites & First Class', short: 'First' },
                 { code: 'JCL', label: 'Business Class', short: 'Business' },
@@ -252,21 +248,19 @@ function createSiaMockPlugin(): Plugin {
               flight: flightNum,
               displayFlight: `SQ ${flightNum}`,
               flightDate: rawDate,
-              aircraftType: num === 322 ? '388' : num === 12 ? '77W' : '359',
+              aircraftType: num === 322 || num === 308 || num === 221 || num === 830 ? '388' : num === 12 || num === 11 || num === 26 || num === 25 ? '77W' : '359',
               cabins,
             },
           })
         );
       }
 
-      const dateObj2 = new Date(y, m - 1, d);
-      const dateLong = dateObj2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
       res.writeHead(404);
       return res.end(
         JSON.stringify({
           ok: false,
           code: 'NOT_FOUND',
-          message: `No Singapore Airlines flight or published menu was found for SQ ${flightNum} on ${dateLong}.`,
+          message: 'No flight found',
         })
       );
     }
@@ -280,12 +274,8 @@ function createSiaMockPlugin(): Plugin {
     const flightDate = (body.flightDate || new Date().toISOString().split('T')[0]).toString();
     const num = parseInt(flightNumber, 10);
 
-    // Singapore Airlines commercial flight validation: 11-998
-    const isValidSq =
-      !isNaN(num) &&
-      num >= 11 &&
-      num <= 998 &&
-      ((num >= 11 && num <= 38) || (num >= 51 && num <= 52) || (num >= 100 && num <= 998));
+    const KNOWN_SQ_NUMS = [11, 12, 21, 22, 23, 24, 25, 26, 308, 317, 319, 322, 221, 222, 830, 833];
+    const isValidSq = !isNaN(num) && KNOWN_SQ_NUMS.includes(num);
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -298,7 +288,7 @@ function createSiaMockPlugin(): Plugin {
           carrierId: 'SQ',
           flightNumber,
           flightDate,
-          message: `Flight SQ${flightNumber} not found on ${flightDate}.`,
+          message: 'No flight found',
           cabinClasses: [],
           legs: [],
         })
@@ -306,13 +296,11 @@ function createSiaMockPlugin(): Plugin {
     }
 
     // Resolve accurate SIA Aircraft and Sector Route
-    let aircraftType = '359'; // A350-900 default
-    let cabinClasses = ['YCL', 'SCL', 'JCL'];
+    let aircraftType = num === 322 || num === 308 || num === 221 || num === 830 ? '388' : '77W';
+    let cabinClasses = ['YCL', 'SCL', 'JCL', 'FCL'];
     let legs: any[] = [];
 
     if (num === 12) {
-      aircraftType = '77W';
-      cabinClasses = ['YCL', 'SCL', 'JCL', 'FCL'];
       legs = [
         {
           flightDetails: {
@@ -340,8 +328,6 @@ function createSiaMockPlugin(): Plugin {
         },
       ];
     } else if (num === 11) {
-      aircraftType = '77W';
-      cabinClasses = ['YCL', 'SCL', 'JCL', 'FCL'];
       legs = [
         {
           flightDetails: {
@@ -369,8 +355,6 @@ function createSiaMockPlugin(): Plugin {
         },
       ];
     } else if (num === 26) {
-      aircraftType = '77W';
-      cabinClasses = ['YCL', 'SCL', 'JCL', 'FCL'];
       legs = [
         {
           flightDetails: {
@@ -398,8 +382,6 @@ function createSiaMockPlugin(): Plugin {
         },
       ];
     } else if (num === 25) {
-      aircraftType = '77W';
-      cabinClasses = ['YCL', 'SCL', 'JCL', 'FCL'];
       legs = [
         {
           flightDetails: {
@@ -426,39 +408,18 @@ function createSiaMockPlugin(): Plugin {
           },
         },
       ];
-    } else if (num === 322 || num === 308 || num === 221 || num === 830) {
-      aircraftType = '388'; // A380-800
-      cabinClasses = ['YCL', 'SCL', 'JCL', 'FCL'];
-      const dest = num === 322 || num === 308 ? 'LHR' : num === 221 ? 'SYD' : 'PVG';
-      const depT = num === 322 ? '23:30' : num === 308 ? '09:00' : num === 221 ? '20:40' : '09:45';
-      const arrT = num === 322 ? '05:55' : num === 308 ? '15:40' : num === 221 ? '06:30' : '15:05';
+    } else {
       legs = [
         {
           flightDetails: {
             departureAirportCode: 'SIN',
-            arrivalAirportCode: dest,
+            arrivalAirportCode: num === 322 || num === 308 ? 'LHR' : num === 221 ? 'SYD' : 'PVG',
             departureDate: flightDate,
-            departureTime: depT,
-            departureLocalDate: `${flightDate} ${depT}:00`,
-            arrivalLocalDate: `${flightDate} ${arrT}:00`,
+            departureTime: '23:30',
+            departureLocalDate: `${flightDate} 23:30:00`,
+            arrivalLocalDate: `${flightDate} 05:55:00`,
             departureUtcDate: `${flightDate} 15:30:00`,
             arrivalUtcDate: `${flightDate} 04:55:00`,
-          },
-        },
-      ];
-    } else {
-      // General SQ routes
-      legs = [
-        {
-          flightDetails: {
-            departureAirportCode: 'SIN',
-            arrivalAirportCode: num >= 100 && num <= 199 ? 'KUL' : num >= 200 && num <= 299 ? 'MEL' : 'LHR',
-            departureDate: flightDate,
-            departureTime: '10:15',
-            departureLocalDate: `${flightDate} 10:15:00`,
-            arrivalLocalDate: `${flightDate} 18:40:00`,
-            departureUtcDate: `${flightDate} 02:15:00`,
-            arrivalUtcDate: `${flightDate} 10:40:00`,
           },
         },
       ];
@@ -481,8 +442,6 @@ function createSiaMockPlugin(): Plugin {
 
     // Endpoint: /api/menu
     const menuLegs = legs.map((leg) => {
-      const from = leg.flightDetails.departureAirportCode;
-      const to = leg.flightDetails.arrivalAirportCode;
       return {
         ...leg,
         menu: {

@@ -93,7 +93,7 @@ export function validateFlightSyntax(input: string): SyntaxValidationResult {
       valid: false,
       flight: '',
       displayFlight: '',
-      error: 'Enter a valid Singapore Airlines flight number between SQ1 and SQ9999.',
+      error: 'No flight found',
       code: 'BAD_INPUT',
     };
   }
@@ -114,7 +114,7 @@ export function validateFlightSyntax(input: string): SyntaxValidationResult {
       valid: false,
       flight: '',
       displayFlight: '',
-      error: 'Enter a valid Singapore Airlines flight number between SQ1 and SQ9999.',
+      error: 'No flight found',
       code: 'BAD_INPUT',
     };
   }
@@ -128,7 +128,7 @@ export function validateFlightSyntax(input: string): SyntaxValidationResult {
       valid: false,
       flight: '',
       displayFlight: '',
-      error: 'Enter a valid Singapore Airlines flight number between SQ1 and SQ9999.',
+      error: 'No flight found',
       code: 'BAD_INPUT',
     };
   }
@@ -154,11 +154,6 @@ export function normalizeFlightInput(input: string): string {
 
 /**
  * Departure Date Validation (Stage 2)
- *
- * 1. Date uses YYYY-MM-DD.
- * 2. Represents a real calendar date.
- * 3. Within menu-publication period supported by Singapore Airlines.
- * 4. Not silently changed by timezone conversion.
  */
 export function validateFlightDate(dateStr: string): DateValidationResult {
   if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -223,7 +218,8 @@ export async function checkFlightExistence(
     return {
       ok: false,
       code: 'BAD_INPUT',
-      message: syntax.error || 'Enter a valid Singapore Airlines flight number between SQ1 and SQ9999.',
+      heading: 'No flight found',
+      message: 'No flight found',
     };
   }
 
@@ -239,7 +235,6 @@ export async function checkFlightExistence(
 
   const flightNum = syntax.flight;
   const flightDate = dateVal.date;
-  const formattedDate = dateVal.formattedLong;
 
   // 3. Call Server API
   const controller = new AbortController();
@@ -271,10 +266,8 @@ export async function checkFlightExistence(
       return {
         ok: false,
         code: 'NOT_FOUND',
-        heading: "We couldn't find that flight for this date.",
-        message:
-          json?.message ||
-          `No Singapore Airlines flight or published menu was found for SQ ${flightNum} on ${formattedDate}.`,
+        heading: 'No flight found',
+        message: 'No flight found',
         guidance: 'Check the flight number and date. Menus are generally published up to eight days before departure.',
       };
     }
@@ -283,8 +276,8 @@ export async function checkFlightExistence(
       return {
         ok: false,
         code: 'NO_CABINS',
-        heading: 'No Cabins Available',
-        message: json.message || 'This flight was found, but no inflight-menu cabins are available yet.',
+        heading: 'No flight found',
+        message: 'No flight found',
         guidance: 'Menus are generally published up to eight days before departure.',
       };
     }
@@ -293,7 +286,8 @@ export async function checkFlightExistence(
       return {
         ok: false,
         code: json.code,
-        message: json.message || 'A valid flight number and departure date are required.',
+        heading: 'No flight found',
+        message: json.code === 'BAD_INPUT' ? 'No flight found' : (json.message || 'Choose an upcoming departure date.'),
       };
     }
 
@@ -326,11 +320,11 @@ export async function checkFlightExistence(
 
     if (err.name === 'AbortError') {
       if (signal?.aborted) {
-        // User aborted intentionally by typing a new number or changing date
         return {
           ok: false,
           code: 'BAD_INPUT',
-          message: 'Request cancelled.',
+          heading: 'No flight found',
+          message: 'No flight found',
         };
       }
       return {

@@ -106,7 +106,7 @@ export interface SectorLegOption {
 }
 
 /**
- * Known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25, SQ52, SQ51
+ * Known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25
  */
 export function getKnownFlightSectors(flightNo: string): SectorLegOption[] | null {
   const num = normalizeFlightInput(flightNo);
@@ -195,50 +195,6 @@ export function getKnownFlightSectors(flightNo: string): SectorLegOption[] | nul
         destinationCity: 'Singapore',
         label: 'FRA → SIN',
         description: 'Frankfurt to Singapore',
-      },
-    ];
-  }
-  if (num === '52') {
-    return [
-      {
-        id: 'SIN-MAN',
-        origin: 'SIN',
-        destination: 'MAN',
-        originCity: 'Singapore',
-        destinationCity: 'Manchester',
-        label: 'SIN → MAN',
-        description: 'Singapore to Manchester',
-      },
-      {
-        id: 'MAN-IAH',
-        origin: 'MAN',
-        destination: 'IAH',
-        originCity: 'Manchester',
-        destinationCity: 'Houston',
-        label: 'MAN → IAH',
-        description: 'Manchester to Houston',
-      },
-    ];
-  }
-  if (num === '51') {
-    return [
-      {
-        id: 'IAH-MAN',
-        origin: 'IAH',
-        destination: 'MAN',
-        originCity: 'Houston',
-        destinationCity: 'Manchester',
-        label: 'IAH → MAN',
-        description: 'Houston to Manchester',
-      },
-      {
-        id: 'MAN-SIN',
-        origin: 'MAN',
-        destination: 'SIN',
-        originCity: 'Manchester',
-        destinationCity: 'Singapore',
-        label: 'MAN → SIN',
-        description: 'Manchester to Singapore',
       },
     ];
   }
