@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../lib/sq/types';
 import { resolveDishImage, ResolvedDishImageResult } from '../lib/images/resolveDishImage';
-import { UtensilsCrossed, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export interface DishCardProps {
@@ -13,7 +13,6 @@ export interface DishCardProps {
     title: string;
     description?: string;
     meta?: string;
-    credit?: string;
   }) => void;
 }
 
@@ -23,10 +22,21 @@ export const DishCard: React.FC<DishCardProps> = ({
   cabin,
   onOpenLightbox,
 }) => {
-  const [imageState, setImageState] = useState<ResolvedDishImageResult | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [imageState, setImageState] = useState<ResolvedDishImageResult | null>(() => {
+    if (!item.imageUrl) {
+      return { thumbUrl: null, fullUrl: null, source: 'placeholder' };
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(Boolean(item.imageUrl));
 
   useEffect(() => {
+    if (!item.imageUrl) {
+      setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
     setIsLoading(true);
 
@@ -54,17 +64,16 @@ export const DishCard: React.FC<DishCardProps> = ({
   }, [item.title, item.imageUrl, cabin]);
 
   const hasPhoto = Boolean(
-    imageState && imageState.thumbUrl && imageState.source !== 'placeholder'
+    imageState && imageState.thumbUrl && imageState.source === 'sq'
   );
 
   const handleImageClick = () => {
-    if (imageState && imageState.fullUrl && (imageState.source === 'sq' || imageState.source === 'google')) {
+    if (imageState && imageState.fullUrl && imageState.source === 'sq') {
       onOpenLightbox({
         src: imageState.fullUrl,
         title: item.title,
         description: item.description,
         meta: courseCategory,
-        credit: imageState.source === 'google' ? 'Photo via Google' : undefined,
       });
     }
   };
@@ -77,9 +86,9 @@ export const DishCard: React.FC<DishCardProps> = ({
       className="cabin-glass flex flex-col justify-between overflow-hidden p-4 group hover:border-gold-400/40 hover:shadow-gold-glow transition-all text-left"
     >
       <div>
-        {/* 1. 16:10 Aspect-Ratio Image Container */}
+        {/* 1. 16:10 Aspect-Ratio Image Container (Only rendered if authentic SQ image exists) */}
         {isLoading ? (
-          <div className="w-full aspect-[16/10] rounded-xl bg-ink-800 animate-pulse border border-gold-dim mb-3.5" />
+          <div className="w-full aspect-[16/10] rounded-xl bg-ink-800/80 animate-pulse border border-gold-dim mb-3.5" />
         ) : hasPhoto ? (
           <div
             onClick={handleImageClick}
@@ -97,11 +106,7 @@ export const DishCard: React.FC<DishCardProps> = ({
             {/* Bottom Gradient Fade into Card Surface */}
             <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-transparent to-transparent pointer-events-none" />
           </div>
-        ) : (
-          <div className="w-full h-20 rounded-xl bg-ink-850/60 border border-gold-dim/40 flex items-center justify-center text-mist-400 mb-3.5">
-            <UtensilsCrossed className="w-5 h-5 opacity-40 text-gold-400" strokeWidth={1.5} />
-          </div>
-        )}
+        ) : null}
 
         {/* 2. Dish Title (Cormorant Garamond) */}
         <h4 className="font-display text-xl sm:text-2xl font-light text-ivory-100 leading-snug group-hover:text-gold-300 transition-colors">

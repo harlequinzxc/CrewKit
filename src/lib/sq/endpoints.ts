@@ -270,6 +270,56 @@ export function extractUtcString(raw: any): string {
 }
 
 /**
+ * Extract authentic Singapore Airlines image URL from any SQ object hierarchy
+ */
+export function extractSqImageUrl(...sources: any[]): string | undefined {
+  for (const src of sources) {
+    if (!src) continue;
+    if (typeof src === 'string') {
+      const clean = src.trim();
+      if (clean && clean !== 'null' && clean !== 'undefined') {
+        if (clean.startsWith('http://') || clean.startsWith('https://')) {
+          return clean;
+        }
+        if (clean.startsWith('//')) {
+          return `https:${clean}`;
+        }
+        const stripped = clean.replace(/^\/+/, '');
+        return `${SQ_CONFIG.IMAGE_BASE_URL}${stripped}`;
+      }
+    }
+    if (typeof src === 'object') {
+      const candidate =
+        src.imagePathIfeHigh ||
+        src.imagePath ||
+        src.imagePathIfeMedium ||
+        src.imagePathIfeLow ||
+        src.imageUrl ||
+        src.image ||
+        src.highResImage ||
+        src.imageHigh ||
+        src.thumbnailUrl ||
+        src.thumbnail;
+
+      if (candidate && typeof candidate === 'string') {
+        const clean = candidate.trim();
+        if (clean && clean !== 'null' && clean !== 'undefined') {
+          if (clean.startsWith('http://') || clean.startsWith('https://')) {
+            return clean;
+          }
+          if (clean.startsWith('//')) {
+            return `https:${clean}`;
+          }
+          const stripped = clean.replace(/^\/+/, '');
+          return `${SQ_CONFIG.IMAGE_BASE_URL}${stripped}`;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
  * Map internal CabinCode to SIA API Cabin Class ('FCL' | 'JCL' | 'SCL' | 'YCL')
  */
 export function cabinCodeToSia(cabin: CabinCode): 'FCL' | 'JCL' | 'SCL' | 'YCL' {
@@ -750,7 +800,174 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
     const snacksList: MenuItem[] = [];
     const amenitiesList: AmenityItem[] = [];
 
-    // Snacks & Delectables
+    // 1. Meals, Courses, Breads & Dishes
+    const menuEn = extractEnUkBlock(leg, 'menu');
+    if (menuEn && Array.isArray(menuEn.meals)) {
+      menuEn.meals.forEach((meal: any, mIdx: number) => {
+        const mealTitle = cleanText(meal.mealServiceName || meal.name || `Meal Service ${mIdx + 1}`);
+        const rawSelections = Array.isArray(meal.selectionDetails) ? meal.selectionDetails : [meal];
+        const selections: MealSelection[] = [];
+
+        rawSelections.forEach((selection: any, sIdx: number) => {
+          const selectionName = cleanText(selection.name || (rawSelections.length > 1 ? `Option ${sIdx + 1}` : 'Standard Menu'));
+          const rawCourses = Array.isArray(selection.mealCourses) ? selection.mealCourses : [];
+          const courses: MealCourse[] = [];
+
+          rawCourses.forEach((course: any, cIdx: number) => {
+            const courseCategory = cleanText(course.category || course.name || mealTitle);
+            const maxSequence = typeof course.maxSequence === 'number' ? course.maxSequence : undefined;
+            const items: MenuItem[] = [];
+            const rawItems = Array.isArray(course.items) ? course.items : [];
+
+            rawItems.forEach((item: any, iIdx: number) => {
+              const name = cleanText(item.name || item.title || item.dishName || item.itemName || '');
+              if (name) {
+                const desc = cleanText(item.description || item.desc || '');
+                const footnote = cleanText(item.footnote || '');
+                const tags: string[] = [];
+                if (Array.isArray(item.icons)) {
+                  item.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
+                }
+
+                const imageUrl = extractSqImageUrl(item);
+
+                items.push({
+                  id: `leg_${lIdx}_m_${mIdx}_s_${sIdx}_c_${cIdx}_i_${iIdx}`,
+                  title: name,
+                  description: desc || undefined,
+                  footnote: footnote || undefined,
+                  tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
+                  imageUrl,
+                });
+              }
+            });
+
+            if (items.length > 0) {
+              courses.push({
+                id: `course_${lIdx}_${mIdx}_${sIdx}_${cIdx}`,
+                name: courseCategory,
+                maxSequence,
+                items,
+              });
+
+              allFlatDining.push({
+                id: `flat_dining_${lIdx}_${mIdx}_${sIdx}_${cIdx}`,
+                title: rawLegs.length > 1
+                  ? `${origin}→${destination} · ${mealTitle} · ${courseCategory}`
+                  : `${mealTitle} · ${courseCategory}`,
+                items,
+              });
+            }
+          });
+
+          // Check for Breads & Bakery in selection / meal
+          const rawBreads = Array.isArray(selection.breadDetails)
+            ? selection.breadDetails
+            : Array.isArray(selection.breads)
+            ? selection.breads
+            : Array.isArray(meal.breadDetails)
+            ? meal.breadDetails
+            : Array.isArray(meal.breads)
+            ? meal.breads
+            : [];
+
+          if (rawBreads.length > 0) {
+            const breadItems: MenuItem[] = [];
+            rawBreads.forEach((br: any, bIdx: number) => {
+              const bName = cleanText(br.name || br.title || br.itemName || '');
+              if (bName) {
+                const bDesc = cleanText(br.description || br.desc || '');
+                const imageUrl = extractSqImageUrl(br, selection, meal);
+                breadItems.push({
+                  id: `leg_${lIdx}_m_${mIdx}_s_${sIdx}_bread_${bIdx}`,
+                  title: bName,
+                  description: bDesc || undefined,
+                  tags: ['Bakery'],
+                  imageUrl,
+                });
+              }
+            });
+
+            if (breadItems.length > 0) {
+              courses.push({
+                id: `course_${lIdx}_${mIdx}_${sIdx}_breads`,
+                name: 'Bakery & Warm Breads',
+                items: breadItems,
+              });
+            }
+          }
+
+          if (courses.length > 0) {
+            selections.push({
+              id: `sel_${lIdx}_${mIdx}_${sIdx}`,
+              name: selectionName,
+              courses,
+            });
+          }
+        });
+
+        if (selections.length > 0) {
+          mealServices.push({
+            id: `service_${lIdx}_${mIdx}`,
+            name: mealTitle,
+            selections,
+          });
+        }
+      });
+    }
+
+    // 2. Drinks (Champagnes, Wines, Specialty Coffees, TWG Teas, Cocktails, Non-Alcoholic)
+    const bevEn = extractEnUkBlock(leg, 'beverage');
+    const categories = bevEn?.categories || leg?.beverage?.categories || leg?.beverages || [];
+    if (Array.isArray(categories)) {
+      categories.forEach((cat: any, catIdx: number) => {
+        const catName = cleanText(cat.name || 'Drinks & Cellar');
+        const subcategories = Array.isArray(cat.subcategories) ? cat.subcategories : [cat];
+
+        subcategories.forEach((sub: any, subIdx: number) => {
+          const subName = cleanText(sub.name || catName);
+          const header = subName !== catName ? `${catName} · ${subName}` : catName;
+          const specialities = Array.isArray(sub.specialities) ? sub.specialities : [sub];
+          const items: MenuItem[] = [];
+
+          specialities.forEach((spec: any) => {
+            const rawItems = Array.isArray(spec.items) ? spec.items : (Array.isArray(spec) ? spec : []);
+            rawItems.forEach((it: any, iIdx: number) => {
+              const name = cleanText(it.name || it.title || it.itemName || '');
+              if (name) {
+                const desc = cleanText(it.description || it.vintage || it.region || it.desc || '');
+                // Inherits image from item, speciality (e.g. TWG tea photo/illy coffee photo), subcategory, or category
+                const imageUrl = extractSqImageUrl(it, spec, sub, cat);
+
+                items.push({
+                  id: `bev_${lIdx}_${catIdx}_${subIdx}_${iIdx}`,
+                  title: name,
+                  description: desc || undefined,
+                  tags: [catName],
+                  imageUrl,
+                });
+              }
+            });
+          });
+
+          if (items.length > 0) {
+            drinksSections.push({
+              id: `bev_sec_${lIdx}_${catIdx}_${subIdx}`,
+              title: header,
+              items,
+            });
+
+            allFlatDrinks.push({
+              id: `flat_bev_${lIdx}_${catIdx}_${subIdx}`,
+              title: rawLegs.length > 1 ? `${origin}→${destination} · ${header}` : header,
+              items,
+            });
+          }
+        });
+      });
+    }
+
+    // 3. Snacks & Delectables
     const snackEn =
       extractEnUkBlock(leg, 'drySnack') ||
       extractEnUkBlock(leg, 'drySnacks') ||
@@ -804,20 +1021,7 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
                   tags.push(catName);
                 }
 
-                let imageUrl: string | undefined = undefined;
-                const rawImg =
-                  it.imagePathIfeHigh ||
-                  it.imagePath ||
-                  it.imageUrl ||
-                  it.image ||
-                  spec.imagePath ||
-                  spec.imageUrl ||
-                  sub.imagePath;
-                if (rawImg && typeof rawImg === 'string') {
-                  imageUrl = rawImg.startsWith('http')
-                    ? rawImg
-                    : `${SQ_CONFIG.IMAGE_BASE_URL}${rawImg.replace(/^\/+/, '')}`;
-                }
+                const imageUrl = extractSqImageUrl(it, spec, sub, cat);
 
                 snacksList.push({
                   id: `snack_${lIdx}_${cIdx}_${sIdx}_${iIdx}`,
@@ -834,7 +1038,7 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       });
     }
 
-    // Cabin Amenities
+    // 4. Cabin Amenities
     const amenEn =
       extractEnUkBlock(leg, 'amenity') ||
       extractEnUkBlock(leg, 'amenities') ||
@@ -852,13 +1056,7 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
         const name = cleanText(am.itemName || am.name || am.title || '');
         if (name) {
           const desc = cleanText(am.description || am.desc || '');
-          let imageUrl: string | undefined = undefined;
-          const rawImg = am.imagePathIfeHigh || am.imagePath || am.imageUrl || am.image;
-          if (rawImg && typeof rawImg === 'string') {
-            imageUrl = rawImg.startsWith('http')
-              ? rawImg
-              : `${SQ_CONFIG.IMAGE_BASE_URL}${rawImg.replace(/^\/+/, '')}`;
-          }
+          const imageUrl = extractSqImageUrl(am, amenEn);
 
           amenitiesList.push({
             id: `amen_${lIdx}_${aIdx}`,
@@ -867,146 +1065,6 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
             imageUrl,
           });
         }
-      });
-    }
-
-    const menuEn = extractEnUkBlock(leg, 'menu');
-    if (menuEn && Array.isArray(menuEn.meals)) {
-      menuEn.meals.forEach((meal: any, mIdx: number) => {
-        const mealTitle = cleanText(meal.mealServiceName || meal.name || `Meal Service ${mIdx + 1}`);
-        const rawSelections = Array.isArray(meal.selectionDetails) ? meal.selectionDetails : [meal];
-        const selections: MealSelection[] = [];
-
-        rawSelections.forEach((selection: any, sIdx: number) => {
-          const selectionName = cleanText(selection.name || (rawSelections.length > 1 ? `Option ${sIdx + 1}` : 'Standard Menu'));
-          const rawCourses = Array.isArray(selection.mealCourses) ? selection.mealCourses : [];
-          const courses: MealCourse[] = [];
-
-          rawCourses.forEach((course: any, cIdx: number) => {
-            const courseCategory = cleanText(course.category || course.name || mealTitle);
-            const maxSequence = typeof course.maxSequence === 'number' ? course.maxSequence : undefined;
-            const items: MenuItem[] = [];
-            const rawItems = Array.isArray(course.items) ? course.items : [];
-
-            rawItems.forEach((item: any, iIdx: number) => {
-              const name = cleanText(item.name || item.title || item.dishName || '');
-              if (name) {
-                const desc = cleanText(item.description || item.desc || '');
-                const footnote = cleanText(item.footnote || '');
-                const tags: string[] = [];
-                if (Array.isArray(item.icons)) {
-                  item.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
-                }
-
-                let imageUrl: string | undefined = undefined;
-                const rawImg = item.imagePathIfeHigh || item.imagePath || item.imageUrl || item.image;
-                if (rawImg && typeof rawImg === 'string') {
-                  imageUrl = rawImg.startsWith('http')
-                    ? rawImg
-                    : `${SQ_CONFIG.IMAGE_BASE_URL}${rawImg.replace(/^\/+/, '')}`;
-                }
-
-                items.push({
-                  id: `leg_${lIdx}_m_${mIdx}_s_${sIdx}_c_${cIdx}_i_${iIdx}`,
-                  title: name,
-                  description: desc || undefined,
-                  footnote: footnote || undefined,
-                  tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
-                  imageUrl,
-                });
-              }
-            });
-
-            if (items.length > 0) {
-              courses.push({
-                id: `course_${lIdx}_${mIdx}_${sIdx}_${cIdx}`,
-                name: courseCategory,
-                maxSequence,
-                items,
-              });
-
-              allFlatDining.push({
-                id: `flat_dining_${lIdx}_${mIdx}_${sIdx}_${cIdx}`,
-                title: rawLegs.length > 1
-                  ? `${origin}→${destination} · ${mealTitle} · ${courseCategory}`
-                  : `${mealTitle} · ${courseCategory}`,
-                items,
-              });
-            }
-          });
-
-          if (courses.length > 0) {
-            selections.push({
-              id: `sel_${lIdx}_${mIdx}_${sIdx}`,
-              name: selectionName,
-              courses,
-            });
-          }
-        });
-
-        if (selections.length > 0) {
-          mealServices.push({
-            id: `service_${lIdx}_${mIdx}`,
-            name: mealTitle,
-            selections,
-          });
-        }
-      });
-    }
-
-    // Beverages
-    const bevEn = extractEnUkBlock(leg, 'beverage');
-    const categories = bevEn?.categories || leg?.beverage?.categories || leg?.beverages || [];
-    if (Array.isArray(categories)) {
-      categories.forEach((cat: any, catIdx: number) => {
-        const catName = cleanText(cat.name || 'Cellar & Beverages');
-        const subcategories = Array.isArray(cat.subcategories) ? cat.subcategories : [cat];
-
-        subcategories.forEach((sub: any, subIdx: number) => {
-          const subName = cleanText(sub.name || catName);
-          const header = subName !== catName ? `${catName} · ${subName}` : catName;
-          const specialities = Array.isArray(sub.specialities) ? sub.specialities : [sub];
-          const items: MenuItem[] = [];
-
-          specialities.forEach((spec: any) => {
-            const rawItems = Array.isArray(spec.items) ? spec.items : (Array.isArray(spec) ? spec : []);
-            rawItems.forEach((it: any, iIdx: number) => {
-              const name = cleanText(it.name || it.title || it.itemName || '');
-              if (name) {
-                const desc = cleanText(it.description || it.vintage || it.region || it.desc || '');
-                let imageUrl: string | undefined = undefined;
-                const rawImg = it.imagePathIfeHigh || it.imagePath || it.imageUrl || it.image || spec.imagePath || spec.imageUrl || sub.imagePath;
-                if (rawImg && typeof rawImg === 'string') {
-                  imageUrl = rawImg.startsWith('http')
-                    ? rawImg
-                    : `${SQ_CONFIG.IMAGE_BASE_URL}${rawImg.replace(/^\/+/, '')}`;
-                }
-
-                items.push({
-                  id: `bev_${lIdx}_${catIdx}_${subIdx}_${iIdx}`,
-                  title: name,
-                  description: desc || undefined,
-                  tags: [catName],
-                  imageUrl,
-                });
-              }
-            });
-          });
-
-          if (items.length > 0) {
-            drinksSections.push({
-              id: `bev_sec_${lIdx}_${catIdx}_${subIdx}`,
-              title: header,
-              items,
-            });
-
-            allFlatDrinks.push({
-              id: `flat_bev_${lIdx}_${catIdx}_${subIdx}`,
-              title: rawLegs.length > 1 ? `${origin}→${destination} · ${header}` : header,
-              items,
-            });
-          }
-        });
       });
     }
 
@@ -1080,12 +1138,14 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                     title: 'Singapore Signature Chicken and Mutton Satay',
                     description: 'Served with spicy peanut sauce, cucumber, and baby onions.',
                     tags: ['Signature'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/satay.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_1`,
                     title: 'Marinated Boston Lobster Tail with Oscietra Caviar',
                     description: 'Fennel confit, granny smith apple gel, and young herb salad.',
                     tags: ['Signature', 'Culinary Panel'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/lobster.jpg',
                   },
                 ],
               },
@@ -1099,24 +1159,48 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                     title: 'Pan Seared Angus Beef Fillet with Truffle Jus',
                     description: 'Pomme mousseline, butter-glazed baby asparagus, and glazed morel mushrooms.',
                     tags: ['Culinary Panel'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/beef.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_3`,
                     title: 'Singapore Hainanese Chicken Rice',
                     description: 'Fragrant chicken rice accompanied by tender poached chicken, ginger dip, chilli, and dark soya sauce.',
                     tags: ['Signature', 'Book the Cook'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/chicken_rice.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_4`,
                     title: 'Seared Chilean Sea Bass with Yuzu Soy Reduction',
                     description: 'Steamed ginger rice, broccolini, and seasonal Japanese mushrooms.',
                     tags: ['Signature'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/seabass.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_5`,
                     title: 'Artisanal Plant-Based Truffle Mushroom Risotto',
                     description: 'Carnaroli rice simmered with wild foraged forest mushrooms, aged parmesan, and micro greens.',
                     tags: ['Vegetarian'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/risotto.jpg',
+                  },
+                ],
+              },
+              {
+                id: `crs_${lIdx}_0_bread`,
+                name: 'Bakery & Warm Breads',
+                items: [
+                  {
+                    id: `dish_${lIdx}_0_bread_0`,
+                    title: 'Signature Singapore Airlines Garlic Bread',
+                    description: 'Freshly baked French baguette slices toasted with rich herb and garlic butter.',
+                    tags: ['Bakery'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/garlic_bread.jpg',
+                  },
+                  {
+                    id: `dish_${lIdx}_0_bread_1`,
+                    title: 'Artisanal Sourdough Roll & Lavosh',
+                    description: 'Warm crusty sourdough roll and crisp sesame lavosh served with cultured salted butter.',
+                    tags: ['Bakery'],
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/sourdough.jpg',
                   },
                 ],
               },
@@ -1128,11 +1212,13 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                     id: `dish_${lIdx}_0_6`,
                     title: 'Valrhona Grand Cru Dark Chocolate Ganache Tart',
                     description: 'Madagascar vanilla bean ice cream with raspberry coulis.',
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/chocolate.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_7`,
                     title: 'International Farmhouse Gourmet Cheese Board',
                     description: 'Selection of brie de meaux, aged comte, and stilton with water crackers and dried muscatels.',
+                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/cheese.jpg',
                   },
                 ],
               },
@@ -1152,18 +1238,21 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             title: 'Krug Grande Cuvée Brut Champagne, France',
             description: 'Aromas of flowers in bloom, ripe dried fruits, marzipan, and gingerbread.',
             tags: ['Champagne'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/krug.jpg',
           },
           {
             id: `wine_${lIdx}_1`,
             title: 'Taittinger Comtes de Champagne Blanc de Blancs',
             description: 'Refined minerality, white peach, toasted brioche, and crisp citrus finish.',
             tags: ['Champagne'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/taittinger.jpg',
           },
           {
             id: `wine_${lIdx}_2`,
             title: 'Château Cos d’Estournel, Saint-Estèphe, Bordeaux',
             description: 'Deep cassis, cedarwood, subtle spices, and velvety tannins.',
             tags: ['Red Wine'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/bordeaux.jpg',
           },
         ],
       },
@@ -1176,18 +1265,21 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             title: '1837 Black Tea by TWG',
             description: 'A unique blend of black tea with notes of fruits and flowers from the Bermuda triangle.',
             tags: ['TWG Tea'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
           },
           {
             id: `tea_${lIdx}_1`,
             title: 'Silver Moon Tea by TWG',
             description: 'Green tea accented with a grand berry and vanilla bouquet.',
             tags: ['TWG Tea'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/twg_green.jpg',
           },
           {
             id: `tea_${lIdx}_2`,
             title: 'Grand Jasmine Green Tea by TWG',
             description: 'Delicate green tea leaves scented with night-blooming jasmine blossoms.',
             tags: ['TWG Tea'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/twg_jasmine.jpg',
           },
         ],
       },
@@ -1200,12 +1292,14 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             title: 'Single Origin Arabica Espresso & Cappuccino',
             description: 'Freshly pulled illy 100% Arabica with rich crema and velvety microfoam.',
             tags: ['illy Coffee'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
           },
           {
             id: `coffee_${lIdx}_1`,
             title: 'Jamaican Blue Mountain Brewed Coffee',
             description: 'Mild flavour, delicate body, and clean sweetness.',
             tags: ['Specialty Coffee'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/brewed_coffee.jpg',
           },
         ],
       },
@@ -1217,12 +1311,14 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
         title: 'Artisanal Mixed Truffle Nuts',
         description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
         tags: ['Delectables'],
+        imageUrl: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
       },
       {
         id: `snk_${lIdx}_1`,
         title: 'Gourmet Light Bites & Cookies',
         description: 'Warm chocolate chip cookies, butter shortbreads, and dried orchard fruits.',
         tags: ['Delectables'],
+        imageUrl: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
       },
     ];
 
@@ -1231,11 +1327,13 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
         id: `am_${lIdx}_0`,
         name: 'Penhaligon’s Luxury Amenity Kit',
         description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
+        imageUrl: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
       },
       {
         id: `am_${lIdx}_1`,
         name: 'Lalique Signature Sleepwear & Slippers',
         description: 'Plush unisex lounge sleep suit with matching eye mask.',
+        imageUrl: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
       },
     ];
 

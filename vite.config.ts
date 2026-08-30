@@ -502,6 +502,22 @@ function createSiaMockPlugin(): Plugin {
                           ],
                         },
                         {
+                          category: 'Bakery & Warm Breads',
+                          items: [
+                            {
+                              name: 'Signature Singapore Airlines Garlic Bread',
+                              description: 'Freshly baked French baguette slices toasted with rich herb and garlic butter.',
+                              icons: ['WLSGD'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/garlic_bread.jpg',
+                            },
+                            {
+                              name: 'Artisanal Sourdough Roll & Lavosh',
+                              description: 'Warm crusty sourdough roll and crisp sesame lavosh served with cultured salted butter.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/sourdough.jpg',
+                            },
+                          ],
+                        },
+                        {
                           category: 'Dessert & Cheeses',
                           items: [
                             {
@@ -539,10 +555,12 @@ function createSiaMockPlugin(): Plugin {
                             {
                               name: 'Krug Grande Cuvée Brut Champagne, France',
                               description: 'Aromas of flowers in bloom, ripe dried fruits, marzipan, and gingerbread.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/krug.jpg',
                             },
                             {
                               name: 'Taittinger Comtes de Champagne Blanc de Blancs',
                               description: 'Refined minerality, white peach, toasted brioche, and crisp citrus finish.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/taittinger.jpg',
                             },
                           ],
                         },
@@ -555,20 +573,24 @@ function createSiaMockPlugin(): Plugin {
                   subcategories: [
                     {
                       name: 'Exclusive Blends',
+                      imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
                       specialities: [
                         {
                           items: [
                             {
                               name: '1837 Black Tea by TWG',
                               description: 'A unique blend of black tea with notes of fruits and flowers from the Bermuda triangle.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
                             },
                             {
                               name: 'Silver Moon Tea by TWG',
                               description: 'Green tea accented with a grand berry and vanilla bouquet.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_green.jpg',
                             },
                             {
                               name: 'Grand Jasmine Green Tea by TWG',
                               description: 'Delicate green tea leaves scented with night-blooming jasmine blossoms.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_jasmine.jpg',
                             },
                           ],
                         },
@@ -581,16 +603,19 @@ function createSiaMockPlugin(): Plugin {
                   subcategories: [
                     {
                       name: 'Espresso',
+                      imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
                       specialities: [
                         {
                           items: [
                             {
                               name: 'Single Origin Arabica Espresso & Cappuccino',
                               description: 'Freshly pulled illy 100% Arabica with rich crema and velvety microfoam.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
                             },
                             {
                               name: 'Jamaican Blue Mountain Brewed Coffee',
                               description: 'Mild flavour, delicate body, and clean sweetness.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/brewed_coffee.jpg',
                             },
                           ],
                         },
@@ -609,10 +634,12 @@ function createSiaMockPlugin(): Plugin {
                 {
                   name: 'Artisanal Mixed Truffle Nuts',
                   description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
+                  imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
                 },
                 {
                   name: 'Gourmet Light Bites & Cookies',
                   description: 'Warm chocolate chip cookies and butter shortbreads.',
+                  imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
                 },
               ],
             },
@@ -623,10 +650,12 @@ function createSiaMockPlugin(): Plugin {
             {
               itemName: 'Penhaligon’s Luxury Amenity Kit',
               description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
+              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
             },
             {
               itemName: 'Lalique Signature Sleepwear & Slippers',
               description: 'Plush unisex lounge sleep suit with matching eye mask.',
+              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
             },
           ],
         },
