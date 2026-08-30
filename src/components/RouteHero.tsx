@@ -71,6 +71,40 @@ export function prettyDateLong(iso: string): string {
 }
 
 /**
+ * Format time string strictly as HH:MM
+ */
+export function formatTimeHHMM(timeStr?: string, utcFallback?: string): string {
+  if (timeStr && timeStr.trim()) {
+    const s = timeStr.trim();
+    if (s.includes('T')) {
+      const timePart = s.split('T')[1] || '';
+      return timePart.substring(0, 5);
+    }
+    const match = s.match(/(\d{1,2}):(\d{2})/);
+    if (match) {
+      const h = match[1].padStart(2, '0');
+      const m = match[2];
+      return `${h}:${m}`;
+    }
+    return s;
+  }
+  if (utcFallback && utcFallback.trim()) {
+    try {
+      const clean = utcFallback.trim().replace(' ', 'T');
+      const d = new Date(clean.endsWith('Z') ? clean : `${clean}Z`);
+      if (!isNaN(d.getTime())) {
+        const h = String(d.getUTCHours()).padStart(2, '0');
+        const m = String(d.getUTCMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return '';
+}
+
+/**
  * Compute duration from UTC pair only.
  * Never subtract local times (they cross time zones).
  */
@@ -95,7 +129,6 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   flightNumber,
   flightDate,
   cabinShort,
-  cabinLabel,
   leg,
   legCount,
 }) => {
@@ -113,6 +146,8 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   };
 
   const dur = duration(route.depUtc, route.arrUtc);
+  const depTimeFormatted = formatTimeHHMM(route.depTime, route.depUtc);
+  const arrTimeFormatted = formatTimeHHMM(route.arrTime, route.arrUtc);
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-gold-500/15 bg-gradient-to-b from-ink-850 to-ink-900/60 px-6 py-8 shadow-cabin sm:px-10">
@@ -153,7 +188,9 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
             <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-mist-400">
               {route.fromCity}
             </p>
-            <p className="mt-1 font-display text-xl text-gold-300">{route.depTime}</p>
+            {depTimeFormatted && (
+              <p className="mt-1 font-display text-xl text-gold-300">{depTimeFormatted}</p>
+            )}
           </div>
 
           {/* arc column */}
@@ -198,20 +235,16 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
             <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-mist-400">
               {route.toCity}
             </p>
-            <p className="mt-1 font-display text-xl text-gold-300">
-              {route.arrTime}
-              {route.arrDayShift > 0 && (
-                <sup className="ml-1 text-[11px] text-gold-500">+{route.arrDayShift}d</sup>
-              )}
-            </p>
+            {arrTimeFormatted && (
+              <p className="mt-1 font-display text-xl text-gold-300">
+                {arrTimeFormatted}
+                {route.arrDayShift > 0 && (
+                  <sup className="ml-1 text-[11px] text-gold-500">+{route.arrDayShift}d</sup>
+                )}
+              </p>
+            )}
           </div>
         </div>
-
-        {/* ── footer ── */}
-        <div className="gold-rule mx-auto mt-8 w-56" />
-        <p className="mt-5 text-center font-display text-lg italic text-mist-400">
-          The {cabinLabel} cellar &amp; kitchen
-        </p>
       </div>
     </section>
   );
