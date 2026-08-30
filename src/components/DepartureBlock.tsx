@@ -105,9 +105,9 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
 
   return (
     <div className={`w-full text-left transition-all duration-300 animate-fade-in ${className}`}>
-      {/* Overline Label */}
-      <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
-        Select Departure Date
+      {/* Overline Label (Whisper quiet) */}
+      <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
+        DATE
       </label>
 
       {/* Mode 1: Sliding Pill Selection */}

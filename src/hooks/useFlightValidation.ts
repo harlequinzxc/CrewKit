@@ -1,27 +1,23 @@
 import { useState, useEffect } from 'react';
 import { isValidFlightNumber, normalizeFlightNumber } from '../lib/sq/endpoints';
 
-export function useFlightValidation(initialValue = '', debounceMs = 350) {
+export function useFlightValidation(initialValue = '', debounceMs = 150) {
   const [flightNo, setFlightNo] = useState(initialValue);
-  const [isChecking, setIsChecking] = useState(false);
-  const [isValid, setIsValid] = useState<boolean | null>(initialValue ? true : null);
+  const [isValid, setIsValid] = useState<boolean>(initialValue ? isValidFlightNumber(initialValue) : false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!flightNo || flightNo.trim() === '') {
-      setIsChecking(false);
-      setIsValid(null);
+      setIsValid(false);
       setError(null);
       return;
     }
 
-    setIsChecking(true);
     const timer = setTimeout(() => {
       const valid = isValidFlightNumber(flightNo);
-      setIsChecking(false);
       setIsValid(valid);
-      if (!valid) {
-        setError('Please enter a valid SQ flight number (1–4 digits)');
+      if (!valid && flightNo.length > 0) {
+        setError('Please enter a valid flight number (1–4 digits)');
       } else {
         setError(null);
       }
@@ -39,8 +35,7 @@ export function useFlightValidation(initialValue = '', debounceMs = 350) {
   return {
     flightNo,
     cleanFlightNo: normalizeFlightNumber(flightNo),
-    isValid: isValid === true,
-    isChecking,
+    isValid,
     error,
     setFlightNo: handleFlightChange,
   };

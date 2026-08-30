@@ -15,7 +15,6 @@ import { exportToPDF } from '../lib/export/pdf';
 import { exportToDOCX } from '../lib/export/docx';
 import { motion } from 'framer-motion';
 import {
-  Sparkles,
   Printer,
   Download,
   FileText,
@@ -406,13 +405,14 @@ export const InkFlight: React.FC = () => {
       {/* 2. FORM FLOW (PROGRESSIVE STEP-BY-STEP WORKFLOW) */}
       {stage === 'form' && (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-4 sm:pt-6 pb-8 px-1 animate-cabin-in">
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
-            <div>
-              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
+          <div className="w-full max-w-md mx-auto flex flex-col items-center text-center space-y-8">
+            {/* Editorial Hero */}
+            <div className="space-y-1">
+              <span className="font-display italic text-gold-300 text-base sm:text-lg tracking-wide block">
                 Prep,
               </span>
 
-              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+              <h2 className="font-display text-3xl sm:text-4xl font-normal text-ivory-100 tracking-tight leading-snug">
                 Let's ready your homework.
               </h2>
             </div>
@@ -423,7 +423,6 @@ export const InkFlight: React.FC = () => {
                 value={validation.flightNo}
                 onChange={validation.setFlightNo}
                 isValid={validation.isValid && !flightNotFoundError}
-                isChecking={validation.isChecking || isDetectingCabins}
                 error={validation.error || flightNotFoundError}
                 placeholder="3 2 2"
               />
@@ -448,14 +447,9 @@ export const InkFlight: React.FC = () => {
             {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
             {showSectorStep && multiSectors && (
               <div className="w-full text-left animate-cabin-in space-y-2">
-                <div className="flex items-center justify-between mb-1 select-none">
-                  <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300">
-                    Select Sector Leg(s)
-                  </label>
-                  <span className="font-ui text-[10px] uppercase tracking-wider text-gold-300 font-semibold">
-                    Multi-select
-                  </span>
-                </div>
+                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
+                  SECTOR
+                </label>
 
                 <div className="grid grid-cols-1 gap-2">
                   {multiSectors.map((sec) => {
@@ -467,7 +461,7 @@ export const InkFlight: React.FC = () => {
                         onClick={() => handleToggleSector(sec.id)}
                         className={`flex items-center justify-between p-3 rounded-well border transition-all text-left ${
                           isSelected
-                            ? 'bg-gold-400/15 border-gold-400 text-ivory-100 ring-1 ring-gold-400/40 shadow-sm'
+                            ? 'bg-ink-850 border-gold-400/35 text-ivory-100 shadow-[0_0_20px_rgba(201,168,76,0.15)]'
                             : 'bg-ink-850 text-mist-300 border-gold-dim hover:border-gold-400/60 hover:text-ivory-100'
                         }`}
                       >
@@ -487,7 +481,7 @@ export const InkFlight: React.FC = () => {
                           className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs transition-all ${
                             isSelected
                               ? 'bg-gold-400 border-gold-400 text-onyx-900 font-bold'
-                              : 'border-gold-dim bg-ink-900 text-transparent'
+                              : 'border-gold-dim bg-ink-900/60 text-transparent'
                           }`}
                         >
                           ✓
@@ -502,8 +496,8 @@ export const InkFlight: React.FC = () => {
             {/* Loading skeleton while detecting cabins */}
             {isDetectingCabins && Boolean(dateISO) && (!isMultiSector || selectedSectorIds.length > 0) && (
               <div className="w-full text-left animate-fade-in">
-                <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
-                  Available Cabin Classes
+                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
+                  CABIN
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="h-9 w-20 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
@@ -516,8 +510,8 @@ export const InkFlight: React.FC = () => {
             {/* STEP 4: Cabin Classes Multi-Select (none selected by default) */}
             {showCabinStep && (
               <div className="w-full text-left animate-cabin-in">
-                <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
-                  Cabin Class(es) for Printout
+                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
+                  CABIN
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {availableCabins.map((code, idx) => (
@@ -535,10 +529,9 @@ export const InkFlight: React.FC = () => {
 
             {/* STEP 5: Progression CTA (Appears only after cabin class/classes are selected) */}
             {showFetchButton && (
-              <div className="w-full pt-3 pb-4">
+              <div className="w-full pt-2 mt-10">
                 <RevealCTA
-                  label="Fetch Menu"
-                  icon={Sparkles}
+                  label="Fetch Menu ✨"
                   summary={flightSummaryLine}
                   onPress={handleStartFetch}
                 />

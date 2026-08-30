@@ -1,1 +1,186 @@
-# CrewKit
+# CrewKit — Singapore Airlines Cabin Crew Progressive Web App (PWA)
+
+> **Current Version:** `v0.2.0`  
+> **Status:** Editorial "Quiet Luxury" PWA — All pages, navigation, settings, responsive zero-scroll layouts, and dark/light mode functional.  
+> **Active Working Branch:** `arena/01a04e46-crewkit`
+
+---
+
+## Brand Identity & Logo Specification
+
+- **Mark:** Rounded square (`radius: 24%`), filled with `#0B1E3E` (deep navy), containing a champagne-gold geometric abstract paper plane (`#C9A84C`) with slight ascent to the top-right.
+- **Wordmark:** `Inter SemiBold` — "Crew" in `--text-primary`, "Kit" in `--accent` gold. (No serif in logo).
+- **Nav Lockup:** `[mark 28px] [10px gap] [wordmark]` positioned in the top-left header across all pages.
+- **PWA Icons & Favicon:** 192×192 &amp; 512×512 PNG icons (including 80% safe-zone maskable variants), SVG vector favicon, and `.ico` generated with exact geometry.
+- **Strict Brand Constraints:** No SQ branding, no realistic aircraft vectors, no gradient fills on the icon, and no serif font in the logo.
+
+---
+
+## Core Features
+
+1. **CrewCash (`/crewcash`)**
+   - Inflight hourly allowance &amp; location meal per diem calculator.
+   - Stepper wizard interface with multi-sector route chain visualizations (`SIN → NRT → LAX → NRT → SIN`).
+   - Sector timeline duration breakdowns and allowance tally placeholders.
+
+2. **SkyMenu (`/skymenu`)**
+   - Singapore Airlines scheduled inflight menu browser.
+   - Fast sector lookup with interactive cabin class switching (*Suites / First, Business, Premium Economy, Economy*).
+   - Menu course categorizations (*Appetisers, Mains, Desserts, Wine &amp; Beverages*).
+
+3. **InkFlight (`/inkflight`)**
+   - Inflight menu homework formatter and thermal printer slip generator.
+   - Print-ready black-and-white receipt formatting optimized for pocket thermal printers to save ink.
+   - Layout customizer (*toggle headers, toggle prices, compact mode*) and multi-format exports (*PNG, DOCX, PDF*).
+
+4. **Settings (`/settings`)**
+   - **Appearance:** Fully functional Dark Mode (near-black navy `#070B14`) and Light Mode (warm paper `#F5F2EB`) with persistent storage.
+   - **Rates &amp; Modifiers:** Customizable station meal rates and seniority multipliers.
+   - **Data Management:** JSON settings export and import tools.
+   - **About:** System architecture and version diagnostics.
+
+---
+
+## Design System & Principles
+
+- **Single Viewport, Zero Scrolling:** Every page is structured with flexbox/grid containers locked to `100dvh` / `100vh` (`overflow-hidden`), guaranteeing zero accidental scrolling on iOS, Android, or desktop.
+- **Editorial Typography:** Google Fonts *Playfair Display* for elegant display headings and *Inter* for crisp, high-legibility UI labels.
+- **Color Palette (CSS Variables):**
+  - **Dark Mode (Default):** Deep near-black navy (`#070B14`), card surface (`#121826`), recessed wells (`#161E30`), champagne gold accents (`#C9A84C`), soft gold highlights (`#E8D5A3`), and ivory text (`#F0ECE4`).
+  - **Light Mode:** Warm paper (`#F5F2EB`), white surface (`#FFFFFF`), warm recessed wells (`#EAE5D9`), deep navy text (`#0B1E3E`), and rich gold accent (`#A88B2E`).
+- **Pill CTAs & Touch Targets:** All interactive elements feature minimum 44×44px hit targets with subtle tactile feedback (`scale(0.98)` on active press).
+
+---
+
+## Development & Deployment Workflow
+
+- **Arena Session Branch:** All chunk developments, commits, and pushes are made directly to the active session branch `arena/01a04e46-crewkit`.
+- **Vercel Preview URL:** Pushing to `arena/01a04e46-crewkit` triggers automated preview builds on Vercel for testing and visual QA.
+- **Merge to Main:** After verifying the Vercel preview deployment for the completed chunk, changes are manually merged into `main` before progressing to subsequent chunks.
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Node.js (v18+ recommended)
+- npm or pnpm / yarn
+
+### Installation & Local Development
+```bash
+# Clone repository
+git clone https://github.com/harlequinzxc/CrewKit.git
+cd CrewKit
+
+# Install dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+```
+Open your browser at `http://localhost:5173` (or the network preview host).
+
+### Production Build
+```bash
+npm run build
+npm run preview
+```
+
+---
+
+## Google Programmable Search Engine Setup (Optional Dish Image Fallback)
+
+To enable automatic Google image lookups when Singapore Airlines menu items don't include high-resolution photography:
+1. Create a Search Engine at [Google Programmable Search Engine](https://programmablesearchengine.google.com/).
+2. In the Search Engine settings, turn **"Search the entire web"** ON and enable **"Image search"**.
+3. Copy your Search Engine ID (`CX`).
+4. In the [Google Cloud Console](https://console.cloud.google.com/), enable the **Custom Search API** and generate an API key.
+5. Add the environment variables to your `.env` or Vercel dashboard:
+   ```env
+   VITE_GOOGLE_CSE_API_KEY=your_google_api_key
+   VITE_GOOGLE_CSE_CX=your_search_engine_cx
+   ```
+*If keys are not provided, CrewKit gracefully falls back to editorial luxury placeholders without network calls or errors.*
+
+---
+
+## How to Install as a PWA
+
+### iOS (Safari)
+1. Open the CrewKit URL in **Safari**.
+2. Tap the **Share** button (box with an upward arrow) in the bottom toolbar.
+3. Scroll down and tap **"Add to Home Screen"**.
+4. Confirm the name "CrewKit" and tap **Add**. The app will launch in standalone full-screen mode without browser chrome.
+
+### Android (Chrome)
+1. Open the CrewKit URL in **Google Chrome**.
+2. Tap the three-dot menu icon in the upper right.
+3. Select **"Install App"** or **"Add to Home screen"**.
+4. Follow the prompt to install the standalone PWA to your home screen or app drawer.
+
+### Desktop (Chrome / Edge / Safari)
+1. In Chrome/Edge, click the install icon in the right side of the address bar.
+2. Click **Install**. CrewKit will launch in its own dedicated app window.
+
+---
+
+## Project Structure
+
+```
+CrewKit/
+├── public/
+│   ├── favicon.ico             # 64x64 favicon
+│   ├── favicon.svg             # Geometric paper plane SVG favicon
+│   ├── manifest.json           # PWA web app manifest
+│   ├── sw.js                   # App shell service worker cache
+│   └── icons/
+│       ├── icon-192.png        # Standard 192x192 PWA icon
+│       ├── icon-192-maskable.png # Maskable 192x192 icon
+│       ├── icon-512.png        # Standard 512x512 PWA icon
+│       └── icon-512-maskable.png # Maskable 512x512 icon
+├── src/
+│   ├── main.tsx                # App entry point + PWA service worker registration
+│   ├── App.tsx                 # Route declarations (react-router-dom)
+│   ├── index.css               # Global styles, CSS variables & typography
+│   ├── vite-env.d.ts           # Vite client TypeScript definitions
+│   ├── components/
+│   │   ├── BackButton.tsx      # Circular navigation back button
+│   │   ├── Layout.tsx          # Viewport shell with header, menu & version
+│   │   ├── Logo.tsx            # Geometric paper plane mark & Inter wordmark
+│   │   ├── NavCard.tsx         # Home 3-card luxury action cards
+│   │   ├── ThemeToggle.tsx     # Reactive light/dark theme switch
+│   │   └── WizardStepper.tsx   # Reusable whisper step indicator
+│   ├── context/
+│   │   └── ThemeContext.tsx    # Theme provider with localStorage persistence
+│   ├── hooks/
+│   │   └── useTheme.ts         # Theme hook
+│   ├── pages/
+│   │   ├── Home.tsx            # Main landing page & 3-card tool grid
+│   │   ├── CrewCash.tsx        # Inflight & layover allowance calculator
+│   │   ├── SkyMenu.tsx         # SIA inflight menu viewer
+│   │   ├── InkFlight.tsx       # Thermal slip print homework formatter
+│   │   └── Settings.tsx        # Rates, theme preferences & diagnostics
+│   └── config/
+│       └── version.ts          # Version definition (v0.2.0)
+├── index.html                  # HTML entry point with meta tags & fonts
+├── package.json
+├── tsconfig.json
+├── tsconfig.node.json
+├── vite.config.ts
+├── tailwind.config.js
+├── postcss.config.js
+├── README.md
+└── PROMPT.md
+```
+
+---
+
+## Roadmap & Planned Chunks
+
+| Chunk | Version | Scope | Status |
+| :--- | :--- | :--- | :--- |
+| **Chunk 1** | `v0.2.0` | **Project Scaffold & UI Polish** — Hollow shell, PWA setup, single-viewport layouts, 3-card home grid, unified settings, dark/light mode, logo design | **Completed** |
+| **Chunk 2** | `v0.3.0` | **CrewCash Logic** — SIA sector data, meal rate tables, flight hours allowance calculator | *Planned* |
+| **Chunk 3** | `v0.4.0` | **SkyMenu Integration** — SIA flight menu data parsing, course display & filtering | *Planned* |
+| **Chunk 4** | `v0.5.0` | **InkFlight Formatter Engine** — Thermal printer layouts, slip customizer, multi-format export | *Planned* |
+| **Chunk 5** | `v1.0.0` | **Settings, Persistence & Offline Sync** — Local storage rates editor, JSON sync, full production release | *Planned* |

@@ -237,7 +237,6 @@ export const CrewCash: React.FC = () => {
                 value={sector1Validation.flightNo}
                 onChange={sector1Validation.setFlightNo}
                 isValid={sector1Validation.isValid}
-                isChecking={sector1Validation.isChecking}
                 error={sector1Validation.error}
                 placeholder="1 3 4"
               />
@@ -298,7 +297,6 @@ export const CrewCash: React.FC = () => {
                 value={sector2Validation.flightNo}
                 onChange={sector2Validation.setFlightNo}
                 isValid={sector2Validation.isValid}
-                isChecking={sector2Validation.isChecking}
                 error={sector2Validation.error}
                 placeholder="1 3 3"
               />
@@ -364,7 +362,6 @@ export const CrewCash: React.FC = () => {
                 value={sector3Validation.flightNo}
                 onChange={sector3Validation.setFlightNo}
                 isValid={sector3Validation.isValid}
-                isChecking={sector3Validation.isChecking}
                 error={sector3Validation.error}
                 placeholder="1 3 8"
               />
@@ -424,7 +421,6 @@ export const CrewCash: React.FC = () => {
                 value={sector4Validation.flightNo}
                 onChange={sector4Validation.setFlightNo}
                 isValid={sector4Validation.isValid}
-                isChecking={sector4Validation.isChecking}
                 error={sector4Validation.error}
                 placeholder="1 3 7"
               />

@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { APP_VERSION, APP_NAME } from '../config/version';
 import { Logo } from './Logo';
 import { BackButton } from './BackButton';
-import { ThemeMorphButton } from './ThemeMorphButton';
 import { Starfield } from './Starfield';
 import {
   Menu,
@@ -81,10 +80,8 @@ export const Layout: React.FC<LayoutProps> = ({
             <Logo to="/" size="sm" />
           </div>
 
-          {/* RIGHT: Quick Sun/Moon Morph Toggle + Circular Ghost Hamburger Menu */}
+          {/* RIGHT: Circular Ghost Hamburger Menu */}
           <div className="flex items-center gap-2">
-            <ThemeMorphButton />
-
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
