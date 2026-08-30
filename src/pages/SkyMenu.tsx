@@ -238,9 +238,15 @@ export const SkyMenu: React.FC = () => {
 
     const mapping: Record<string, MenuData> = {};
     cabinsToFetch.forEach((c, idx) => {
-      const menu = menus[idx];
-      // If specific sectors were chosen, filter legs to only the selected sectors
-      if (selectedSectorIds.length > 0 && menu.legs && menu.legs.length > 0) {
+      const rawMenu = menus[idx];
+      // Deep clone menu so sector filtering does not mutate cache or other references
+      const menu: MenuData = {
+        ...rawMenu,
+        legs: rawMenu.legs ? rawMenu.legs.map((l) => ({ ...l })) : [],
+      };
+
+      // If specific sectors were chosen in the form, filter legs to only those sectors
+      if (selectedSectorIds.length > 0 && menu.legs.length > 0) {
         const filtered = menu.legs.filter((leg) => {
           const legKey = `${leg.origin}-${leg.destination}`;
           return (
@@ -336,7 +342,7 @@ export const SkyMenu: React.FC = () => {
     availableCabins.length > 0;
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
-  // Check availability for dynamic category list per active leg
+  // Check availability for dynamic category list strictly per active sector/leg
   const hasSnacks = Boolean(currentLeg?.snacks && currentLeg.snacks.length > 0);
   const hasAmenities = Boolean(currentLeg?.amenities && currentLeg.amenities.length > 0);
 
@@ -629,10 +635,12 @@ export const SkyMenu: React.FC = () => {
                     onClick={() => {
                       setActiveLegIndex(idx);
                       const targetLeg = activeMenuData.legs[idx];
-                      if (activeSegment === 'snacks' && (!targetLeg?.snacks || targetLeg.snacks.length === 0)) {
+                      const targetHasSnacks = Boolean(targetLeg?.snacks && targetLeg.snacks.length > 0);
+                      const targetHasAmenities = Boolean(targetLeg?.amenities && targetLeg.amenities.length > 0);
+                      if (activeSegment === 'snacks' && !targetHasSnacks) {
                         setActiveSegment('dining');
                       }
-                      if (activeSegment === 'amenities' && (!targetLeg?.amenities || targetLeg.amenities.length === 0)) {
+                      if (activeSegment === 'amenities' && !targetHasAmenities) {
                         setActiveSegment('dining');
                       }
                     }}

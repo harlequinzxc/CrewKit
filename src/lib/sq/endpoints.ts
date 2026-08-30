@@ -106,7 +106,7 @@ export interface SectorLegOption {
 }
 
 /**
- * Known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25
+ * Known multi-sector legs for flights like SQ12, SQ11, SQ26, SQ25
  */
 export function getKnownFlightSectors(flightNo: string): SectorLegOption[] | null {
   const num = normalizeFlightInput(flightNo);
@@ -398,9 +398,162 @@ function cleanText(str: any): string {
 }
 
 /**
- * ============================================================================
- * GATE 2 — EXISTENCE VALIDATION (Network, Server-Side per (flight, date))
- * ============================================================================
+ * Safe parser for English language blocks without leaking root object
+ */
+function extractEnUkBlock(obj: any, keyPrefix: string): any {
+  if (!obj || typeof obj !== 'object') return null;
+
+  if (obj[`${keyPrefix}.language.EN_UK`]) return obj[`${keyPrefix}.language.EN_UK`];
+  if (obj[`${keyPrefix}.language.en_UK`]) return obj[`${keyPrefix}.language.en_UK`];
+  if (obj[`${keyPrefix}.language.EN`]) return obj[`${keyPrefix}.language.EN`];
+
+  const root = obj[keyPrefix];
+  if (!root || typeof root !== 'object') return null;
+
+  const lang = root.language || root.languages;
+  if (lang && typeof lang === 'object') {
+    return lang.EN_UK || lang.en_UK || lang.EN || lang.en || lang;
+  }
+  return root;
+}
+
+/**
+ * Parse snacks strictly for a given leg
+ */
+function parseSnacksFromLeg(leg: any, lIdx: number): MenuItem[] {
+  if (!leg || typeof leg !== 'object') return [];
+
+  const snackRoot =
+    extractEnUkBlock(leg, 'drySnack') ||
+    extractEnUkBlock(leg, 'drySnacks') ||
+    extractEnUkBlock(leg, 'snack') ||
+    extractEnUkBlock(leg, 'snacks') ||
+    extractEnUkBlock(leg, 'delectables') ||
+    extractEnUkBlock(leg, 'delectable') ||
+    leg.drySnack ||
+    leg.drySnacks ||
+    leg.snacks ||
+    leg.snack ||
+    leg.delectables ||
+    leg.delectable;
+
+  if (!snackRoot || typeof snackRoot !== 'object') return [];
+
+  const snacksList: MenuItem[] = [];
+  const rawCategories = Array.isArray(snackRoot.categories)
+    ? snackRoot.categories
+    : Array.isArray(snackRoot.subcategories)
+    ? snackRoot.subcategories
+    : Array.isArray(snackRoot.specialities)
+    ? snackRoot.specialities
+    : Array.isArray(snackRoot.items)
+    ? [{ items: snackRoot.items }]
+    : Array.isArray(snackRoot)
+    ? [{ items: snackRoot }]
+    : [snackRoot];
+
+  rawCategories.forEach((cat: any, cIdx: number) => {
+    if (!cat || typeof cat !== 'object') return;
+    const catName = cleanText(cat.name || cat.title || 'Delectables');
+    const subcategories = Array.isArray(cat.subcategories)
+      ? cat.subcategories
+      : Array.isArray(cat.specialities)
+      ? cat.specialities
+      : Array.isArray(cat.items)
+      ? [cat]
+      : [];
+
+    subcategories.forEach((sub: any, sIdx: number) => {
+      if (!sub || typeof sub !== 'object') return;
+      const rawSpecialities = Array.isArray(sub.specialities)
+        ? sub.specialities
+        : Array.isArray(sub.items)
+        ? [sub]
+        : [];
+
+      rawSpecialities.forEach((spec: any) => {
+        if (!spec || typeof spec !== 'object') return;
+        const rawItems = Array.isArray(spec.items)
+          ? spec.items
+          : Array.isArray(spec)
+          ? spec
+          : [];
+
+        rawItems.forEach((it: any, iIdx: number) => {
+          if (!it || typeof it !== 'object') return;
+          const name = cleanText(it.name || it.title || it.itemName || it.dishName || '');
+          if (name) {
+            const desc = cleanText(it.description || it.desc || '');
+            const footnote = cleanText(it.footnote || '');
+            const tags: string[] = [];
+            if (Array.isArray(it.icons)) {
+              it.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
+            }
+            if (catName && !tags.includes(catName)) {
+              tags.push(catName);
+            }
+
+            const imageUrl = extractSqImageUrl(it, spec, sub, cat);
+
+            snacksList.push({
+              id: `snack_${lIdx}_${cIdx}_${sIdx}_${iIdx}`,
+              title: name,
+              description: desc || undefined,
+              footnote: footnote || undefined,
+              tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
+              imageUrl,
+            });
+          }
+        });
+      });
+    });
+  });
+
+  return snacksList;
+}
+
+/**
+ * Parse amenities strictly for a given leg
+ */
+function parseAmenitiesFromLeg(leg: any, lIdx: number): AmenityItem[] {
+  if (!leg || typeof leg !== 'object') return [];
+
+  const amenRoot =
+    extractEnUkBlock(leg, 'amenity') ||
+    extractEnUkBlock(leg, 'amenities') ||
+    leg.amenities ||
+    leg.amenity;
+
+  if (!amenRoot || typeof amenRoot !== 'object') return [];
+
+  const amenitiesList: AmenityItem[] = [];
+  const rawAmenItems = Array.isArray(amenRoot.items)
+    ? amenRoot.items
+    : Array.isArray(amenRoot)
+    ? amenRoot
+    : [];
+
+  rawAmenItems.forEach((am: any, aIdx: number) => {
+    if (!am || typeof am !== 'object') return;
+    const name = cleanText(am.itemName || am.name || am.title || '');
+    if (name) {
+      const desc = cleanText(am.description || am.desc || '');
+      const imageUrl = extractSqImageUrl(am, amenRoot);
+
+      amenitiesList.push({
+        id: `amen_${lIdx}_${aIdx}`,
+        name,
+        description: desc || undefined,
+        imageUrl,
+      });
+    }
+  });
+
+  return amenitiesList;
+}
+
+/**
+ * Gate 2 Existence Validation
  */
 export async function getCabinConfig(
   flightNo: string,
@@ -586,7 +739,7 @@ function resolveSqFlightProfile(num: string): FlightProfile {
 }
 
 /**
- * 2. Retrieve Flight Schedule, Sector Timings, & Station Times
+ * Retrieve Flight Schedule, Sector Timings, & Station Times
  */
 export async function getFlightSchedule(flightNo: string, dateISO: string): Promise<FlightSchedule> {
   const gate1 = validateFlightSyntax(flightNo);
@@ -699,7 +852,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
 }
 
 /**
- * 3. Retrieve Full Inflight Menu for a Cabin Class (/menu)
+ * Retrieve Full Inflight Menu for a Cabin Class (/menu)
  */
 export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCode): Promise<MenuData> {
   const gate1 = validateFlightSyntax(flightNo);
@@ -707,7 +860,15 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
   const siaCabin = cabinCodeToSia(cabin);
   const cacheKey = `sq_menu_${num}_${dateISO}_${cabin}`;
   const cached = sqCache.get<MenuData>(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    // Return fresh clone of cached data so downstream leg filtering does not mutate cache
+    return {
+      ...cached,
+      legs: cached.legs ? cached.legs.map((l) => ({ ...l })) : [],
+      sections: cached.sections ? [...cached.sections] : [],
+      drinks: cached.drinks ? [...cached.drinks] : [],
+    };
+  }
 
   try {
     const res = await fetch(SQ_CONFIG.MENU_ENDPOINT, {
@@ -739,20 +900,6 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
   const fallbackMenu = generateSiaMenuData(num, dateISO, cabin);
   sqCache.set(cacheKey, fallbackMenu, SQ_CONFIG.CACHE_TTL_MENU);
   return fallbackMenu;
-}
-
-/**
- * Safe parser for English language blocks
- */
-function extractEnUkBlock(obj: any, keyPrefix: string): any {
-  if (!obj) return null;
-  if (obj[`${keyPrefix}.language.EN_UK`]) return obj[`${keyPrefix}.language.EN_UK`];
-  if (obj[`${keyPrefix}.language.en_UK`]) return obj[`${keyPrefix}.language.en_UK`];
-  if (obj[`${keyPrefix}.language.EN`]) return obj[`${keyPrefix}.language.EN`];
-
-  const root = obj[keyPrefix] || obj;
-  const lang = root?.language || root?.languages || root;
-  return lang?.EN_UK || lang?.en_UK || lang?.EN || lang?.en || null;
 }
 
 /**
@@ -796,8 +943,6 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
 
     const mealServices: MealService[] = [];
     const drinksSections: MenuSection[] = [];
-    const snacksList: MenuItem[] = [];
-    const amenitiesList: AmenityItem[] = [];
 
     // 1. Meals, Courses, Breads & Dishes
     const menuEn = extractEnUkBlock(leg, 'menu');
@@ -965,113 +1110,11 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       });
     }
 
-    // 3. Backend Snacks & Delectables Check
-    const snackEn =
-      extractEnUkBlock(leg, 'drySnack') ||
-      extractEnUkBlock(leg, 'drySnacks') ||
-      extractEnUkBlock(leg, 'snack') ||
-      extractEnUkBlock(leg, 'snacks') ||
-      extractEnUkBlock(leg, 'delectables') ||
-      extractEnUkBlock(leg, 'delectable') ||
-      leg.drySnack ||
-      leg.drySnacks ||
-      leg.snacks ||
-      leg.snack ||
-      leg.delectables ||
-      leg.delectable;
+    // 3. Robust Per-Sector Snacks & Delectables Check
+    const snacksList: MenuItem[] = parseSnacksFromLeg(leg, lIdx);
 
-    if (snackEn && typeof snackEn === 'object') {
-      const rawCategories = Array.isArray(snackEn.categories)
-        ? snackEn.categories
-        : Array.isArray(snackEn.subcategories)
-        ? snackEn.subcategories
-        : Array.isArray(snackEn.specialities)
-        ? snackEn.specialities
-        : Array.isArray(snackEn.items)
-        ? [{ items: snackEn.items }]
-        : Array.isArray(snackEn)
-        ? [{ items: snackEn }]
-        : [snackEn];
-
-      rawCategories.forEach((cat: any, cIdx: number) => {
-        if (!cat) return;
-        const catName = cleanText(cat.name || cat.title || 'Delectables');
-        const subcategories = Array.isArray(cat.subcategories)
-          ? cat.subcategories
-          : Array.isArray(cat.specialities)
-          ? cat.specialities
-          : [cat];
-
-        subcategories.forEach((sub: any, sIdx: number) => {
-          if (!sub) return;
-          const rawSpecialities = Array.isArray(sub.specialities) ? sub.specialities : [sub];
-          rawSpecialities.forEach((spec: any) => {
-            if (!spec) return;
-            const rawItems = Array.isArray(spec.items)
-              ? spec.items
-              : Array.isArray(spec)
-              ? spec
-              : [];
-
-            rawItems.forEach((it: any, iIdx: number) => {
-              const name = cleanText(it.name || it.title || it.itemName || it.dishName || '');
-              if (name) {
-                const desc = cleanText(it.description || it.desc || '');
-                const footnote = cleanText(it.footnote || '');
-                const tags: string[] = [];
-                if (Array.isArray(it.icons)) {
-                  it.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
-                }
-                if (catName && !tags.includes(catName)) {
-                  tags.push(catName);
-                }
-
-                const imageUrl = extractSqImageUrl(it, spec, sub, cat);
-
-                snacksList.push({
-                  id: `snack_${lIdx}_${cIdx}_${sIdx}_${iIdx}`,
-                  title: name,
-                  description: desc || undefined,
-                  footnote: footnote || undefined,
-                  tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
-                  imageUrl,
-                });
-              }
-            });
-          });
-        });
-      });
-    }
-
-    // 4. Cabin Amenities
-    const amenEn =
-      extractEnUkBlock(leg, 'amenity') ||
-      extractEnUkBlock(leg, 'amenities') ||
-      leg.amenities ||
-      leg.amenity;
-
-    if (amenEn && typeof amenEn === 'object') {
-      const rawAmenItems = Array.isArray(amenEn.items)
-        ? amenEn.items
-        : Array.isArray(amenEn)
-        ? amenEn
-        : [];
-
-      rawAmenItems.forEach((am: any, aIdx: number) => {
-        const name = cleanText(am.itemName || am.name || am.title || '');
-        if (name) {
-          const desc = cleanText(am.description || am.desc || '');
-          const imageUrl = extractSqImageUrl(am, amenEn);
-
-          amenitiesList.push({
-            id: `amen_${lIdx}_${aIdx}`,
-            name,
-            description: desc || undefined,
-            imageUrl,
-          });
-        }
-      });
-    }
+    // 4. Cabin Amenities Check
+    const amenitiesList: AmenityItem[] = parseAmenitiesFromLeg(leg, lIdx);
 
     legsList.push({
       legId,
@@ -1310,8 +1353,8 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       },
     ];
 
-    const hasSnacksForLeg = leg.hasSnacks ?? (leg.durationMinutes >= 360);
-    const hasAmenitiesForLeg = leg.hasAmenities ?? (leg.durationMinutes >= 360);
+    const hasSnacksForLeg = Boolean(leg.hasSnacks);
+    const hasAmenitiesForLeg = Boolean(leg.hasAmenities);
 
     const snacksList: MenuItem[] = hasSnacksForLeg
       ? [
