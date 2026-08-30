@@ -8,7 +8,13 @@ import { CabinPill } from '../components/CabinPill';
 import { FlightChip } from '../components/FlightChip';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { useFlightValidation } from '../hooks/useFlightValidation';
-import { getCabinConfig, getMenu, getKnownFlightSectors, SectorLegOption } from '../lib/sq/endpoints';
+import {
+  getMenu,
+  getKnownFlightSectors,
+  SectorLegOption,
+  checkFlightExistence,
+  LiveCheckResult,
+} from '../lib/sq/endpoints';
 import { CabinCode, MenuData, MenuSection } from '../lib/sq/types';
 import { exportToPNG } from '../lib/export/png';
 import { exportToPDF } from '../lib/export/pdf';
@@ -25,6 +31,9 @@ import {
   Sliders,
   ChevronDown,
   ChevronUp,
+  AlertCircle,
+  Clock,
+  WifiOff,
 } from 'lucide-react';
 
 const INKFLIGHT_MESSAGES: InterludeMessage[] = [
@@ -51,17 +60,24 @@ export const InkFlight: React.FC = () => {
   const [dateISO, setDateISO] = useState<string>(navState?.dateISO || '');
   const [dateDisplay, setDateDisplay] = useState<string>(navState?.dateDisplay || '');
 
+  // Client UX State: 'idle' | 'checking' | 'valid' | 'not-found' | 'error'
+  const [checkState, setCheckState] = useState<'idle' | 'checking' | 'valid' | 'not-found' | 'error'>('idle');
+  const [checkFeedback, setCheckFeedback] = useState<{
+    code?: string;
+    heading?: string;
+    message?: string;
+    guidance?: string;
+  } | null>(null);
+
   // Special multi-sector flight detection (e.g. SQ12, SQ11, SQ26, SQ25)
   const [multiSectors, setMultiSectors] = useState<SectorLegOption[] | null>(null);
   const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
 
   // Step 4: Cabin detection & Multi-selection (not selected by default)
-  const [isDetectingCabins, setIsDetectingCabins] = useState(false);
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
   const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
     navState?.cabin ? [navState.cabin] : []
   );
-  const [flightNotFoundError, setFlightNotFoundError] = useState<string | null>(null);
 
   // InkFlight Editor State
   const [editableMenu, setEditableMenu] = useState<MenuData | null>(null);
@@ -77,16 +93,22 @@ export const InkFlight: React.FC = () => {
 
   // Receipt DOM element ref
   const receiptRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 1. Live change: when flight number changes, reset all downstream selections
+  // 1. Live change: when flight number changes, reset state and downstream selections immediately
   useEffect(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     if (!navState?.flightNo) {
       setDateISO('');
       setDateDisplay('');
       setSelectedSectorIds([]);
       setAvailableCabins([]);
       setSelectedCabins([]);
-      setFlightNotFoundError(null);
+      setCheckState('idle');
+      setCheckFeedback(null);
     }
 
     if (validation.isValid && validation.flightNo) {
@@ -99,44 +121,95 @@ export const InkFlight: React.FC = () => {
 
   const isMultiSector = Boolean(multiSectors && multiSectors.length > 1);
 
-  // 2. Live change: when date is selected, trigger cabin detection
+  // 2. Live change: when date is selected, trigger cabin existence check
   useEffect(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     if (!validation.flightNo || !validation.isValid || !dateISO) {
       setAvailableCabins([]);
       setSelectedCabins([]);
-      setFlightNotFoundError(null);
+      setCheckState('idle');
+      setCheckFeedback(null);
       return;
     }
 
-    let isSubscribed = true;
-    setIsDetectingCabins(true);
-    setFlightNotFoundError(null);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-    getCabinConfig(validation.flightNo, dateISO)
-      .then((config) => {
-        if (!isSubscribed) return;
-        setIsDetectingCabins(false);
-        if (config.available && config.available.length > 0) {
-          setAvailableCabins(config.available);
-          setFlightNotFoundError(null);
+    setCheckState('checking');
+    setCheckFeedback(null);
+
+    checkFlightExistence(validation.flightNo, dateISO, controller.signal)
+      .then((result: LiveCheckResult) => {
+        if (controller.signal.aborted) return;
+
+        if (result.ok) {
+          setCheckState('valid');
+          const codes: CabinCode[] = [];
+          result.data.cabins.forEach((c) => {
+            const codeUpper = c.code.toUpperCase();
+            if (codeUpper === 'FCL' || codeUpper === 'SUITES' || codeUpper === 'FIRST') {
+              const code = result.data.aircraftType?.includes('380') ? 'SUITES' : 'FIRST';
+              if (!codes.includes(code)) codes.push(code);
+            } else if (codeUpper === 'JCL' || codeUpper === 'BUSINESS') {
+              if (!codes.includes('BUSINESS')) codes.push('BUSINESS');
+            } else if (codeUpper === 'SCL' || codeUpper === 'PREMIUM_ECONOMY') {
+              if (!codes.includes('PREMIUM_ECONOMY')) codes.push('PREMIUM_ECONOMY');
+            } else if (codeUpper === 'YCL' || codeUpper === 'ECONOMY') {
+              if (!codes.includes('ECONOMY')) codes.push('ECONOMY');
+            }
+          });
+
+          setAvailableCabins(codes.length > 0 ? codes : ['BUSINESS', 'ECONOMY']);
+          setCheckFeedback(null);
         } else {
           setAvailableCabins([]);
-          setFlightNotFoundError(
-            config.error || `Flight SQ${validation.cleanFlightNo} is not operating on ${dateDisplay}.`
-          );
+          setSelectedCabins([]);
+
+          if (result.code === 'NOT_FOUND') {
+            setCheckState('not-found');
+            setCheckFeedback({
+              code: 'NOT_FOUND',
+              heading: result.heading || "We couldn't find that flight for this date.",
+              message: result.message,
+              guidance: result.guidance || 'Check the flight number and date. Menus are generally published up to eight days before departure.',
+            });
+          } else if (result.code === 'NO_CABINS') {
+            setCheckState('not-found');
+            setCheckFeedback({
+              code: 'NO_CABINS',
+              heading: result.heading || 'No Cabins Available',
+              message: result.message,
+              guidance: result.guidance || 'Menus are generally published up to eight days before departure.',
+            });
+          } else {
+            setCheckState('error');
+            setCheckFeedback({
+              code: result.code,
+              heading: result.heading || 'Verification Error',
+              message: result.message,
+            });
+          }
         }
       })
       .catch(() => {
-        if (!isSubscribed) return;
-        setIsDetectingCabins(false);
+        if (controller.signal.aborted) return;
+        setCheckState('error');
         setAvailableCabins([]);
-        setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found.`);
+        setSelectedCabins([]);
+        setCheckFeedback({
+          code: 'UPSTREAM_NETWORK',
+          heading: 'Service Unreachable',
+          message: 'The Singapore Airlines menu service is temporarily unreachable.',
+        });
       });
 
     return () => {
-      isSubscribed = false;
+      controller.abort();
     };
-  }, [validation.flightNo, validation.isValid, dateISO, dateDisplay]);
+  }, [validation.flightNo, validation.isValid, dateISO]);
 
   // Handle Sector Toggle
   const handleToggleSector = (sectorId: string) => {
@@ -385,9 +458,8 @@ export const InkFlight: React.FC = () => {
     showDateStep &&
     Boolean(dateISO) &&
     (!isMultiSector || selectedSectorIds.length > 0) &&
-    !isDetectingCabins &&
-    availableCabins.length > 0 &&
-    !flightNotFoundError;
+    checkState === 'valid' &&
+    availableCabins.length > 0;
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
   return (
@@ -420,11 +492,12 @@ export const InkFlight: React.FC = () => {
             {/* STEP 1: Flight Number */}
             <div className="w-full text-left">
               <FlightNumberInput
+                inputRef={validation.inputRef}
                 value={validation.flightNo}
                 onChange={validation.setFlightNo}
-                isValid={validation.isValid && !flightNotFoundError}
-                error={validation.error || flightNotFoundError}
-                placeholder="3 2 2"
+                isValid={validation.isValid}
+                error={validation.error}
+                placeholder="1 1"
               />
             </div>
 
@@ -493,37 +566,63 @@ export const InkFlight: React.FC = () => {
               </div>
             )}
 
-            {/* Friendly "not on our radar" state when Gate 2 Existence fails */}
-            {flightNotFoundError && Boolean(dateISO) && !isDetectingCabins && (
-              <div className="w-full p-4 rounded-well bg-ink-850/90 border border-gold-dim text-left animate-fade-in space-y-1.5">
-                <div className="flex items-center gap-2 text-gold-300 font-sans font-medium text-xs">
-                  <span className="w-2 h-2 rounded-full bg-gold-400 animate-ping shrink-0" />
-                  <span>Not on our radar for this date</span>
-                </div>
-                <p className="font-sans text-xs text-mist-300 leading-relaxed">
-                  {flightNotFoundError}
-                </p>
-                <p className="font-sans text-[0.68rem] text-mist-400 pt-1 select-none">
-                  Tip: Singapore Airlines publishes digital menus between today and 6 weeks ahead. Try selecting another date or checking your flight number.
-                </p>
-              </div>
-            )}
-
-            {/* Loading skeleton while detecting cabins */}
-            {isDetectingCabins && Boolean(dateISO) && (!isMultiSector || selectedSectorIds.length > 0) && (
-              <div className="w-full text-left animate-fade-in">
-                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
+            {/* Stage: CHECKING — Progress indicator & spinner */}
+            {checkState === 'checking' && Boolean(dateISO) && (
+              <div className="w-full text-left animate-fade-in space-y-2">
+                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 select-none">
                   CABIN
                 </label>
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-20 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
-                  <div className="h-9 w-24 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
-                  <div className="h-9 w-20 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
+                <div className="flex items-center gap-2.5 p-3 rounded-well bg-ink-850/80 border border-gold-dim">
+                  <div className="w-4 h-4 border-2 border-gold-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="font-ui text-xs text-mist-300">Checking the flight…</span>
                 </div>
               </div>
             )}
 
-            {/* STEP 4: Cabin Classes Multi-Select (none selected by default) */}
+            {/* Stage: NOT-FOUND — Accurate heading & guidance */}
+            {checkState === 'not-found' && checkFeedback && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="w-full p-4 rounded-well bg-ink-850/95 border border-gold-dim text-left animate-fade-in space-y-2"
+              >
+                <div className="flex items-center gap-2 text-gold-300 font-sans font-semibold text-xs">
+                  <AlertCircle className="w-4 h-4 text-gold-400 shrink-0" />
+                  <span>{checkFeedback.heading}</span>
+                </div>
+                <p className="font-sans text-xs text-ivory-100 leading-relaxed">
+                  {checkFeedback.message}
+                </p>
+                {checkFeedback.guidance && (
+                  <p className="font-sans text-[0.72rem] text-mist-400 pt-1 border-t border-gold-dim/40 leading-relaxed select-none">
+                    {checkFeedback.guidance}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Stage: ERROR — Upstream timeout or network error */}
+            {checkState === 'error' && checkFeedback && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="w-full p-4 rounded-well bg-ink-850/95 border border-danger/40 text-left animate-fade-in space-y-2"
+              >
+                <div className="flex items-center gap-2 text-danger font-sans font-semibold text-xs">
+                  {checkFeedback.code === 'UPSTREAM_TIMEOUT' ? (
+                    <Clock className="w-4 h-4 text-danger shrink-0" />
+                  ) : (
+                    <WifiOff className="w-4 h-4 text-danger shrink-0" />
+                  )}
+                  <span>{checkFeedback.heading}</span>
+                </div>
+                <p className="font-sans text-xs text-mist-300 leading-relaxed">
+                  {checkFeedback.message}
+                </p>
+              </div>
+            )}
+
+            {/* STEP 4: Cabin Classes Multi-Select (Appears when flight check is valid) */}
             {showCabinStep && (
               <div className="w-full text-left animate-cabin-in">
                 <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">

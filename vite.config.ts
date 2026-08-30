@@ -19,7 +19,7 @@ function createSiaMockPlugin(): Plugin {
 
   const handleApiRequest = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = req.url?.split('?')[0];
-    if (url !== '/api/getcabin' && url !== '/api/menu') {
+    if (url !== '/api/getcabin' && url !== '/api/menu' && url !== '/api/cabins') {
       return next();
     }
 
@@ -30,6 +30,245 @@ function createSiaMockPlugin(): Plugin {
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       });
       return res.end();
+    }
+
+    // Handle /api/cabins endpoint (GET or POST)
+    if (url === '/api/cabins') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+
+      let rawFlight = '';
+      let rawDate = '';
+
+      if (req.method === 'GET') {
+        const fullUrl = new URL(req.url || '', 'http://localhost');
+        rawFlight = fullUrl.searchParams.get('flight') || fullUrl.searchParams.get('flightNo') || '';
+        rawDate = fullUrl.searchParams.get('date') || fullUrl.searchParams.get('flightDate') || '';
+      } else if (req.method === 'POST') {
+        const body = await parseJsonBody(req);
+        rawFlight = body.flight || body.flightNo || body.flightNumber || '';
+        rawDate = body.date || body.flightDate || '';
+      }
+
+      // 1. Syntax Validation
+      const sanitized = (rawFlight || '').trim().toUpperCase().replace(/\s+/g, '');
+      const match = sanitized.match(/^(?:SQ|SIA)?0*(\d{1,4})$/);
+      if (!match) {
+        res.writeHead(400);
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            code: 'BAD_INPUT',
+            message: 'A valid flight number and departure date are required.',
+          })
+        );
+      }
+
+      const num = parseInt(match[1], 10);
+      if (isNaN(num) || num < 1 || num > 9999) {
+        res.writeHead(400);
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            code: 'BAD_INPUT',
+            message: 'A valid flight number and departure date are required.',
+          })
+        );
+      }
+      const flightNum = num.toString();
+
+      // 2. Date Validation
+      if (!rawDate || !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        res.writeHead(400);
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            code: 'BAD_DATE',
+            message: 'A valid YYYY-MM-DD date is required.',
+          })
+        );
+      }
+      const [y, m, d] = rawDate.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      if (dateObj.getFullYear() !== y || dateObj.getMonth() !== m - 1 || dateObj.getDate() !== d) {
+        res.writeHead(400);
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            code: 'BAD_DATE',
+            message: 'A valid calendar date is required.',
+          })
+        );
+      }
+
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (rawDate < todayStr) {
+        res.writeHead(400);
+        return res.end(
+          JSON.stringify({
+            ok: false,
+            code: 'BAD_DATE',
+            message: 'Choose an upcoming departure date.',
+          })
+        );
+      }
+
+      // 3. Try upstream check with 12s timeout
+      const CABIN_MAPPING: Record<string, { code: string; label: string; short: string }> = {
+        FCL: { code: 'FCL', label: 'Suites & First Class', short: 'First' },
+        JCL: { code: 'JCL', label: 'Business Class', short: 'Business' },
+        SCL: { code: 'SCL', label: 'Premium Economy', short: 'Prem Econ' },
+        YCL: { code: 'YCL', label: 'Economy Class', short: 'Economy' },
+        FIRST: { code: 'FCL', label: 'Suites & First Class', short: 'First' },
+        SUITES: { code: 'FCL', label: 'Suites & First Class', short: 'First' },
+        BUSINESS: { code: 'JCL', label: 'Business Class', short: 'Business' },
+        PREMIUM_ECONOMY: { code: 'SCL', label: 'Premium Economy', short: 'Prem Econ' },
+        ECONOMY: { code: 'YCL', label: 'Economy Class', short: 'Economy' },
+      };
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const upstreamRes = await fetch('https://cifp.auto.prod.c0.singaporeair.com/api/getcabin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Origin': 'https://inflightmenu.singaporeair.com',
+            'Referer': 'https://inflightmenu.singaporeair.com/',
+            'User-Agent':
+              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+          },
+          body: JSON.stringify({
+            carrierId: 'SQ',
+            flightNumber: flightNum,
+            flightDate: rawDate,
+            sessionId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (upstreamRes.ok) {
+          const upstreamData = await upstreamRes.json();
+          const sc = Number(upstreamData?.statusCode);
+
+          if (sc === 101 || sc === 404) {
+            const dateObj2 = new Date(y, m - 1, d);
+            const dateLong = dateObj2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+            res.writeHead(404);
+            return res.end(
+              JSON.stringify({
+                ok: false,
+                code: 'NOT_FOUND',
+                message: `No Singapore Airlines flight or published menu was found for SQ ${flightNum} on ${dateLong}.`,
+              })
+            );
+          }
+
+          if (sc === 200) {
+            const rawCabins: any[] = Array.isArray(upstreamData?.cabinClasses)
+              ? upstreamData.cabinClasses
+              : Array.isArray(upstreamData?.cabins)
+              ? upstreamData.cabins
+              : [];
+
+            if (rawCabins.length === 0) {
+              res.writeHead(404);
+              return res.end(
+                JSON.stringify({
+                  ok: false,
+                  code: 'NO_CABINS',
+                  message: 'This flight was found, but no inflight-menu cabins are available yet.',
+                })
+              );
+            }
+
+            const normalizedCabins: Array<{ code: string; label: string; short: string }> = [];
+            const seen = new Set<string>();
+
+            for (const c of rawCabins) {
+              const codeStr = (typeof c === 'string' ? c : c?.code || c?.name || '').toUpperCase().trim();
+              const mapping = CABIN_MAPPING[codeStr];
+              if (mapping && !seen.has(mapping.code)) {
+                seen.add(mapping.code);
+                normalizedCabins.push(mapping);
+              }
+            }
+
+            res.writeHead(200);
+            return res.end(
+              JSON.stringify({
+                ok: true,
+                data: {
+                  flight: flightNum,
+                  displayFlight: `SQ ${flightNum}`,
+                  flightDate: rawDate,
+                  aircraftType: upstreamData.aircraftType || upstreamData.aircraft,
+                  cabins: normalizedCabins,
+                },
+              })
+            );
+          }
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          res.writeHead(504);
+          return res.end(
+            JSON.stringify({
+              ok: false,
+              code: 'UPSTREAM_TIMEOUT',
+              message: 'Singapore Airlines took too long to respond. Please try again.',
+            })
+          );
+        }
+      }
+
+      // Mock fallback for valid commercial SQ flights in local dev environment
+      const isValidSqCommercial =
+        (num >= 11 && num <= 38) || (num >= 51 && num <= 52) || (num >= 100 && num <= 998);
+
+      if (isValidSqCommercial) {
+        const cabins =
+          num === 12 || num === 11 || num === 26 || num === 25 || num === 322
+            ? [
+                { code: 'FCL', label: 'Suites & First Class', short: 'First' },
+                { code: 'JCL', label: 'Business Class', short: 'Business' },
+                { code: 'SCL', label: 'Premium Economy', short: 'Prem Econ' },
+                { code: 'YCL', label: 'Economy Class', short: 'Economy' },
+              ]
+            : [
+                { code: 'JCL', label: 'Business Class', short: 'Business' },
+                { code: 'SCL', label: 'Premium Economy', short: 'Prem Econ' },
+                { code: 'YCL', label: 'Economy Class', short: 'Economy' },
+              ];
+
+        res.writeHead(200);
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            data: {
+              flight: flightNum,
+              displayFlight: `SQ ${flightNum}`,
+              flightDate: rawDate,
+              aircraftType: num === 322 ? '388' : num === 12 ? '77W' : '359',
+              cabins,
+            },
+          })
+        );
+      }
+
+      const dateObj2 = new Date(y, m - 1, d);
+      const dateLong = dateObj2.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      res.writeHead(404);
+      return res.end(
+        JSON.stringify({
+          ok: false,
+          code: 'NOT_FOUND',
+          message: `No Singapore Airlines flight or published menu was found for SQ ${flightNum} on ${dateLong}.`,
+        })
+      );
     }
 
     if (req.method !== 'POST') {

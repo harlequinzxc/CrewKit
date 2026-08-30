@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { validateFlightDate } from '../lib/sq/validation';
 
 interface DepartureBlockProps {
   onDateSelect: (dateISO: string, formattedDisplay: string) => void;
@@ -27,7 +28,7 @@ export function getTomorrowISO(): string {
 
 export function getMaxDateISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() + 42); // 6-week publication window
+  d.setDate(d.getDate() + 42); // Allows up to 6 weeks in advance
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -62,30 +63,38 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
   });
 
   const [customDate, setCustomDate] = useState<string>(selectedDateISO || '');
+  const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedDateISO) {
       setActivePreset(null);
       setCustomDate('');
+      setDateError(null);
       return;
     }
     if (selectedDateISO === todayISO) {
       setActivePreset('today');
+      setDateError(null);
     } else if (selectedDateISO === tomorrowISO) {
       setActivePreset('tomorrow');
+      setDateError(null);
     } else {
       setActivePreset('custom');
       setCustomDate(selectedDateISO);
+      const val = validateFlightDate(selectedDateISO);
+      setDateError(val.error);
     }
   }, [selectedDateISO, todayISO, tomorrowISO]);
 
   const handleSelectToday = () => {
     setActivePreset('today');
+    setDateError(null);
     onDateSelect(todayISO, formatDateDisplay(todayISO));
   };
 
   const handleSelectTomorrow = () => {
     setActivePreset('tomorrow');
+    setDateError(null);
     onDateSelect(tomorrowISO, formatDateDisplay(tomorrowISO));
   };
 
@@ -93,12 +102,18 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
     setActivePreset('custom');
     const targetDate = customDate || todayISO;
     setCustomDate(targetDate);
+    const val = validateFlightDate(targetDate);
+    setDateError(val.error);
     onDateSelect(targetDate, formatDateDisplay(targetDate));
   };
 
   const handleCustomDateChange = (val: string) => {
     setCustomDate(val);
-    if (val) {
+    const valResult = validateFlightDate(val);
+    if (!valResult.valid) {
+      setDateError(valResult.error);
+    } else {
+      setDateError(null);
       onDateSelect(val, formatDateDisplay(val));
     }
   };
@@ -106,8 +121,11 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
   return (
     <div className={`w-full text-left transition-all duration-300 animate-fade-in ${className}`}>
       {/* Overline Label (Whisper quiet) */}
-      <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
-        DATE
+      <label
+        htmlFor="departure-date-picker"
+        className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none"
+      >
+        DEPARTURE DATE
       </label>
 
       {/* Mode 1: Sliding Pill Selection */}
@@ -160,7 +178,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
           </button>
         </div>
       ) : (
-        /* Mode 2: Custom Date Picker Input (Clamped strictly to 6-week window) */
+        /* Mode 2: Custom Date Picker Input */
         <div className="flex items-center gap-2 animate-fade-in">
           <button
             type="button"
@@ -173,6 +191,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
 
           <div className="flex-1 relative">
             <input
+              id="departure-date-picker"
               type="date"
               min={todayISO}
               max={maxDateISO}
@@ -184,9 +203,16 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
         </div>
       )}
 
-      {/* Explicit publication window helper */}
+      {/* Date Validation Error */}
+      {dateError && (
+        <div role="alert" className="text-[0.75rem] text-danger mt-1.5 ml-1 animate-fade-in font-sans font-medium">
+          {dateError}
+        </div>
+      )}
+
+      {/* Publication window helper */}
       <p className="font-sans text-[0.68rem] text-mist-400 mt-2 ml-0.5 select-none">
-        Singapore Airlines inflight menus publish up to 6 weeks in advance.
+        Singapore Airlines menus are normally published up to eight days before departure.
       </p>
     </div>
   );

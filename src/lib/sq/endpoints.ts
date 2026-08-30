@@ -15,6 +15,23 @@ import {
 } from './types';
 import { SQ_CONFIG } from './config';
 import { sqCache } from './cache';
+import {
+  validateFlightSyntax,
+  normalizeFlightInput,
+  validateFlightDate,
+  formatDateLong,
+  checkFlightExistence,
+  LiveCheckResult,
+} from './validation';
+
+export {
+  validateFlightSyntax,
+  normalizeFlightInput,
+  validateFlightDate,
+  formatDateLong,
+  checkFlightExistence,
+};
+export type { LiveCheckResult };
 
 /**
  * Standard IATA Airport Code to City Name Lookup
@@ -89,81 +106,10 @@ export interface SectorLegOption {
 }
 
 /**
- * ============================================================================
- * GATE 1 — SYNTAX VALIDATION (Instant, client-side, free)
- * ============================================================================
- * 1. Trim, uppercase, strip internal whitespace.
- * 2. Match with regex: ^(?:SQ|SIA)?0*(\d{1,4})[A-Z]?$
- * 3. Extract digits n: require 1 <= n <= 9999 and n !== 0.
- * 4. Strips non-digits for live numeric typing, returns normalized flight number.
- */
-export interface Gate1SyntaxResult {
-  valid: boolean;
-  flightNumber: string; // e.g. "11", "322", "12"
-  rawInput: string;
-  error: string | null;
-}
-
-export function validateFlightSyntax(input: string): Gate1SyntaxResult {
-  if (!input || input.trim() === '') {
-    return { valid: false, flightNumber: '', rawInput: input, error: null };
-  }
-
-  // 1. Trim, uppercase, strip whitespace
-  const sanitized = input.trim().toUpperCase().replace(/\s+/g, '');
-
-  // 2. Test regex: optional SQ/SIA prefix, optional leading zeros, 1-4 digits, optional trailing letter
-  const match = sanitized.match(/^(?:SQ|SIA)?0*(\d{1,4})[A-Z]?$/);
-  if (!match) {
-    return {
-      valid: false,
-      flightNumber: '',
-      rawInput: input,
-      error: 'Enter a flight number between 1 and 9999',
-    };
-  }
-
-  // 3. Extract digits n and verify 1 <= n <= 9999
-  const digitStr = match[1];
-  const num = parseInt(digitStr, 10);
-
-  if (isNaN(num) || num < 1 || num > 9999) {
-    return {
-      valid: false,
-      flightNumber: '',
-      rawInput: input,
-      error: 'Enter a flight number between 1 and 9999',
-    };
-  }
-
-  return {
-    valid: true,
-    flightNumber: num.toString(),
-    rawInput: input,
-    error: null,
-  };
-}
-
-/**
- * Extract clean numeric digits for flight number input (e.g. "SQ0011" -> "11")
- */
-export function normalizeFlightNumber(flightNo: string): string {
-  const res = validateFlightSyntax(flightNo);
-  return res.valid ? res.flightNumber : flightNo.replace(/\D/g, '').slice(0, 4);
-}
-
-/**
- * Check if flight input passes Gate 1 Syntax
- */
-export function isValidFlightNumber(flightNo: string): boolean {
-  return validateFlightSyntax(flightNo).valid;
-}
-
-/**
  * Known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25, SQ52, SQ51
  */
 export function getKnownFlightSectors(flightNo: string): SectorLegOption[] | null {
-  const num = normalizeFlightNumber(flightNo);
+  const num = normalizeFlightInput(flightNo);
   if (num === '12') {
     return [
       {
@@ -455,117 +401,38 @@ function cleanText(str: any): string {
  *    - 101 or 404 ("No flight found") -> Flight not operating / outside publication window.
  *    - HTTP 502 / timeout -> Transient upstream error.
  */
-export async function getCabinConfig(flightNo: string, dateISO: string): Promise<CabinConfig> {
-  // Gate 1 Syntax Guard
-  const gate1 = validateFlightSyntax(flightNo);
-  if (!gate1.valid) {
-    return {
-      flightNo: gate1.flightNumber || flightNo,
-      date: dateISO,
-      available: [],
-      error: gate1.error || 'Enter a flight number between 1 and 9999',
-      errorCode: 'BAD_INPUT',
-    };
-  }
+export async function getCabinConfig(
+  flightNo: string,
+  dateISO: string,
+  signal?: AbortSignal
+): Promise<CabinConfig> {
+  const check = await checkFlightExistence(flightNo, dateISO, signal);
 
-  const num = gate1.flightNumber;
-  const cacheKey = `sq_cabin_${num}_${dateISO}`;
-  const cached = sqCache.get<CabinConfig>(cacheKey);
-  if (cached) return cached;
+  if (check.ok) {
+    const foundCabins: CabinCode[] = [];
+    const aircraft = check.data.aircraftType || '';
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-    const res = await fetch(SQ_CONFIG.GET_CABIN_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        carrierId: 'SQ',
-        flightNumber: num,
-        flightDate: dateISO,
-        sessionId: generateSessionId(),
-      }),
-      signal: controller.signal,
+    check.data.cabins.forEach((c) => {
+      const mapped = siaToCabinOption(c.code, aircraft);
+      if (mapped && !foundCabins.includes(mapped.code)) {
+        foundCabins.push(mapped.code);
+      }
     });
-    clearTimeout(timeoutId);
 
-    const data = await res.json().catch(() => null);
-
-    if (res.ok && data && (data.statusCode === 200 || data.statusCode === '200')) {
-      const foundCabins: CabinCode[] = [];
-      const aircraft = data.aircraftType || data.aircraft || '';
-
-      const rawCabins = data.cabinClasses || data.cabins || [];
-      if (Array.isArray(rawCabins)) {
-        rawCabins.forEach((c: any) => {
-          const rawCode = typeof c === 'string' ? c : c.code || c.cabinClass || c.name || '';
-          const mapped = siaToCabinOption(rawCode, aircraft);
-          if (mapped && !foundCabins.includes(mapped.code)) {
-            foundCabins.push(mapped.code);
-          }
-        });
-      }
-
-      if (foundCabins.length > 0) {
-        const result: CabinConfig = {
-          flightNo: `SQ${num}`,
-          date: dateISO,
-          available: foundCabins,
-          aircraftType: aircraft || undefined,
-        };
-        sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
-        return result;
-      }
-    }
-
-    // Handled non-operating status (101 or 404)
-    if (res.status === 404 || (data && (data.statusCode === 101 || data.statusCode === 404))) {
-      return {
-        flightNo: `SQ${num}`,
-        date: dateISO,
-        available: [],
-        error: `Flight SQ${num} is not operating on this date or outside the publication window.`,
-        errorCode: 'NOT_FOUND',
-      };
-    }
-
-    if (res.status === 502) {
-      return {
-        flightNo: `SQ${num}`,
-        date: dateISO,
-        available: [],
-        error: 'Singapore Airlines inflight menu service is temporarily unavailable. Please tap to retry.',
-        errorCode: 'UPSTREAM_ERROR',
-      };
-    }
-  } catch (err: any) {
-    console.warn('Live /getcabin fetch error:', err.message);
-  }
-
-  // Final check: if flight is an authentic commercial route (e.g. SQ12, SQ322), return verified fallback
-  const numInt = parseInt(num, 10);
-  const isValidSqCommercial =
-    (numInt >= 11 && numInt <= 38) || (numInt >= 51 && numInt <= 52) || (numInt >= 100 && numInt <= 998);
-
-  if (isValidSqCommercial) {
-    const profile = resolveSqFlightProfile(num);
-    const result: CabinConfig = {
-      flightNo: `SQ${num}`,
-      date: dateISO,
-      available: profile.cabins,
-      aircraftType: profile.aircraftType,
+    return {
+      flightNo: check.data.displayFlight,
+      date: check.data.flightDate,
+      available: foundCabins.length > 0 ? foundCabins : ['BUSINESS', 'ECONOMY'],
+      aircraftType: aircraft || undefined,
     };
-    sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
-    return result;
   }
 
   return {
-    flightNo: `SQ${num}`,
+    flightNo: `SQ${normalizeFlightInput(flightNo)}`,
     date: dateISO,
     available: [],
-    error: `Flight SQ${num} not found. Please verify your flight number.`,
-    errorCode: 'NOT_FOUND',
+    error: check.message,
+    errorCode: check.code as any,
   };
 }
 
@@ -722,7 +589,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
     return { flightNo: '', date: dateISO, sectors: [] };
   }
 
-  const num = gate1.flightNumber;
+  const num = gate1.flight;
   const cacheKey = `sq_sched_${num}_${dateISO}`;
   const cached = sqCache.get<FlightSchedule>(cacheKey);
   if (cached) return cached;
@@ -831,7 +698,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
  */
 export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCode): Promise<MenuData> {
   const gate1 = validateFlightSyntax(flightNo);
-  const num = gate1.flightNumber || flightNo.replace(/\D/g, '');
+  const num = gate1.flight || flightNo.replace(/\D/g, '');
   const siaCabin = cabinCodeToSia(cabin);
   const cacheKey = `sq_menu_${num}_${dateISO}_${cabin}`;
   const cached = sqCache.get<MenuData>(cacheKey);
