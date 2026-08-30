@@ -34,6 +34,64 @@ function releaseSlot() {
   runNextInQueue();
 }
 
+/**
+ * Extract core dish search terms (e.g. strip long garnish descriptions)
+ */
+export function extractCoreDishKeywords(dishTitle: string): string {
+  if (!dishTitle) return '';
+  // Split on "with", "served with", "accompanied by", "in", "and", "on"
+  const clean = dishTitle
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const parts = clean.split(/\s+(?:with|served with|accompanied by|in a|in|on a|on|and)\s+/i);
+  const primaryName = parts[0] || clean;
+  return primaryName.replace(/[^\w\s-]/g, '').trim();
+}
+
+async function executeCseQuery(
+  apiKey: string,
+  cx: string,
+  query: string
+): Promise<{ thumbUrl: string | null; fullUrl: string | null } | null> {
+  const params = new URLSearchParams({
+    key: apiKey,
+    cx: cx,
+    q: query,
+    searchType: 'image',
+    num: '3',
+    safe: 'active',
+    imgType: 'photo',
+    imgSize: 'medium',
+  });
+
+  const url = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
+  const res = await fetch(url);
+
+  if (res.status === 429 || res.status === 403) {
+    console.warn('Google CSE quota exceeded or forbidden. Falling back to editorial placeholders for this session.');
+    sessionGoogleBlocked = true;
+    return null;
+  }
+
+  if (!res.ok) {
+    return null;
+  }
+
+  const data = await res.json();
+  if (data && Array.isArray(data.items) && data.items.length > 0) {
+    for (const item of data.items) {
+      const fullUrl = item.link || item.image?.contextLink || null;
+      const thumbUrl = item.image?.thumbnailLink || fullUrl;
+      if (fullUrl && typeof fullUrl === 'string' && fullUrl.startsWith('http')) {
+        return { thumbUrl, fullUrl };
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function fetchGoogleDishImage(
   dishTitle: string,
   cabin?: string
@@ -56,45 +114,35 @@ export async function fetchGoogleDishImage(
   const promise = (async () => {
     await acquireSlot();
     try {
+      const coreName = extractCoreDishKeywords(dishTitle);
       const cabinHint = cabin ? `${cabin} ` : '';
-      const q = `"${dishTitle}" ${cabinHint}("singapore airlines" OR inflight OR "airline meal") food -recipe -pdf`;
 
-      const params = new URLSearchParams({
-        key: apiKey,
-        cx: cx,
-        q: q,
-        searchType: 'image',
-        num: '1',
-        safe: 'active',
-        imgType: 'photo',
-        imgSize: 'medium',
-      });
+      // Tier 1: Search for exact dish name with Singapore Airlines
+      let result = await executeCseQuery(
+        apiKey,
+        cx,
+        `"${coreName}" ${cabinHint}"singapore airlines" food`
+      );
 
-      const url = `https://www.googleapis.com/customsearch/v1?${params.toString()}`;
-      const res = await fetch(url);
-
-      if (res.status === 429 || res.status === 403) {
-        console.warn('Google CSE quota exceeded or forbidden. Falling back to editorial placeholders for this session.');
-        sessionGoogleBlocked = true;
-        return null;
+      // Tier 2: Search without strict quotes if Tier 1 had 0 results
+      if (!result) {
+        result = await executeCseQuery(
+          apiKey,
+          cx,
+          `${coreName} singapore airlines inflight meal food`
+        );
       }
 
-      if (!res.ok) {
-        return null;
+      // Tier 3: Search for core dish name in gourmet food presentation
+      if (!result) {
+        result = await executeCseQuery(
+          apiKey,
+          cx,
+          `${coreName} gourmet food fine dining`
+        );
       }
 
-      const data = await res.json();
-      if (data && Array.isArray(data.items) && data.items.length > 0) {
-        const item = data.items[0];
-        const fullUrl = item.link || item.image?.contextLink || null;
-        const thumbUrl = item.image?.thumbnailLink || fullUrl;
-
-        if (fullUrl) {
-          return { thumbUrl, fullUrl };
-        }
-      }
-
-      return null;
+      return result;
     } catch (err) {
       console.warn('Google CSE fetch failed:', err);
       return null;

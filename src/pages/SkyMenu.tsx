@@ -174,7 +174,7 @@ export const SkyMenu: React.FC = () => {
       : null;
 
   return (
-    <Layout containerClassName={stage === 'result' ? 'w-full md:w-[85%] max-w-6xl' : 'max-w-[560px]'}>
+    <Layout containerClassName="w-full md:w-[90%] max-w-6xl">
       {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
       {stage === 'loading' && (
         <FetchInterlude

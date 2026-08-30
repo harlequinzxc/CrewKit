@@ -521,7 +521,7 @@ export const CrewCash: React.FC = () => {
           </div>
 
           {/* Scrollable Sector Cards Container */}
-          <div className="flex-1 overflow-y-auto py-2.5 space-y-3 px-1">
+          <div className="flex-1 overflow-y-auto no-scrollbar py-2.5 space-y-3 px-1">
             
             {/* Station Layover & Station Rest Summary Card */}
             {stationName && stationArrTime && stationDepTime && (

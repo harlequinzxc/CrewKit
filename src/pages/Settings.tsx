@@ -45,7 +45,7 @@ export const Settings: React.FC = () => {
         <div className="flex-1 max-h-8 sm:max-h-12" />
 
         {/* Editorial Hero Block */}
-        <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center">
+        <div className="w-full max-w-md mx-auto flex flex-col items-center text-center">
           
           {/* Eyebrow */}
           <span className="font-serif italic text-accent text-base sm:text-[1.05rem] tracking-wide mb-1">

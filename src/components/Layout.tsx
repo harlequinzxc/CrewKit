@@ -21,7 +21,7 @@ interface LayoutProps {
   containerClassName?: string;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = 'max-w-[560px]' }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = 'w-full md:w-[90%] max-w-6xl' }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);

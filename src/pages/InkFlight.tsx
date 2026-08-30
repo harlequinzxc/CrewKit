@@ -431,7 +431,7 @@ export const InkFlight: React.FC = () => {
             
             {/* LEFT PANEL: Customize Controls & Reordering */}
             <div
-              className={`flex-col h-full overflow-y-auto space-y-3 pr-1 ${
+              className={`flex-col h-full overflow-y-auto no-scrollbar space-y-3 pr-1 ${
                 mobileTab === 'editor' ? 'flex' : 'hidden sm:flex'
               }`}
             >
@@ -615,7 +615,7 @@ export const InkFlight: React.FC = () => {
 
             {/* RIGHT PANEL: Live Thermal Receipt Canvas */}
             <div
-              className={`h-full overflow-y-auto flex flex-col items-center justify-start ${
+              className={`h-full overflow-y-auto no-scrollbar flex flex-col items-center justify-start ${
                 mobileTab === 'preview' ? 'flex' : 'hidden sm:flex'
               }`}
             >
