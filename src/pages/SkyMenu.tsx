@@ -219,7 +219,7 @@ export const SkyMenu: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block (Appends downward smoothly) */}
+            {/* Departure Block */}
             {validation.isValid && validation.flightNo.length > 0 && (
               <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
@@ -278,7 +278,7 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* Reveal CTA (Appends downward at the bottom) */}
+            {/* Reveal CTA */}
             {validation.isValid &&
               validation.flightNo.length > 0 &&
               dateISO &&
@@ -329,7 +329,7 @@ export const SkyMenu: React.FC = () => {
               {(
                 [
                   { id: 'dining', label: 'Dining', icon: Utensils },
-                  { id: 'cellar', label: 'Cellar', icon: Wine },
+                  { id: 'cellar', label: 'Cellar & Tea', icon: Wine },
                   { id: 'snacks', label: 'Snacks', icon: Cookie },
                   { id: 'amenities', label: 'Amenities', icon: Gift },
                 ] as const
@@ -504,16 +504,16 @@ export const SkyMenu: React.FC = () => {
               </>
             )}
 
-            {/* 2. CELLAR-BOOK DRINKS (DOTTED LEADER LAYOUT) */}
+            {/* 2. CELLAR, COFFEE, TEA & BEVERAGES WITH FULL DISH CARDS & PHOTOS */}
             {activeSegment === 'cellar' && currentLeg && (
               <div className="space-y-8">
                 {currentLeg.drinks.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
                     <span className="font-display text-2xl text-ivory-100 mb-2">
-                      No Cellar Listing Available
+                      No Beverage Listing Available
                     </span>
                     <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
-                      Beverage selections have not been published for this sector yet.
+                      Beverage, tea, and coffee selections have not been published for this sector yet.
                     </p>
                   </div>
                 ) : (
@@ -527,25 +527,16 @@ export const SkyMenu: React.FC = () => {
                         <Wine className="w-4 h-4 text-gold-400" />
                       </div>
 
-                      {/* Cellar Book Dotted Leader Rows */}
-                      <div className="space-y-3 pt-1">
+                      {/* Beverage Cards Grid with Photos, Descriptions & Lightbox */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
                         {sec.items.map((it) => (
-                          <div key={it.id} className="p-3.5 rounded-card bg-ink-850/60 border border-gold-dim/60 hover:border-gold-400/50 transition-all">
-                            <div className="flex items-baseline justify-between gap-3">
-                              <span className="font-display text-lg sm:text-xl font-light text-ivory-100">
-                                {it.title}
-                              </span>
-                              <span className="cellar-leader flex-1" aria-hidden="true" />
-                              <span className="font-ui text-xs uppercase tracking-wider text-gold-300 font-semibold shrink-0">
-                                SQ Cellar Selection
-                              </span>
-                            </div>
-                            {it.description && (
-                              <p className="font-sans text-xs text-mist-300 mt-1 leading-relaxed">
-                                {it.description}
-                              </p>
-                            )}
-                          </div>
+                          <DishCard
+                            key={it.id}
+                            item={it}
+                            courseCategory={sec.title}
+                            cabin={selectedCabin}
+                            onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
+                          />
                         ))}
                       </div>
 
@@ -577,23 +568,15 @@ export const SkyMenu: React.FC = () => {
                       <Cookie className="w-4 h-4 text-gold-400" />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
                       {currentLeg.snacks.map((snk) => (
-                        <div key={snk.id} className="cabin-glass p-4 flex flex-col justify-between">
-                          <div>
-                            <h4 className="font-display text-xl text-ivory-100 leading-snug">
-                              {snk.title}
-                            </h4>
-                            {snk.description && (
-                              <p className="font-sans text-xs text-mist-300 mt-1 leading-relaxed">
-                                {snk.description}
-                              </p>
-                            )}
-                          </div>
-                          <span className="font-ui text-[9px] uppercase tracking-wider text-gold-300 font-semibold mt-3 block">
-                            Available on Request
-                          </span>
-                        </div>
+                        <DishCard
+                          key={snk.id}
+                          item={snk}
+                          courseCategory="Delectables & Snacks"
+                          cabin={selectedCabin}
+                          onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
+                        />
                       ))}
                     </div>
                   </div>
@@ -622,31 +605,20 @@ export const SkyMenu: React.FC = () => {
                       <Gift className="w-4 h-4 text-gold-400" />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
                       {currentLeg.amenities.map((am) => (
-                        <div key={am.id} className="cabin-glass p-4 flex items-start gap-4 text-left">
-                          {am.imageUrl && (
-                            <img
-                              src={am.imageUrl}
-                              alt={am.name}
-                              className="w-16 h-16 rounded-xl object-cover bg-ink-850 border border-gold-dim shrink-0"
-                              loading="lazy"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLElement).style.display = 'none';
-                              }}
-                            />
-                          )}
-                          <div className="flex flex-col gap-1">
-                            <h4 className="font-display text-xl text-ivory-100 leading-snug">
-                              {am.name}
-                            </h4>
-                            {am.description && (
-                              <p className="font-sans text-xs text-mist-300 leading-relaxed">
-                                {am.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+                        <DishCard
+                          key={am.id}
+                          item={{
+                            id: am.id,
+                            title: am.name,
+                            description: am.description,
+                            imageUrl: am.imageUrl,
+                          }}
+                          courseCategory="Cabin Amenities"
+                          cabin={selectedCabin}
+                          onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
+                        />
                       ))}
                     </div>
                   </div>
