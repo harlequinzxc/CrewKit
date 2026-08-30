@@ -1,7 +1,7 @@
 export interface CachedDishImage {
   thumbUrl: string | null;
   fullUrl: string | null;
-  source: 'sq' | 'google' | 'placeholder';
+  source: 'sq' | 'placeholder';
   ts: number;
 }
 
@@ -53,7 +53,7 @@ export const imageCache = {
     data: {
       thumbUrl: string | null;
       fullUrl: string | null;
-      source: 'sq' | 'google' | 'placeholder';
+      source: 'sq' | 'placeholder';
     },
     cabin?: string
   ): void {

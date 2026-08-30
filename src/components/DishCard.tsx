@@ -32,45 +32,22 @@ export const DishCard: React.FC<DishCardProps> = ({
     imageFit === 'contain' ||
     Boolean(courseCategory && courseCategory.toLowerCase().includes('amenit'));
 
-  const [imageState, setImageState] = useState<ResolvedDishImageResult | null>(() => {
-    if (!item.imageUrl) {
-      return { thumbUrl: null, fullUrl: null, source: 'placeholder' };
-    }
-    return null;
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(Boolean(item.imageUrl));
-
-  useEffect(() => {
-    if (!item.imageUrl) {
-      setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-      setIsLoading(false);
-      return;
-    }
-
-    let isMounted = true;
-    setIsLoading(true);
-
+  const [imageState, setImageState] = useState<ResolvedDishImageResult>(() =>
     resolveDishImage({
       dishTitle: item.title,
       sqImageUrl: item.imageUrl,
       cabin,
     })
-      .then((res) => {
-        if (isMounted) {
-          setImageState(res);
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-          setIsLoading(false);
-        }
-      });
+  );
 
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    setImageState(
+      resolveDishImage({
+        dishTitle: item.title,
+        sqImageUrl: item.imageUrl,
+        cabin,
+      })
+    );
   }, [item.title, item.imageUrl, cabin]);
 
   const hasPhoto = Boolean(
@@ -98,9 +75,7 @@ export const DishCard: React.FC<DishCardProps> = ({
     >
       <div>
         {/* 1. 16:10 Aspect-Ratio Image Container (Only rendered if authentic SQ image exists) */}
-        {isLoading ? (
-          <div className="w-full aspect-[16/10] rounded-xl bg-ink-800/80 animate-pulse border border-gold-dim mb-3.5" />
-        ) : hasPhoto ? (
+        {hasPhoto ? (
           isAmenity ? (
             /* Amenity Frame: Fitted (contain) with clean solid white background */
             <div
@@ -108,7 +83,7 @@ export const DishCard: React.FC<DishCardProps> = ({
               className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer bg-white flex items-center justify-center p-3.5 border border-white/20 group-hover:border-gold-400/60 shadow-sm transition-all"
             >
               <img
-                src={imageState!.thumbUrl!}
+                src={imageState.thumbUrl!}
                 alt={item.title}
                 className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
@@ -124,7 +99,7 @@ export const DishCard: React.FC<DishCardProps> = ({
               className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer border border-gold-dim group-hover:border-gold-400/50 transition-colors bg-ink-950"
             >
               <img
-                src={imageState!.thumbUrl!}
+                src={imageState.thumbUrl!}
                 alt={item.title}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"

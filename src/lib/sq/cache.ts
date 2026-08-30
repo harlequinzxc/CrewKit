@@ -4,10 +4,11 @@ interface CacheItem<T> {
   ttl: number;
 }
 
-const CACHE_PREFIX = 'crewkit_sq_cache_';
+const CACHE_PREFIX = 'crewkit_sq_v3_';
 
 export const sqCache = {
   get<T>(key: string): T | null {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return null;
     try {
       const raw = localStorage.getItem(`${CACHE_PREFIX}${key}`);
       if (!raw) return null;
@@ -23,6 +24,7 @@ export const sqCache = {
   },
 
   set<T>(key: string, data: T, ttl: number): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
       const item: CacheItem<T> = {
         data,
@@ -36,14 +38,15 @@ export const sqCache = {
   },
 
   clear(): void {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
     try {
       Object.keys(localStorage).forEach((k) => {
-        if (k.startsWith(CACHE_PREFIX)) {
+        if (k.startsWith('crewkit_sq_')) {
           localStorage.removeItem(k);
         }
       });
     } catch {
       // ignore
     }
-  }
+  },
 };
