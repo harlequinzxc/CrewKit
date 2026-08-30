@@ -18,9 +18,10 @@ import { useTheme } from '../hooks/useTheme';
 
 interface LayoutProps {
   children: React.ReactNode;
+  containerClassName?: string;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = 'max-w-[560px]' }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -62,8 +63,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="h-screen h-[100dvh] w-screen overflow-hidden flex flex-col bg-bg-base app-atmosphere text-text-primary transition-colors duration-250 select-none">
-      {/* Centered App Container (Max 560px on desktop) */}
-      <div className="w-full max-w-[560px] mx-auto h-full flex flex-col justify-between px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] relative overflow-hidden">
+      {/* Centered App Container */}
+      <div className={`w-full ${containerClassName} mx-auto h-full flex flex-col justify-between px-4 sm:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] relative overflow-hidden transition-all duration-300`}>
         
         {/* Top Bar */}
         <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">

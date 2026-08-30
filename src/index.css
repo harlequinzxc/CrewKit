@@ -58,6 +58,15 @@ body {
   user-select: none;
 }
 
+/* Hide browser scrollbars for native app feel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Base background atmospheric radial vignette applied to shell */
 .app-atmosphere {
   background: radial-gradient(ellipse at 50% 35%, rgba(20, 28, 48, 0.55) 0%, transparent 55%), #070B14;

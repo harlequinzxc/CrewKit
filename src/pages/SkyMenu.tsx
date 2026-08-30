@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
 import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
-import { FlightChip } from '../components/FlightChip';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
+import { DishCard } from '../components/DishCard';
+import { ImageLightbox } from '../components/ImageLightbox';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import { getCabinConfig, getMenu } from '../lib/sq/endpoints';
 import { CabinCode, MenuData, LegMenuData } from '../lib/sq/types';
@@ -14,7 +14,6 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  ArrowLeft,
   Utensils,
   Wine,
   Gift,
@@ -28,7 +27,6 @@ const SKYMENU_MESSAGES: InterludeMessage[] = [
 ];
 
 export const SkyMenu: React.FC = () => {
-  const navigate = useNavigate();
   const initialTodayISO = getTodayISO();
   const initialTodayDisplay = formatDateDisplay(initialTodayISO);
 
@@ -55,6 +53,20 @@ export const SkyMenu: React.FC = () => {
   // Selection switcher state per meal service (mealServiceId -> selectionId)
   const [selectedMealOption, setSelectedMealOption] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  // Lightbox State
+  const [lightboxData, setLightboxData] = useState<{
+    open: boolean;
+    src: string | null;
+    title: string;
+    description?: string;
+    meta?: string;
+    credit?: string;
+  }>({
+    open: false,
+    src: null,
+    title: '',
+  });
 
   // 1. Live Cabin & Flight Existence Sanity Check on Flight / Date Change
   useEffect(() => {
@@ -162,7 +174,7 @@ export const SkyMenu: React.FC = () => {
       : null;
 
   return (
-    <Layout>
+    <Layout containerClassName={stage === 'result' ? 'w-full md:w-[85%] max-w-6xl' : 'max-w-[560px]'}>
       {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
       {stage === 'loading' && (
         <FetchInterlude
@@ -226,7 +238,7 @@ export const SkyMenu: React.FC = () => {
                   <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
                 </div>
                 <p className="font-serif italic text-text-tertiary text-xs mt-2">
-                  Verifying flight & cabins with Singapore Airlines…
+                  Verifying flight &amp; cabins with Singapore Airlines…
                 </p>
               </div>
             )}
@@ -239,7 +251,7 @@ export const SkyMenu: React.FC = () => {
                     Select Cabin Class
                   </label>
                   {aircraftType && (
-                    <span className="text-[10px] text-accent/80 font-mono">
+                    <span className="font-sans text-[10px] text-accent/80 font-medium">
                       {aircraftType}
                     </span>
                   )}
@@ -282,26 +294,32 @@ export const SkyMenu: React.FC = () => {
         </div>
       )}
 
-      {/* 3. RESULT SCREEN */}
+      {/* 3. RESULT SCREEN — EDITORIAL REDESIGN */}
       {stage === 'result' && menuData && (
-        <div className="flex flex-col h-full overflow-hidden animate-fade-in">
+        <div className="flex flex-col h-full overflow-hidden animate-fade-in text-left">
           
-          {/* Top Header with Flight Chip & Multi-Leg Sector Tabs */}
-          <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-border-subtle/50">
-            <FlightChip label={flightSummaryLine} />
+          {/* STICKY HEADER WITH FROSTED BLUR */}
+          <div className="shrink-0 sticky top-0 z-20 backdrop-blur-md bg-bg-base/90 pb-3 pt-1 border-b border-[rgba(201,168,76,0.1)]">
+            
+            {/* Row 1: Quiet Borderless Flight Overline */}
+            <div className="text-center pb-2">
+              <span className="font-sans text-xs uppercase tracking-[0.1em] text-text-secondary font-medium">
+                SQ{validation.cleanFlightNo} &bull; {dateDisplay} &bull; {cabinLabel}
+              </span>
+            </div>
 
-            {/* Sector Tabs for Multi-Leg Flights (e.g. LAX → NRT, NRT → SIN) */}
+            {/* Multi-Leg Sector Tabs (if multi-sector route) */}
             {menuData.legs && menuData.legs.length > 1 && (
-              <div className="flex items-center gap-1.5 mt-2 p-1 rounded-full bg-bg-elevated border border-border-subtle overflow-x-auto max-w-full">
+              <div className="flex items-center justify-center gap-1.5 pb-2.5 overflow-x-auto no-scrollbar">
                 {menuData.legs.map((leg, idx) => (
                   <button
                     key={leg.legId || idx}
                     type="button"
                     onClick={() => setActiveLegIndex(idx)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-sans font-medium transition-all shrink-0 ${
                       activeLegIndex === idx
                         ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
-                        : 'text-text-secondary hover:text-text-primary'
+                        : 'text-text-secondary hover:text-text-primary bg-bg-elevated/60 border border-border-subtle/40'
                     }`}
                   >
                     <Plane className="w-3 h-3 rotate-45" />
@@ -311,74 +329,75 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* Segment Controls: Dining | Cellar | Snacks | Amenities */}
-            <div className="flex items-center gap-1 mt-2.5 p-0.5 rounded-full bg-bg-surface border border-border-subtle text-xs">
+            {/* Row 2: Category Tabs (Dining · Cellar · Snacks · Amenities) */}
+            <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => setActiveSegment('dining')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sans font-medium transition-all shrink-0 ${
                   activeSegment === 'dining'
-                    ? 'bg-accent/20 text-accent font-semibold border border-accent/40'
-                    : 'text-text-secondary hover:text-text-primary'
+                    ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary bg-transparent'
                 }`}
               >
-                <Utensils className="w-3 h-3" />
+                <Utensils className="w-3.5 h-3.5" />
                 <span>Dining</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSegment('cellar')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sans font-medium transition-all shrink-0 ${
                   activeSegment === 'cellar'
-                    ? 'bg-accent/20 text-accent font-semibold border border-accent/40'
-                    : 'text-text-secondary hover:text-text-primary'
+                    ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary bg-transparent'
                 }`}
               >
-                <Wine className="w-3 h-3" />
+                <Wine className="w-3.5 h-3.5" />
                 <span>Cellar</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSegment('snacks')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sans font-medium transition-all shrink-0 ${
                   activeSegment === 'snacks'
-                    ? 'bg-accent/20 text-accent font-semibold border border-accent/40'
-                    : 'text-text-secondary hover:text-text-primary'
+                    ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary bg-transparent'
                 }`}
               >
-                <Cookie className="w-3 h-3" />
+                <Cookie className="w-3.5 h-3.5" />
                 <span>Snacks</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSegment('amenities')}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-sans font-medium transition-all shrink-0 ${
                   activeSegment === 'amenities'
-                    ? 'bg-accent/20 text-accent font-semibold border border-accent/40'
-                    : 'text-text-secondary hover:text-text-primary'
+                    ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
+                    : 'text-text-secondary hover:text-text-primary bg-transparent'
                 }`}
               >
-                <Gift className="w-3 h-3" />
+                <Gift className="w-3.5 h-3.5" />
                 <span>Amenities</span>
               </button>
             </div>
+
           </div>
 
-          {/* Main Scrollable Content */}
-          <div className="flex-1 overflow-y-auto px-1 py-3 space-y-4">
+          {/* MAIN SCROLLABLE CONTENT (NO BROWSER SCROLLBAR) */}
+          <div className="flex-1 overflow-y-auto no-scrollbar py-6 px-1 sm:px-2 space-y-10">
             
             {/* 1. DINING SERVICE & PACED COURSES */}
             {activeSegment === 'dining' && currentLeg && (
               <>
                 {currentLeg.mealServices.length === 0 ? (
-                  <div className="p-8 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-serif italic text-accent text-base mb-1">
+                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                    <span className="font-serif text-2xl text-text-primary mb-2">
                       No Dining Services Published
                     </span>
-                    <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
+                    <p className="font-sans text-sm text-text-secondary max-w-sm leading-relaxed">
                       Dining menus for SQ{validation.cleanFlightNo} ({currentLeg.origin} → {currentLeg.destination}) are not available yet.
                     </p>
                   </div>
@@ -390,14 +409,15 @@ export const SkyMenu: React.FC = () => {
                       service.selections.find((s) => s.id === currentSelectionId) || service.selections[0];
 
                     return (
-                      <div key={service.id} className="space-y-3">
-                        {/* Meal Service Header */}
-                        <div className="flex items-center justify-between pb-1 border-b border-border-subtle/70">
-                          <h3 className="font-serif text-lg font-semibold text-text-primary">
+                      <div key={service.id} className="space-y-6">
+                        
+                        {/* Service Title (Playfair Display, 2rem, hairline border-b) */}
+                        <div className="flex items-center justify-between pb-4 border-b border-border-subtle">
+                          <h2 className="font-serif text-[1.85rem] sm:text-[2rem] font-normal text-text-primary tracking-tight">
                             {service.name}
-                          </h3>
+                          </h2>
 
-                          {/* Parallel Menu Toggles */}
+                          {/* Parallel Menu Toggles (e.g. Western vs Regional) */}
                           {service.selections.length > 1 && (
                             <div className="flex items-center gap-1 p-0.5 rounded-full bg-bg-elevated border border-border-subtle">
                               {service.selections.map((sel) => (
@@ -410,7 +430,7 @@ export const SkyMenu: React.FC = () => {
                                       [service.id]: sel.id,
                                     }))
                                   }
-                                  className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                                  className={`px-3 py-1 rounded-full text-xs font-sans font-medium transition-all ${
                                     currentSelectionId === sel.id
                                       ? 'bg-accent text-[#0B1E3E] font-semibold shadow-xs'
                                       : 'text-text-secondary hover:text-text-primary'
@@ -423,91 +443,64 @@ export const SkyMenu: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Paced Meal Courses */}
-                        {currentSelection?.courses.map((course) => {
-                          const isCollapsed = collapsedSections[course.id];
-                          return (
-                            <div
-                              key={course.id}
-                              className="rounded-card bg-bg-surface border border-border-subtle overflow-hidden"
-                            >
-                              <button
-                                type="button"
-                                onClick={() => toggleSectionCollapse(course.id)}
-                                className="w-full px-4 py-2.5 bg-bg-elevated/80 flex items-center justify-between text-left border-b border-border-subtle/50"
-                              >
-                                <div>
-                                  <span className="font-serif text-sm font-semibold text-text-primary">
-                                    {course.name}
-                                  </span>
-                                  {course.maxSequence && (
-                                    <span className="text-[10px] text-accent/90 ml-2 font-mono">
-                                      (Choice of {course.maxSequence})
-                                    </span>
-                                  )}
-                                </div>
-                                {isCollapsed ? (
-                                  <ChevronDown className="w-4 h-4 text-text-tertiary" />
-                                ) : (
-                                  <ChevronUp className="w-4 h-4 text-text-tertiary" />
-                                )}
-                              </button>
+                        {/* Paced Meal Courses (Sections sit on bare background with vertical padding & hairline dividers) */}
+                        <div className="space-y-8">
+                          {currentSelection?.courses.map((course) => {
+                            const isCollapsed = collapsedSections[course.id];
+                            return (
+                              <div key={course.id} className="space-y-4">
+                                
+                                {/* Section Title & Meta Header */}
+                                <div
+                                  onClick={() => toggleSectionCollapse(course.id)}
+                                  className="flex items-center justify-between cursor-pointer py-1 group select-none"
+                                >
+                                  <div className="flex items-baseline">
+                                    <h3 className="font-sans font-semibold text-[1.1rem] text-text-primary group-hover:text-accent transition-colors">
+                                      {course.name}
+                                    </h3>
+                                    {course.maxSequence && (
+                                      <span className="font-sans font-normal text-[0.8rem] text-text-secondary ml-2.5">
+                                        (Choice of {course.maxSequence})
+                                      </span>
+                                    )}
+                                  </div>
 
-                              {!isCollapsed && (
-                                <div className="p-3 space-y-3.5">
-                                  {course.items.map((item) => (
-                                    <div key={item.id} className="flex gap-3 items-start">
-                                      {item.imageUrl && (
-                                        <img
-                                          src={item.imageUrl}
-                                          alt={item.title}
-                                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover bg-bg-elevated border border-border-subtle shrink-0 shadow-sm"
-                                          loading="lazy"
-                                          onError={(e) => {
-                                            (e.currentTarget as HTMLElement).style.display = 'none';
-                                          }}
-                                        />
-                                      )}
-                                      <div className="flex-1 text-left">
-                                        <h4 className="font-serif font-semibold text-xs sm:text-sm text-text-primary leading-snug">
-                                          {item.title}
-                                        </h4>
-                                        {item.description && (
-                                          <p className="font-sans text-[0.78rem] text-text-secondary mt-1 leading-relaxed">
-                                            {item.description}
-                                          </p>
-                                        )}
-                                        {item.footnote && (
-                                          <p className="font-serif italic text-[0.72rem] text-text-tertiary mt-0.5">
-                                            {item.footnote}
-                                          </p>
-                                        )}
-                                        {item.tags && item.tags.length > 0 && (
-                                          <div className="flex flex-wrap gap-1 mt-1.5">
-                                            {item.tags.map((tag, tIdx) => (
-                                              <span
-                                                key={tIdx}
-                                                className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
-                                                  tag === 'Signature'
-                                                    ? 'bg-accent/20 text-accent border border-accent/40 font-semibold'
-                                                    : tag === 'Culinary Panel'
-                                                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
-                                                    : 'bg-bg-elevated text-text-secondary border border-border-subtle'
-                                                }`}
-                                              >
-                                                {tag}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
+                                  <button
+                                    type="button"
+                                    className="p-1 text-text-tertiary group-hover:text-accent transition-colors"
+                                    aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+                                  >
+                                    {isCollapsed ? (
+                                      <ChevronDown className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronUp className="w-4 h-4" />
+                                    )}
+                                  </button>
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+
+                                {/* Desktop Grid (1 col on mobile, 2–3 cols on desktop) */}
+                                {!isCollapsed && (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
+                                    {course.items.map((item) => (
+                                      <DishCard
+                                        key={item.id}
+                                        item={item}
+                                        courseCategory={course.name}
+                                        cabin={selectedCabin}
+                                        onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Hairline separator between courses */}
+                                <div className="h-[1px] w-full bg-[rgba(201,168,76,0.08)] mt-6" />
+                              </div>
+                            );
+                          })}
+                        </div>
+
                       </div>
                     );
                   })
@@ -517,43 +510,44 @@ export const SkyMenu: React.FC = () => {
 
             {/* 2. CELLAR-BOOK DRINKS & BEVERAGES */}
             {activeSegment === 'cellar' && currentLeg && (
-              <div className="space-y-3">
+              <div className="space-y-8">
                 {currentLeg.drinks.length === 0 ? (
-                  <div className="p-8 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-serif italic text-accent text-base mb-1">
+                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                    <span className="font-serif text-2xl text-text-primary mb-2">
                       No Cellar Listing Available
                     </span>
-                    <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
+                    <p className="font-sans text-sm text-text-secondary max-w-sm leading-relaxed">
                       Beverage selections have not been published for this sector yet.
                     </p>
                   </div>
                 ) : (
                   currentLeg.drinks.map((sec) => (
-                    <div
-                      key={sec.id}
-                      className="rounded-card bg-bg-surface border border-border-subtle overflow-hidden"
-                    >
-                      <div className="px-4 py-2.5 bg-bg-elevated/70 border-b border-border-subtle/50 flex items-center justify-between">
-                        <span className="font-serif text-sm font-semibold text-text-primary">
+                    <div key={sec.id} className="space-y-4">
+                      {/* Section Title */}
+                      <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+                        <h3 className="font-sans font-semibold text-[1.1rem] text-text-primary">
                           {sec.title}
-                        </span>
-                        <Wine className="w-3.5 h-3.5 text-accent" />
+                        </h3>
+                        <Wine className="w-4 h-4 text-accent/80" />
                       </div>
 
-                      <div className="p-3 space-y-2.5">
+                      {/* Items Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
                         {sec.items.map((it) => (
-                          <div key={it.id} className="text-left pb-2 border-b border-border-subtle/30 last:border-b-0 last:pb-0">
-                            <h4 className="font-sans font-semibold text-xs sm:text-sm text-text-primary leading-snug">
+                          <div key={it.id} className="flex flex-col gap-1 text-left">
+                            <h4 className="font-sans font-medium text-[1rem] text-text-primary leading-snug">
                               {it.title}
                             </h4>
                             {it.description && (
-                              <p className="font-sans text-[0.78rem] text-text-secondary mt-0.5 leading-relaxed">
+                              <p className="font-sans font-normal text-[0.85rem] text-text-secondary leading-relaxed">
                                 {it.description}
                               </p>
                             )}
                           </div>
                         ))}
                       </div>
+
+                      <div className="h-[1px] w-full bg-[rgba(201,168,76,0.08)] mt-6" />
                     </div>
                   ))
                 )}
@@ -562,36 +556,42 @@ export const SkyMenu: React.FC = () => {
 
             {/* 3. DELECTABLES & INFLIGHT SNACKS */}
             {activeSegment === 'snacks' && currentLeg && (
-              <div>
+              <div className="space-y-6">
                 {currentLeg.snacks.length === 0 ? (
-                  <div className="p-8 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-serif italic text-accent text-base mb-1">
+                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                    <span className="font-serif text-2xl text-text-primary mb-2">
                       Inflight Snack Basket
                     </span>
-                    <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
-                      Complimentary snacks are available on board upon request.
+                    <p className="font-sans text-sm text-text-secondary max-w-sm leading-relaxed">
+                      Complimentary snacks and refreshments are available on board upon request.
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {currentLeg.snacks.map((snk) => (
-                      <div
-                        key={snk.id}
-                        className="p-3 rounded-card bg-bg-surface border border-border-subtle text-left space-y-1"
-                      >
-                        <span className="font-sans font-semibold text-xs text-text-primary block">
-                          {snk.title}
-                        </span>
-                        {snk.description && (
-                          <span className="text-[11px] text-text-secondary block">
-                            {snk.description}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+                      <h3 className="font-sans font-semibold text-[1.1rem] text-text-primary">
+                        Delectables &amp; Light Bites
+                      </h3>
+                      <Cookie className="w-4 h-4 text-accent/80" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
+                      {currentLeg.snacks.map((snk) => (
+                        <div key={snk.id} className="flex flex-col gap-1 text-left p-3 rounded-xl bg-bg-surface/50 border border-border-subtle/40">
+                          <h4 className="font-sans font-medium text-[1rem] text-text-primary leading-snug">
+                            {snk.title}
+                          </h4>
+                          {snk.description && (
+                            <p className="font-sans font-normal text-[0.85rem] text-text-secondary leading-relaxed">
+                              {snk.description}
+                            </p>
+                          )}
+                          <span className="font-sans text-[9px] uppercase tracking-wider text-accent font-medium mt-1">
+                            Available on Request
                           </span>
-                        )}
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-bg-elevated text-accent/80 border border-accent/20 inline-block mt-1">
-                          Available on Request
-                        </span>
-                      </div>
-                    ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -599,46 +599,52 @@ export const SkyMenu: React.FC = () => {
 
             {/* 4. LUXURY CABIN AMENITIES */}
             {activeSegment === 'amenities' && currentLeg && (
-              <div>
+              <div className="space-y-6">
                 {currentLeg.amenities.length === 0 ? (
-                  <div className="p-8 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-serif italic text-accent text-base mb-1">
-                      Amenities
+                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                    <span className="font-serif text-2xl text-text-primary mb-2">
+                      Cabin Comfort &amp; Amenities
                     </span>
-                    <p className="text-xs text-text-secondary max-w-xs leading-relaxed">
-                      Amenity kits, slippers, and comfort items provided on long-haul flights.
+                    <p className="font-sans text-sm text-text-secondary max-w-sm leading-relaxed">
+                      Amenity kits, slippers, and premium bedding provided on long-haul flights.
                     </p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {currentLeg.amenities.map((am) => (
-                      <div
-                        key={am.id}
-                        className="p-3 rounded-card bg-bg-surface border border-border-subtle text-left flex gap-3 items-start"
-                      >
-                        {am.imageUrl && (
-                          <img
-                            src={am.imageUrl}
-                            alt={am.name}
-                            className="w-14 h-14 rounded-lg object-cover bg-bg-elevated border border-border-subtle shrink-0"
-                            loading="lazy"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        )}
-                        <div className="flex-1">
-                          <h4 className="font-serif font-semibold text-xs text-text-primary">
-                            {am.name}
-                          </h4>
-                          {am.description && (
-                            <p className="text-[11px] text-text-secondary mt-0.5">
-                              {am.description}
-                            </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
+                      <h3 className="font-sans font-semibold text-[1.1rem] text-text-primary">
+                        Cabin Amenities
+                      </h3>
+                      <Gift className="w-4 h-4 text-accent/80" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
+                      {currentLeg.amenities.map((am) => (
+                        <div key={am.id} className="flex items-start gap-4 p-3 rounded-xl bg-bg-surface/50 border border-border-subtle/40 text-left">
+                          {am.imageUrl && (
+                            <img
+                              src={am.imageUrl}
+                              alt={am.name}
+                              className="w-16 h-16 rounded-xl object-cover bg-bg-elevated border border-[rgba(255,255,255,0.06)] shrink-0"
+                              loading="lazy"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLElement).style.display = 'none';
+                              }}
+                            />
                           )}
+                          <div className="flex flex-col gap-1">
+                            <h4 className="font-sans font-medium text-[1rem] text-text-primary leading-snug">
+                              {am.name}
+                            </h4>
+                            {am.description && (
+                              <p className="font-sans font-normal text-[0.85rem] text-text-secondary leading-relaxed">
+                                {am.description}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -646,25 +652,16 @@ export const SkyMenu: React.FC = () => {
 
           </div>
 
-          {/* Sticky Bottom Action Row */}
-          <div className="shrink-0 flex items-center justify-between gap-3 pt-2.5 pb-1 border-t border-border-subtle/50">
-            <button
-              type="button"
-              onClick={() => setStage('form')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Change Flight</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate('/')}
-              className="px-5 py-2 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
-            >
-              Back to Home
-            </button>
-          </div>
+          {/* SINGLE LIGHTBOX INSTANCE */}
+          <ImageLightbox
+            open={lightboxData.open}
+            onClose={() => setLightboxData((prev) => ({ ...prev, open: false }))}
+            src={lightboxData.src}
+            title={lightboxData.title}
+            description={lightboxData.description}
+            meta={lightboxData.meta}
+            credit={lightboxData.credit}
+          />
 
         </div>
       )}
