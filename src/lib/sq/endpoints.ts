@@ -401,11 +401,6 @@ function cleanText(str: any): string {
  * ============================================================================
  * GATE 2 — EXISTENCE VALIDATION (Network, Server-Side per (flight, date))
  * ============================================================================
- * 1. Checks Gate 1 syntax first — never calls network for malformed inputs.
- * 2. Queries /api/getcabin with 12s timeout:
- *    - 200 + cabinClasses >= 1 -> THE FLIGHT IS VALID & operating on that date.
- *    - 101 or 404 ("No flight found") -> Flight not operating / outside publication window.
- *    - HTTP 502 / timeout -> Transient upstream error.
  */
 export async function getCabinConfig(
   flightNo: string,
@@ -445,17 +440,21 @@ export async function getCabinConfig(
 /**
  * Resolve authentic Singapore Airlines Route & Aircraft Profiles
  */
+export interface FlightProfileLeg {
+  origin: string;
+  destination: string;
+  depTime: string;
+  arrTime: string;
+  dayShift: number;
+  durationMinutes: number;
+  hasSnacks?: boolean;
+  hasAmenities?: boolean;
+}
+
 interface FlightProfile {
   aircraftType: string;
   cabins: CabinCode[];
-  legs: {
-    origin: string;
-    destination: string;
-    depTime: string;
-    arrTime: string;
-    dayShift: number;
-    durationMinutes: number;
-  }[];
+  legs: FlightProfileLeg[];
 }
 
 function resolveSqFlightProfile(num: string): FlightProfile {
@@ -466,8 +465,8 @@ function resolveSqFlightProfile(num: string): FlightProfile {
       aircraftType: 'Boeing 777-300ER',
       cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
       legs: [
-        { origin: 'SIN', destination: 'NRT', depTime: '09:25', arrTime: '17:30', dayShift: 0, durationMinutes: 425 },
-        { origin: 'NRT', destination: 'LAX', depTime: '18:40', arrTime: '12:50', dayShift: 0, durationMinutes: 610 },
+        { origin: 'SIN', destination: 'NRT', depTime: '09:25', arrTime: '17:30', dayShift: 0, durationMinutes: 425, hasSnacks: true, hasAmenities: true },
+        { origin: 'NRT', destination: 'LAX', depTime: '18:40', arrTime: '12:50', dayShift: 0, durationMinutes: 610, hasSnacks: false, hasAmenities: true },
       ],
     };
   }
@@ -476,8 +475,8 @@ function resolveSqFlightProfile(num: string): FlightProfile {
       aircraftType: 'Boeing 777-300ER',
       cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
       legs: [
-        { origin: 'LAX', destination: 'NRT', depTime: '14:20', arrTime: '17:50', dayShift: 1, durationMinutes: 690 },
-        { origin: 'NRT', destination: 'SIN', depTime: '19:00', arrTime: '01:15', dayShift: 1, durationMinutes: 435 },
+        { origin: 'LAX', destination: 'NRT', depTime: '14:20', arrTime: '17:50', dayShift: 1, durationMinutes: 690, hasSnacks: false, hasAmenities: true },
+        { origin: 'NRT', destination: 'SIN', depTime: '19:00', arrTime: '01:15', dayShift: 1, durationMinutes: 435, hasSnacks: true, hasAmenities: true },
       ],
     };
   }
@@ -486,8 +485,8 @@ function resolveSqFlightProfile(num: string): FlightProfile {
       aircraftType: 'Boeing 777-300ER',
       cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
       legs: [
-        { origin: 'SIN', destination: 'FRA', depTime: '23:55', arrTime: '06:20', dayShift: 1, durationMinutes: 745 },
-        { origin: 'FRA', destination: 'JFK', depTime: '08:35', arrTime: '11:10', dayShift: 0, durationMinutes: 515 },
+        { origin: 'SIN', destination: 'FRA', depTime: '23:55', arrTime: '06:20', dayShift: 1, durationMinutes: 745, hasSnacks: true, hasAmenities: true },
+        { origin: 'FRA', destination: 'JFK', depTime: '08:35', arrTime: '11:10', dayShift: 0, durationMinutes: 515, hasSnacks: false, hasAmenities: true },
       ],
     };
   }
@@ -496,8 +495,8 @@ function resolveSqFlightProfile(num: string): FlightProfile {
       aircraftType: 'Boeing 777-300ER',
       cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
       legs: [
-        { origin: 'JFK', destination: 'FRA', depTime: '20:15', arrTime: '09:50', dayShift: 1, durationMinutes: 455 },
-        { origin: 'FRA', destination: 'SIN', depTime: '11:40', arrTime: '06:50', dayShift: 1, durationMinutes: 730 },
+        { origin: 'JFK', destination: 'FRA', depTime: '20:15', arrTime: '09:50', dayShift: 1, durationMinutes: 455, hasSnacks: false, hasAmenities: true },
+        { origin: 'FRA', destination: 'SIN', depTime: '11:40', arrTime: '06:50', dayShift: 1, durationMinutes: 730, hasSnacks: true, hasAmenities: true },
       ],
     };
   }
@@ -505,84 +504,84 @@ function resolveSqFlightProfile(num: string): FlightProfile {
     return {
       aircraftType: 'Airbus A350-900ULR',
       cabins: ['BUSINESS', 'PREMIUM_ECONOMY'],
-      legs: [{ origin: n === 22 ? 'SIN' : 'EWR', destination: n === 22 ? 'EWR' : 'SIN', depTime: n === 22 ? '23:35' : '10:25', arrTime: n === 22 ? '06:00' : '17:10', dayShift: 1, durationMinutes: 1105 }],
+      legs: [{ origin: n === 22 ? 'SIN' : 'EWR', destination: n === 22 ? 'EWR' : 'SIN', depTime: n === 22 ? '23:35' : '10:25', arrTime: n === 22 ? '06:00' : '17:10', dayShift: 1, durationMinutes: 1105, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n === 23 || n === 24) {
     return {
       aircraftType: 'Airbus A350-900ULR',
       cabins: ['BUSINESS', 'PREMIUM_ECONOMY'],
-      legs: [{ origin: n === 24 ? 'SIN' : 'JFK', destination: n === 24 ? 'JFK' : 'SIN', depTime: n === 24 ? '12:35' : '22:30', arrTime: n === 24 ? '18:45' : '05:20', dayShift: n === 24 ? 0 : 2, durationMinutes: 1110 }],
+      legs: [{ origin: n === 24 ? 'SIN' : 'JFK', destination: n === 24 ? 'JFK' : 'SIN', depTime: n === 24 ? '12:35' : '22:30', arrTime: n === 24 ? '18:45' : '05:20', dayShift: n === 24 ? 0 : 2, durationMinutes: 1110, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n === 322 || n === 308 || n === 317 || n === 319) {
     return {
       aircraftType: 'Airbus A380-800',
       cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n === 322 || n === 308 ? 'SIN' : 'LHR', destination: n === 322 || n === 308 ? 'LHR' : 'SIN', depTime: n === 322 ? '23:30' : n === 308 ? '09:00' : '11:25', arrTime: n === 322 ? '05:55' : n === 308 ? '15:40' : '07:30', dayShift: n === 322 ? 1 : 0, durationMinutes: 805 }],
+      legs: [{ origin: n === 322 || n === 308 ? 'SIN' : 'LHR', destination: n === 322 || n === 308 ? 'LHR' : 'SIN', depTime: n === 322 ? '23:30' : n === 308 ? '09:00' : '11:25', arrTime: n === 322 ? '05:55' : n === 308 ? '15:40' : '07:30', dayShift: n === 322 ? 1 : 0, durationMinutes: 805, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n === 221 || n === 222) {
     return {
       aircraftType: 'Airbus A380-800',
       cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n === 221 ? 'SIN' : 'SYD', destination: n === 221 ? 'SYD' : 'SIN', depTime: n === 221 ? '20:40' : '16:10', arrTime: n === 221 ? '06:30' : '22:20', dayShift: n === 221 ? 1 : 0, durationMinutes: 470 }],
+      legs: [{ origin: n === 221 ? 'SIN' : 'SYD', destination: n === 221 ? 'SYD' : 'SIN', depTime: n === 221 ? '20:40' : '16:10', arrTime: n === 221 ? '06:30' : '22:20', dayShift: n === 221 ? 1 : 0, durationMinutes: 470, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n === 830 || n === 833) {
     return {
       aircraftType: 'Airbus A380-800',
       cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n === 830 ? 'SIN' : 'PVG', destination: n === 830 ? 'PVG' : 'SIN', depTime: n === 830 ? '09:45' : '16:50', arrTime: n === 830 ? '15:05' : '22:20', dayShift: 0, durationMinutes: 320 }],
+      legs: [{ origin: n === 830 ? 'SIN' : 'PVG', destination: n === 830 ? 'PVG' : 'SIN', depTime: n === 830 ? '09:45' : '16:50', arrTime: n === 830 ? '15:05' : '22:20', dayShift: 0, durationMinutes: 320, hasSnacks: false, hasAmenities: false }],
     };
   }
   if (n >= 100 && n <= 199) {
     return {
       aircraftType: 'Boeing 737-8 MAX',
       cabins: ['BUSINESS', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'KUL', destination: n % 2 === 0 ? 'KUL' : 'SIN', depTime: '10:15', arrTime: '11:20', dayShift: 0, durationMinutes: 65 }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'KUL', destination: n % 2 === 0 ? 'KUL' : 'SIN', depTime: '10:15', arrTime: '11:20', dayShift: 0, durationMinutes: 65, hasSnacks: false, hasAmenities: false }],
     };
   }
   if (n >= 200 && n <= 299) {
     return {
       aircraftType: 'Airbus A350-900',
       cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'MEL', destination: n % 2 === 0 ? 'MEL' : 'SIN', depTime: '00:30', arrTime: '10:10', dayShift: 0, durationMinutes: 440 }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'MEL', destination: n % 2 === 0 ? 'MEL' : 'SIN', depTime: '00:30', arrTime: '10:10', dayShift: 0, durationMinutes: 440, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n >= 300 && n <= 399) {
     return {
       aircraftType: 'Airbus A350-900',
       cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'FRA', destination: n % 2 === 0 ? 'FRA' : 'SIN', depTime: '23:55', arrTime: '06:40', dayShift: 1, durationMinutes: 765 }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'FRA', destination: n % 2 === 0 ? 'FRA' : 'SIN', depTime: '23:55', arrTime: '06:40', dayShift: 1, durationMinutes: 765, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n >= 600 && n <= 699) {
     return {
       aircraftType: 'Boeing 787-10',
       cabins: ['BUSINESS', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'NRT', destination: n % 2 === 0 ? 'NRT' : 'SIN', depTime: '23:55', arrTime: '08:00', dayShift: 1, durationMinutes: 425 }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'NRT', destination: n % 2 === 0 ? 'NRT' : 'SIN', depTime: '23:55', arrTime: '08:00', dayShift: 1, durationMinutes: 425, hasSnacks: true, hasAmenities: true }],
     };
   }
   if (n >= 700 && n <= 799) {
     return {
       aircraftType: 'Boeing 787-10',
       cabins: ['BUSINESS', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'BKK', destination: n % 2 === 0 ? 'BKK' : 'SIN', depTime: '09:35', arrTime: '11:05', dayShift: 0, durationMinutes: 150 }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'BKK', destination: n % 2 === 0 ? 'BKK' : 'SIN', depTime: '09:35', arrTime: '11:05', dayShift: 0, durationMinutes: 150, hasSnacks: false, hasAmenities: false }],
     };
   }
   if (n >= 800 && n <= 899) {
     return {
       aircraftType: 'Boeing 777-300ER',
       cabins: ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'HKG', destination: n % 2 === 0 ? 'HKG' : 'SIN', depTime: '08:30', arrTime: '12:25', dayShift: 0, durationMinutes: 235 }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'HKG', destination: n % 2 === 0 ? 'HKG' : 'SIN', depTime: '08:30', arrTime: '12:25', dayShift: 0, durationMinutes: 235, hasSnacks: false, hasAmenities: false }],
     };
   }
 
   return {
     aircraftType: 'Airbus A350-900',
     cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-    legs: [{ origin: 'SIN', destination: 'LHR', depTime: '09:00', arrTime: '15:40', dayShift: 0, durationMinutes: 820 }],
+    legs: [{ origin: 'SIN', destination: 'LHR', depTime: '09:00', arrTime: '15:40', dayShift: 0, durationMinutes: 820, hasSnacks: true, hasAmenities: true }],
   };
 }
 
@@ -936,7 +935,6 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
               const name = cleanText(it.name || it.title || it.itemName || '');
               if (name) {
                 const desc = cleanText(it.description || it.vintage || it.region || it.desc || '');
-                // Inherits image from item, speciality (e.g. TWG tea photo/illy coffee photo), subcategory, or category
                 const imageUrl = extractSqImageUrl(it, spec, sub, cat);
 
                 items.push({
@@ -967,18 +965,22 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       });
     }
 
-    // 3. Snacks & Delectables
+    // 3. Backend Snacks & Delectables Check
     const snackEn =
       extractEnUkBlock(leg, 'drySnack') ||
       extractEnUkBlock(leg, 'drySnacks') ||
       extractEnUkBlock(leg, 'snack') ||
       extractEnUkBlock(leg, 'snacks') ||
+      extractEnUkBlock(leg, 'delectables') ||
+      extractEnUkBlock(leg, 'delectable') ||
       leg.drySnack ||
       leg.drySnacks ||
       leg.snacks ||
-      leg.snack;
+      leg.snack ||
+      leg.delectables ||
+      leg.delectable;
 
-    if (snackEn) {
+    if (snackEn && typeof snackEn === 'object') {
       const rawCategories = Array.isArray(snackEn.categories)
         ? snackEn.categories
         : Array.isArray(snackEn.subcategories)
@@ -992,6 +994,7 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
         : [snackEn];
 
       rawCategories.forEach((cat: any, cIdx: number) => {
+        if (!cat) return;
         const catName = cleanText(cat.name || cat.title || 'Delectables');
         const subcategories = Array.isArray(cat.subcategories)
           ? cat.subcategories
@@ -1000,8 +1003,10 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
           : [cat];
 
         subcategories.forEach((sub: any, sIdx: number) => {
+          if (!sub) return;
           const rawSpecialities = Array.isArray(sub.specialities) ? sub.specialities : [sub];
           rawSpecialities.forEach((spec: any) => {
+            if (!spec) return;
             const rawItems = Array.isArray(spec.items)
               ? spec.items
               : Array.isArray(spec)
@@ -1045,7 +1050,7 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       leg.amenities ||
       leg.amenity;
 
-    if (amenEn) {
+    if (amenEn && typeof amenEn === 'object') {
       const rawAmenItems = Array.isArray(amenEn.items)
         ? amenEn.items
         : Array.isArray(amenEn)
@@ -1305,37 +1310,44 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       },
     ];
 
-    const snacksList: MenuItem[] = [
-      {
-        id: `snk_${lIdx}_0`,
-        title: 'Artisanal Mixed Truffle Nuts',
-        description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
-        tags: ['Delectables'],
-        imageUrl: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
-      },
-      {
-        id: `snk_${lIdx}_1`,
-        title: 'Gourmet Light Bites & Cookies',
-        description: 'Warm chocolate chip cookies, butter shortbreads, and dried orchard fruits.',
-        tags: ['Delectables'],
-        imageUrl: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
-      },
-    ];
+    const hasSnacksForLeg = leg.hasSnacks ?? (leg.durationMinutes >= 360);
+    const hasAmenitiesForLeg = leg.hasAmenities ?? (leg.durationMinutes >= 360);
 
-    const amenitiesList: AmenityItem[] = [
-      {
-        id: `am_${lIdx}_0`,
-        name: 'Penhaligon’s Luxury Amenity Kit',
-        description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
-        imageUrl: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
-      },
-      {
-        id: `am_${lIdx}_1`,
-        name: 'Lalique Signature Sleepwear & Slippers',
-        description: 'Plush unisex lounge sleep suit with matching eye mask.',
-        imageUrl: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
-      },
-    ];
+    const snacksList: MenuItem[] = hasSnacksForLeg
+      ? [
+          {
+            id: `snk_${lIdx}_0`,
+            title: 'Artisanal Mixed Truffle Nuts',
+            description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
+            tags: ['Delectables'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
+          },
+          {
+            id: `snk_${lIdx}_1`,
+            title: 'Gourmet Light Bites & Cookies',
+            description: 'Warm chocolate chip cookies, butter shortbreads, and dried orchard fruits.',
+            tags: ['Delectables'],
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
+          },
+        ]
+      : [];
+
+    const amenitiesList: AmenityItem[] = hasAmenitiesForLeg
+      ? [
+          {
+            id: `am_${lIdx}_0`,
+            name: 'Penhaligon’s Luxury Amenity Kit',
+            description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
+          },
+          {
+            id: `am_${lIdx}_1`,
+            name: 'Lalique Signature Sleepwear & Slippers',
+            description: 'Plush unisex lounge sleep suit with matching eye mask.',
+            imageUrl: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
+          },
+        ]
+      : [];
 
     mealServices.forEach((srv) => {
       srv.selections.forEach((sel) => {

@@ -10,6 +10,7 @@ export interface ImageLightboxProps {
   description?: string;
   meta?: string;
   credit?: string;
+  isAmenity?: boolean;
 }
 
 export const ImageLightbox: React.FC<ImageLightboxProps> = ({
@@ -20,8 +21,10 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   description,
   meta,
   credit,
+  isAmenity: propIsAmenity,
 }) => {
   const [imageLoaded, setImageLoaded] = useState<boolean>(false);
+  const isAmenity = propIsAmenity || Boolean(meta && meta.toLowerCase().includes('amenit'));
 
   useEffect(() => {
     if (open) {
@@ -80,9 +83,17 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           className="w-full max-w-[min(90vw,560px)] flex flex-col items-center text-center transition-all"
         >
           {/* Image Container with Loading Skeleton */}
-          <div className="relative w-full max-h-[min(65vh,520px)] flex items-center justify-center overflow-hidden rounded-2xl bg-ink-900 border border-gold-dim shadow-gold-glow">
+          <div
+            className={`relative w-full max-h-[min(65vh,520px)] flex items-center justify-center overflow-hidden rounded-2xl border ${
+              isAmenity ? 'bg-white p-6 border-white/30 shadow-2xl' : 'bg-ink-900 border-gold-dim shadow-gold-glow'
+            }`}
+          >
             {!imageLoaded && (
-              <div className="w-full h-72 sm:h-80 flex flex-col items-center justify-center bg-ink-850 animate-pulse">
+              <div
+                className={`w-full h-72 sm:h-80 flex flex-col items-center justify-center animate-pulse ${
+                  isAmenity ? 'bg-slate-100' : 'bg-ink-850'
+                }`}
+              >
                 <div className="w-12 h-12 rounded-full border-2 border-gold-dim border-t-gold-400 animate-spin" />
                 <span className="font-ui text-xs uppercase tracking-wider text-mist-400 mt-3">Loading photograph…</span>
               </div>

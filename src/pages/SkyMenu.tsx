@@ -83,6 +83,7 @@ export const SkyMenu: React.FC = () => {
     description?: string;
     meta?: string;
     credit?: string;
+    isAmenity?: boolean;
   }>({
     open: false,
     src: null,
@@ -335,9 +336,19 @@ export const SkyMenu: React.FC = () => {
     availableCabins.length > 0;
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
-  // Check availability for dynamic category list
+  // Check availability for dynamic category list per active leg
   const hasSnacks = Boolean(currentLeg?.snacks && currentLeg.snacks.length > 0);
   const hasAmenities = Boolean(currentLeg?.amenities && currentLeg.amenities.length > 0);
+
+  // Dynamic automatic fallback if active tab is no longer available on active leg
+  useEffect(() => {
+    if (activeSegment === 'snacks' && !hasSnacks) {
+      setActiveSegment('dining');
+    }
+    if (activeSegment === 'amenities' && !hasAmenities) {
+      setActiveSegment('dining');
+    }
+  }, [activeLegIndex, activeCabinView, hasSnacks, hasAmenities, activeSegment]);
 
   const availableCategories = [
     { id: 'dining' as const, label: 'Dining', icon: Utensils },
@@ -866,7 +877,7 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* 4. CABIN AMENITIES */}
+            {/* 4. CABIN AMENITIES (FITTED TO FRAME & WHITE BACKGROUND) */}
             {activeSegment === 'amenities' && currentLeg && (
               <div className="space-y-6">
                 {currentLeg.amenities.length === 0 ? (
@@ -897,7 +908,9 @@ export const SkyMenu: React.FC = () => {
                           }}
                           courseCategory="Cabin Amenities"
                           cabin={activeCabinView}
-                          onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
+                          imageFit="contain"
+                          imageBg="white"
+                          onOpenLightbox={(data) => setLightboxData({ ...data, open: true, isAmenity: true })}
                         />
                       ))}
                     </div>
@@ -916,6 +929,7 @@ export const SkyMenu: React.FC = () => {
             description={lightboxData.description}
             meta={lightboxData.meta}
             credit={lightboxData.credit}
+            isAmenity={lightboxData.isAmenity}
           />
         </div>
       )}

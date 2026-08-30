@@ -303,6 +303,8 @@ function createSiaMockPlugin(): Plugin {
     if (num === 12) {
       legs = [
         {
+          hasSnacks: true,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'SIN',
             arrivalAirportCode: 'NRT',
@@ -315,6 +317,8 @@ function createSiaMockPlugin(): Plugin {
           },
         },
         {
+          hasSnacks: false,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'NRT',
             arrivalAirportCode: 'LAX',
@@ -330,6 +334,8 @@ function createSiaMockPlugin(): Plugin {
     } else if (num === 11) {
       legs = [
         {
+          hasSnacks: false,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'LAX',
             arrivalAirportCode: 'NRT',
@@ -342,6 +348,8 @@ function createSiaMockPlugin(): Plugin {
           },
         },
         {
+          hasSnacks: true,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'NRT',
             arrivalAirportCode: 'SIN',
@@ -357,6 +365,8 @@ function createSiaMockPlugin(): Plugin {
     } else if (num === 26) {
       legs = [
         {
+          hasSnacks: true,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'SIN',
             arrivalAirportCode: 'FRA',
@@ -369,6 +379,8 @@ function createSiaMockPlugin(): Plugin {
           },
         },
         {
+          hasSnacks: false,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'FRA',
             arrivalAirportCode: 'JFK',
@@ -384,6 +396,8 @@ function createSiaMockPlugin(): Plugin {
     } else if (num === 25) {
       legs = [
         {
+          hasSnacks: false,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'JFK',
             arrivalAirportCode: 'FRA',
@@ -396,6 +410,8 @@ function createSiaMockPlugin(): Plugin {
           },
         },
         {
+          hasSnacks: true,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'FRA',
             arrivalAirportCode: 'SIN',
@@ -411,6 +427,8 @@ function createSiaMockPlugin(): Plugin {
     } else {
       legs = [
         {
+          hasSnacks: num !== 830 && num !== 833,
+          hasAmenities: num !== 830 && num !== 833,
           flightDetails: {
             departureAirportCode: 'SIN',
             arrivalAirportCode: num === 322 || num === 308 ? 'LHR' : num === 221 ? 'SYD' : 'PVG',
@@ -442,8 +460,46 @@ function createSiaMockPlugin(): Plugin {
 
     // Endpoint: /api/menu
     const menuLegs = legs.map((leg) => {
+      const drySnack = leg.hasSnacks
+        ? {
+            subcategories: [
+              {
+                items: [
+                  {
+                    name: 'Artisanal Mixed Truffle Nuts',
+                    description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
+                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
+                  },
+                  {
+                    name: 'Gourmet Light Bites & Cookies',
+                    description: 'Warm chocolate chip cookies and butter shortbreads.',
+                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
+                  },
+                ],
+              },
+            ],
+          }
+        : null;
+
+      const amenities = leg.hasAmenities
+        ? {
+            items: [
+              {
+                itemName: 'Penhaligon’s Luxury Amenity Kit',
+                description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
+                imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
+              },
+              {
+                itemName: 'Lalique Signature Sleepwear & Slippers',
+                description: 'Plush unisex lounge sleep suit with matching eye mask.',
+                imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
+              },
+            ],
+          }
+        : null;
+
       return {
-        ...leg,
+        flightDetails: leg.flightDetails,
         menu: {
           language: {
             EN_UK: {
@@ -627,38 +683,8 @@ function createSiaMockPlugin(): Plugin {
             },
           },
         },
-        drySnack: {
-          subcategories: [
-            {
-              items: [
-                {
-                  name: 'Artisanal Mixed Truffle Nuts',
-                  description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
-                  imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
-                },
-                {
-                  name: 'Gourmet Light Bites & Cookies',
-                  description: 'Warm chocolate chip cookies and butter shortbreads.',
-                  imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
-                },
-              ],
-            },
-          ],
-        },
-        amenities: {
-          items: [
-            {
-              itemName: 'Penhaligon’s Luxury Amenity Kit',
-              description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
-              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
-            },
-            {
-              itemName: 'Lalique Signature Sleepwear & Slippers',
-              description: 'Plush unisex lounge sleep suit with matching eye mask.',
-              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
-            },
-          ],
-        },
+        drySnack,
+        amenities,
       };
     });
 

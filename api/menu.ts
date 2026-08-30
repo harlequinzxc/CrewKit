@@ -77,6 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (num === 12) {
       baseLegs = [
         {
+          hasSnacks: true,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'SIN',
             arrivalAirportCode: 'NRT',
@@ -89,6 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         },
         {
+          hasSnacks: false,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'NRT',
             arrivalAirportCode: 'LAX',
@@ -104,6 +108,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else if (num === 11) {
       baseLegs = [
         {
+          hasSnacks: false,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'LAX',
             arrivalAirportCode: 'NRT',
@@ -116,6 +122,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         },
         {
+          hasSnacks: true,
+          hasAmenities: true,
           flightDetails: {
             departureAirportCode: 'NRT',
             arrivalAirportCode: 'SIN',
@@ -128,9 +136,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         },
       ];
+    } else if (num === 26) {
+      baseLegs = [
+        {
+          hasSnacks: true,
+          hasAmenities: true,
+          flightDetails: {
+            departureAirportCode: 'SIN',
+            arrivalAirportCode: 'FRA',
+            departureDate: flightDate,
+            departureTime: '23:55',
+            departureLocalDate: `${flightDate} 23:55:00`,
+            arrivalLocalDate: `${flightDate} 06:20:00`,
+            departureUtcDate: `${flightDate} 15:55:00`,
+            arrivalUtcDate: `${flightDate} 04:20:00`,
+          },
+        },
+        {
+          hasSnacks: false,
+          hasAmenities: true,
+          flightDetails: {
+            departureAirportCode: 'FRA',
+            arrivalAirportCode: 'JFK',
+            departureDate: flightDate,
+            departureTime: '08:35',
+            departureLocalDate: `${flightDate} 08:35:00`,
+            arrivalLocalDate: `${flightDate} 11:10:00`,
+            departureUtcDate: `${flightDate} 06:35:00`,
+            arrivalUtcDate: `${flightDate} 15:10:00`,
+          },
+        },
+      ];
+    } else if (num === 25) {
+      baseLegs = [
+        {
+          hasSnacks: false,
+          hasAmenities: true,
+          flightDetails: {
+            departureAirportCode: 'JFK',
+            arrivalAirportCode: 'FRA',
+            departureDate: flightDate,
+            departureTime: '20:15',
+            departureLocalDate: `${flightDate} 20:15:00`,
+            arrivalLocalDate: `${flightDate} 09:50:00`,
+            departureUtcDate: `${flightDate} 00:15:00`,
+            arrivalUtcDate: `${flightDate} 07:50:00`,
+          },
+        },
+        {
+          hasSnacks: true,
+          hasAmenities: true,
+          flightDetails: {
+            departureAirportCode: 'FRA',
+            arrivalAirportCode: 'SIN',
+            departureDate: flightDate,
+            departureTime: '11:40',
+            departureLocalDate: `${flightDate} 11:40:00`,
+            arrivalLocalDate: `${flightDate} 06:50:00`,
+            departureUtcDate: `${flightDate} 09:40:00`,
+            arrivalUtcDate: `${flightDate} 22:50:00`,
+          },
+        },
+      ];
     } else {
       baseLegs = [
         {
+          hasSnacks: num !== 830 && num !== 833,
+          hasAmenities: num !== 830 && num !== 833,
           flightDetails: {
             departureAirportCode: 'SIN',
             arrivalAirportCode: num === 322 ? 'LHR' : num === 830 ? 'PVG' : 'FRA',
@@ -145,224 +217,234 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ];
     }
 
-    const menuLegs = baseLegs.map((leg) => ({
-      ...leg,
-      menu: {
-        language: {
-          EN_UK: {
-            meals: [
+    const menuLegs = baseLegs.map((leg) => {
+      const drySnack = leg.hasSnacks
+        ? {
+            subcategories: [
               {
-                mealServiceName: 'Dinner',
-                selectionDetails: [
+                items: [
                   {
-                    name: 'International Selection',
-                    mealCourses: [
-                      {
-                        category: 'Appetiser',
-                        items: [
-                          {
-                            name: 'Singapore Signature Chicken and Mutton Satay',
-                            description: 'Served with spicy peanut sauce, cucumber, and baby onions.',
-                            icons: ['WLSGD'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/satay.jpg',
-                          },
-                          {
-                            name: 'Marinated Boston Lobster Tail with Caviar',
-                            description: 'Fennel confit, granny smith apple gel, and young herb salad.',
-                            icons: ['ICP', 'SIGNATURE'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lobster.jpg',
-                          },
-                        ],
-                      },
-                      {
-                        category: 'Main Course',
-                        maxSequence: 1,
-                        items: [
-                          {
-                            name: 'Pan Seared Angus Beef Fillet with Truffle Jus',
-                            description: 'Pomme mousseline, butter-glazed baby asparagus, and glazed morel mushrooms.',
-                            icons: ['ICP'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/beef.jpg',
-                          },
-                          {
-                            name: 'Singapore Hainanese Chicken Rice',
-                            description: 'Fragrant ginger chicken rice with tender poached chicken, chilli, and dark sweet soya sauce.',
-                            icons: ['WLSGD', 'BTC'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/chicken_rice.jpg',
-                          },
-                          {
-                            name: 'Seared Chilean Sea Bass with Yuzu Soy Reduction',
-                            description: 'Steamed ginger rice, broccolini, and seasonal Japanese mushrooms.',
-                            icons: ['WLSGD'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/seabass.jpg',
-                          },
-                          {
-                            name: 'Artisanal Plant-Based Truffle Mushroom Risotto',
-                            description: 'Carnaroli rice simmered with wild forest mushrooms, aged parmesan, and micro herbs.',
-                            icons: ['VGT'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/risotto.jpg',
-                          },
-                        ],
-                      },
-                      {
-                        category: 'Bakery & Warm Breads',
-                        items: [
-                          {
-                            name: 'Signature Singapore Airlines Garlic Bread',
-                            description: 'Freshly baked French baguette slices toasted with rich herb and garlic butter.',
-                            icons: ['WLSGD'],
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/garlic_bread.jpg',
-                          },
-                          {
-                            name: 'Artisanal Sourdough Roll & Lavosh',
-                            description: 'Warm crusty sourdough roll and crisp sesame lavosh served with cultured salted butter.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/sourdough.jpg',
-                          },
-                        ],
-                      },
-                      {
-                        category: 'Dessert & Cheeses',
-                        items: [
-                          {
-                            name: 'Valrhona Grand Cru Dark Chocolate Ganache Tart',
-                            description: 'Madagascar vanilla bean ice cream with raspberry coulis.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/chocolate.jpg',
-                          },
-                          {
-                            name: 'International Farmhouse Gourmet Cheese Board',
-                            description: 'Brie de Meaux, aged comte, and stilton with water crackers and dried muscatels.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cheese.jpg',
-                          },
-                        ],
-                      },
-                    ],
+                    name: 'Artisanal Mixed Truffle Nuts',
+                    description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
+                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
+                  },
+                  {
+                    name: 'Gourmet Light Bites & Cookies',
+                    description: 'Warm chocolate chip cookies and butter shortbreads.',
+                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
                   },
                 ],
               },
             ],
-          },
-        },
-      },
-      beverage: {
-        language: {
-          EN_UK: {
-            categories: [
-              {
-                name: 'Champagnes & Fine Wines',
-                subcategories: [
-                  {
-                    name: 'Champagne',
-                    specialities: [
-                      {
-                        items: [
-                          {
-                            name: 'Krug Grande Cuvée Brut Champagne, France',
-                            description: 'Aromas of flowers in bloom, ripe dried fruits, marzipan, and gingerbread.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/krug.jpg',
-                          },
-                          {
-                            name: 'Taittinger Comtes de Champagne Blanc de Blancs',
-                            description: 'Refined minerality, white peach, toasted brioche, and crisp citrus finish.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/taittinger.jpg',
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-              {
-                name: 'TWG Tea Selections',
-                subcategories: [
-                  {
-                    name: 'Exclusive Blends',
-                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
-                    specialities: [
-                      {
-                        items: [
-                          {
-                            name: '1837 Black Tea by TWG',
-                            description: 'A unique blend of black tea with notes of fruits and flowers from the Bermuda triangle.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
-                          },
-                          {
-                            name: 'Silver Moon Tea by TWG',
-                            description: 'Green tea accented with a grand berry and vanilla bouquet.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_green.jpg',
-                          },
-                          {
-                            name: 'Grand Jasmine Green Tea by TWG',
-                            description: 'Delicate green tea leaves scented with night-blooming jasmine blossoms.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_jasmine.jpg',
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-              {
-                name: 'Specialty illy Coffees',
-                subcategories: [
-                  {
-                    name: 'Espresso',
-                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
-                    specialities: [
-                      {
-                        items: [
-                          {
-                            name: 'Single Origin Arabica Espresso & Cappuccino',
-                            description: 'Freshly pulled illy 100% Arabica with rich crema and velvety microfoam.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
-                          },
-                          {
-                            name: 'Jamaican Blue Mountain Brewed Coffee',
-                            description: 'Mild flavour, delicate body, and clean sweetness.',
-                            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/brewed_coffee.jpg',
-                          },
-                        ],
-                      },
-                    ],
-                  },
-                ],
-              },
-            ],
-          },
-        },
-      },
-      drySnack: {
-        subcategories: [
-          {
+          }
+        : null;
+
+      const amenities = leg.hasAmenities
+        ? {
             items: [
               {
-                name: 'Artisanal Mixed Truffle Nuts',
-                description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
-                imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
+                itemName: 'Penhaligon’s Luxury Amenity Kit',
+                description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
+                imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
               },
               {
-                name: 'Gourmet Light Bites & Cookies',
-                description: 'Warm chocolate chip cookies and butter shortbreads.',
-                imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
+                itemName: 'Lalique Signature Sleepwear & Slippers',
+                description: 'Plush unisex lounge sleep suit with matching eye mask.',
+                imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
               },
             ],
+          }
+        : null;
+
+      return {
+        flightDetails: leg.flightDetails,
+        menu: {
+          language: {
+            EN_UK: {
+              meals: [
+                {
+                  mealServiceName: 'Dinner',
+                  selectionDetails: [
+                    {
+                      name: 'International Selection',
+                      mealCourses: [
+                        {
+                          category: 'Appetiser',
+                          items: [
+                            {
+                              name: 'Singapore Signature Chicken and Mutton Satay',
+                              description: 'Served with spicy peanut sauce, cucumber, and baby onions.',
+                              icons: ['WLSGD'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/satay.jpg',
+                            },
+                            {
+                              name: 'Marinated Boston Lobster Tail with Caviar',
+                              description: 'Fennel confit, granny smith apple gel, and young herb salad.',
+                              icons: ['ICP', 'SIGNATURE'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lobster.jpg',
+                            },
+                          ],
+                        },
+                        {
+                          category: 'Main Course',
+                          maxSequence: 1,
+                          items: [
+                            {
+                              name: 'Pan Seared Angus Beef Fillet with Truffle Jus',
+                              description: 'Pomme mousseline, butter-glazed baby asparagus, and glazed morel mushrooms.',
+                              icons: ['ICP'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/beef.jpg',
+                            },
+                            {
+                              name: 'Singapore Hainanese Chicken Rice',
+                              description: 'Fragrant ginger chicken rice with tender poached chicken, chilli, and dark sweet soya sauce.',
+                              icons: ['WLSGD', 'BTC'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/chicken_rice.jpg',
+                            },
+                            {
+                              name: 'Seared Chilean Sea Bass with Yuzu Soy Reduction',
+                              description: 'Steamed ginger rice, broccolini, and seasonal Japanese mushrooms.',
+                              icons: ['WLSGD'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/seabass.jpg',
+                            },
+                            {
+                              name: 'Artisanal Plant-Based Truffle Mushroom Risotto',
+                              description: 'Carnaroli rice simmered with wild forest mushrooms, aged parmesan, and micro herbs.',
+                              icons: ['VGT'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/risotto.jpg',
+                            },
+                          ],
+                        },
+                        {
+                          category: 'Bakery & Warm Breads',
+                          items: [
+                            {
+                              name: 'Signature Singapore Airlines Garlic Bread',
+                              description: 'Freshly baked French baguette slices toasted with rich herb and garlic butter.',
+                              icons: ['WLSGD'],
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/garlic_bread.jpg',
+                            },
+                            {
+                              name: 'Artisanal Sourdough Roll & Lavosh',
+                              description: 'Warm crusty sourdough roll and crisp sesame lavosh served with cultured salted butter.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/sourdough.jpg',
+                            },
+                          ],
+                        },
+                        {
+                          category: 'Dessert & Cheeses',
+                          items: [
+                            {
+                              name: 'Valrhona Grand Cru Dark Chocolate Ganache Tart',
+                              description: 'Madagascar vanilla bean ice cream with raspberry coulis.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/chocolate.jpg',
+                            },
+                            {
+                              name: 'International Farmhouse Gourmet Cheese Board',
+                              description: 'Brie de Meaux, aged comte, and stilton with water crackers and dried muscatels.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cheese.jpg',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
           },
-        ],
-      },
-      amenities: {
-        items: [
-          {
-            itemName: 'Penhaligon’s Luxury Amenity Kit',
-            description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
-            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
+        },
+        beverage: {
+          language: {
+            EN_UK: {
+              categories: [
+                {
+                  name: 'Champagnes & Fine Wines',
+                  subcategories: [
+                    {
+                      name: 'Champagne',
+                      specialities: [
+                        {
+                          items: [
+                            {
+                              name: 'Krug Grande Cuvée Brut Champagne, France',
+                              description: 'Aromas of flowers in bloom, ripe dried fruits, marzipan, and gingerbread.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/krug.jpg',
+                            },
+                            {
+                              name: 'Taittinger Comtes de Champagne Blanc de Blancs',
+                              description: 'Refined minerality, white peach, toasted brioche, and crisp citrus finish.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/taittinger.jpg',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  name: 'TWG Tea Selections',
+                  subcategories: [
+                    {
+                      name: 'Exclusive Blends',
+                      imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
+                      specialities: [
+                        {
+                          items: [
+                            {
+                              name: '1837 Black Tea by TWG',
+                              description: 'A unique blend of black tea with notes of fruits and flowers from the Bermuda triangle.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
+                            },
+                            {
+                              name: 'Silver Moon Tea by TWG',
+                              description: 'Green tea accented with a grand berry and vanilla bouquet.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_green.jpg',
+                            },
+                            {
+                              name: 'Grand Jasmine Green Tea by TWG',
+                              description: 'Delicate green tea leaves scented with night-blooming jasmine blossoms.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/twg_jasmine.jpg',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                {
+                  name: 'Specialty illy Coffees',
+                  subcategories: [
+                    {
+                      name: 'Espresso',
+                      imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
+                      specialities: [
+                        {
+                          items: [
+                            {
+                              name: 'Single Origin Arabica Espresso & Cappuccino',
+                              description: 'Freshly pulled illy 100% Arabica with rich crema and velvety microfoam.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
+                            },
+                            {
+                              name: 'Jamaican Blue Mountain Brewed Coffee',
+                              description: 'Mild flavour, delicate body, and clean sweetness.',
+                              imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/brewed_coffee.jpg',
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
           },
-          {
-            itemName: 'Lalique Signature Sleepwear & Slippers',
-            description: 'Plush unisex lounge sleep suit with matching eye mask.',
-            imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
-          },
-        ],
-      },
-    }));
+        },
+        drySnack,
+        amenities,
+      };
+    });
 
     return res.status(200).json({
       statusCode: 200,

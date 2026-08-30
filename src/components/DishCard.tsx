@@ -8,11 +8,14 @@ export interface DishCardProps {
   item: MenuItem;
   courseCategory?: string;
   cabin?: string;
+  imageFit?: 'cover' | 'contain';
+  imageBg?: 'dark' | 'white';
   onOpenLightbox: (data: {
     src: string;
     title: string;
     description?: string;
     meta?: string;
+    isAmenity?: boolean;
   }) => void;
 }
 
@@ -20,8 +23,15 @@ export const DishCard: React.FC<DishCardProps> = ({
   item,
   courseCategory,
   cabin,
+  imageFit,
+  imageBg,
   onOpenLightbox,
 }) => {
+  const isAmenity =
+    imageBg === 'white' ||
+    imageFit === 'contain' ||
+    Boolean(courseCategory && courseCategory.toLowerCase().includes('amenit'));
+
   const [imageState, setImageState] = useState<ResolvedDishImageResult | null>(() => {
     if (!item.imageUrl) {
       return { thumbUrl: null, fullUrl: null, source: 'placeholder' };
@@ -74,6 +84,7 @@ export const DishCard: React.FC<DishCardProps> = ({
         title: item.title,
         description: item.description,
         meta: courseCategory,
+        isAmenity,
       });
     }
   };
@@ -90,30 +101,48 @@ export const DishCard: React.FC<DishCardProps> = ({
         {isLoading ? (
           <div className="w-full aspect-[16/10] rounded-xl bg-ink-800/80 animate-pulse border border-gold-dim mb-3.5" />
         ) : hasPhoto ? (
-          <div
-            onClick={handleImageClick}
-            className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer border border-gold-dim group-hover:border-gold-400/50 transition-colors"
-          >
-            <img
-              src={imageState!.thumbUrl!}
-              alt={item.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-              onError={() => {
-                setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-              }}
-            />
-            {/* Bottom Gradient Fade into Card Surface */}
-            <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-transparent to-transparent pointer-events-none" />
-          </div>
+          isAmenity ? (
+            /* Amenity Frame: Fitted (contain) with clean solid white background */
+            <div
+              onClick={handleImageClick}
+              className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer bg-white flex items-center justify-center p-3.5 border border-white/20 group-hover:border-gold-400/60 shadow-sm transition-all"
+            >
+              <img
+                src={imageState!.thumbUrl!}
+                alt={item.title}
+                className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
+                onError={() => {
+                  setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+                }}
+              />
+            </div>
+          ) : (
+            /* Food/Beverage Frame: Luxury Cover with Bottom Dark Fade */
+            <div
+              onClick={handleImageClick}
+              className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer border border-gold-dim group-hover:border-gold-400/50 transition-colors bg-ink-950"
+            >
+              <img
+                src={imageState!.thumbUrl!}
+                alt={item.title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
+                onError={() => {
+                  setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-transparent to-transparent pointer-events-none" />
+            </div>
+          )
         ) : null}
 
-        {/* 2. Dish Title (Cormorant Garamond) */}
+        {/* 2. Title (Cormorant Garamond) */}
         <h4 className="font-display text-xl sm:text-2xl font-light text-ivory-100 leading-snug group-hover:text-gold-300 transition-colors">
           {item.title}
         </h4>
 
-        {/* 3. Dish Description */}
+        {/* 3. Description */}
         {item.description && (
           <p className="font-sans text-[0.85rem] text-mist-300 mt-1.5 leading-relaxed">
             {item.description}
