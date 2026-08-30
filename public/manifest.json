@@ -1,13 +1,13 @@
 {
-  "name": "CrewKit",
-  "short_name": "CrewKit",
-  "description": "Cabin crew toolkit for Singapore Airlines crew",
+  "name": "InkFlight",
+  "short_name": "InkFlight",
+  "description": "Singapore Airlines Cabin Crew Companion & Inflight Prep",
   "start_url": "/",
   "id": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#070B14",
-  "theme_color": "#070B14",
+  "background_color": "#0B0E14",
+  "theme_color": "#0B0E14",
   "categories": ["productivity", "utilities", "travel"],
   "icons": [
     {
