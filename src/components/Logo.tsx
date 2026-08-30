@@ -10,18 +10,18 @@ interface LogoProps {
 
 /**
  * Master Brand Mark:
- * A Champagne-Gold folded paper plane (#D4AF7A, lit edge #E9CFA5, fold shadow #B78D55)
- * with a perforated tear-line across the wing and five fading runway-light dots, with faint warm glow beneath.
- * Pure flat vector, no 3D, no clouds, no ink bottles, no emoji styling, no text in the icon.
+ * A simple Champagne-Gold folded paper plane.
+ * Clean, flat vector origami geometry with lit upper wing, shaded lower wing,
+ * subtle underside keel fold, and delicate spine highlight.
  */
 export const LogoMark: React.FC<{ className?: string; size?: number }> = ({
   className = '',
   size = 32,
 }) => {
-  const glowId = `warmGlow-${size}`;
+  const glowId = `planeGlow-${size}`;
   const litId = `litWing-${size}`;
-  const bodyId = `mainBody-${size}`;
-  const shadowId = `foldShadow-${size}`;
+  const mainId = `mainWing-${size}`;
+  const keelId = `keelShadow-${size}`;
 
   return (
     <div
@@ -41,82 +41,57 @@ export const LogoMark: React.FC<{ className?: string; size?: number }> = ({
         aria-hidden="true"
       >
         <defs>
-          {/* Faint Warm Glow Pooling Beneath */}
-          <radialGradient id={glowId} cx="50%" cy="58%" r="42%">
-            <stop offset="0%" stopColor="#D4AF7A" stopOpacity="0.38" />
-            <stop offset="60%" stopColor="#B78D55" stopOpacity="0.12" />
+          {/* Ambient Warm Glow */}
+          <radialGradient id={glowId} cx="50%" cy="52%" r="40%">
+            <stop offset="0%" stopColor="#D4AF7A" stopOpacity="0.32" />
+            <stop offset="60%" stopColor="#B78D55" stopOpacity="0.10" />
             <stop offset="100%" stopColor="#B78D55" stopOpacity="0" />
           </radialGradient>
 
-          {/* Lit Upper Wing Gradient (#E9CFA5 lit edge) */}
-          <linearGradient id={litId} x1="44" y1="24" x2="84" y2="35" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#FFF2DC" />
-            <stop offset="50%" stopColor="#E9CFA5" />
+          {/* Lit Upper Wing Gradient */}
+          <linearGradient id={litId} x1="20" y1="44" x2="86" y2="18" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFF6E5" />
+            <stop offset="45%" stopColor="#ECD0A2" />
             <stop offset="100%" stopColor="#D4AF7A" />
           </linearGradient>
 
-          {/* Main Boarding Pass Wing / Body Gradient (#D4AF7A) */}
-          <linearGradient id={bodyId} x1="48" y1="36" x2="74" y2="74" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#E2C192" />
-            <stop offset="50%" stopColor="#D4AF7A" />
-            <stop offset="100%" stopColor="#B78D55" />
+          {/* Lower Main Wing Gradient */}
+          <linearGradient id={mainId} x1="48" y1="64" x2="86" y2="18" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#B88D52" />
+            <stop offset="55%" stopColor="#D4AF7A" />
+            <stop offset="100%" stopColor="#E4C494" />
           </linearGradient>
 
-          {/* Fold Shadow Gradient (#B78D55) */}
-          <linearGradient id={shadowId} x1="37" y1="53" x2="56" y2="65" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#B78D55" />
-            <stop offset="100%" stopColor="#785322" />
+          {/* Keel / Underside Shadow Gradient */}
+          <linearGradient id={keelId} x1="34" y1="60" x2="48" y2="64" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#5A3D14" />
+            <stop offset="100%" stopColor="#8C6328" />
           </linearGradient>
         </defs>
 
-        {/* 1. Faint Warm Glow Pooling Beneath */}
-        <circle cx="50" cy="58" r="38" fill={`url(#${glowId})`} />
+        {/* 1. Ambient Glow Pooling Beneath */}
+        <circle cx="50" cy="52" r="36" fill={`url(#${glowId})`} />
 
-        {/* 2. Five Fading Runway-Light Dots */}
-        <circle cx="10" cy="88" r="1.3" fill="#B78D55" opacity="0.22" />
-        <circle cx="15" cy="84" r="1.6" fill="#B78D55" opacity="0.38" />
-        <circle cx="21" cy="79" r="2.0" fill="#D4AF7A" opacity="0.58" />
-        <circle cx="27" cy="74" r="2.3" fill="#D4AF7A" opacity="0.78" />
-        <circle cx="34" cy="68" r="2.6" fill="#E9CFA5" opacity="0.95" />
+        {/* 2. Underside Keel / Fold Shadow */}
+        <path d="M 48 64 L 34 60 L 40 70 Z" fill={`url(#${keelId})`} />
 
-        {/* 3. Underbody Fold Shadow */}
-        <path d="M 37 65 L 48 53 L 44 61 Z" fill={`url(#${shadowId})`} />
-        <path d="M 44 61 L 48 53 L 56 65 Z" fill={`url(#${shadowId})`} />
+        {/* 3. Lit Upper Wing Facet */}
+        <path d="M 86 18 L 18 44 L 48 64 Z" fill={`url(#${litId})`} />
 
-        {/* 4. Lit Upper Wing Facet */}
-        <path d="M 84 18 L 44 24 L 48 53 Z" fill={`url(#${litId})`} />
-        {/* Lit Top Edge Highlight */}
-        <path d="M 44 24 L 84 18" stroke="#FFF5E4" strokeWidth="0.8" strokeLinecap="round" opacity="0.85" />
+        {/* 4. Lower Main Wing Facet */}
+        <path d="M 86 18 L 48 64 L 66 84 Z" fill={`url(#${mainId})`} />
 
-        {/* 5. Main Boarding Pass Wing / Body Facet */}
-        <path d="M 84 18 L 48 53 L 74 74 Z" fill={`url(#${bodyId})`} />
-
-        {/* 6. Perforated Tear-Line across the Boarding Pass Wing */}
+        {/* 5. Center Spine Fold Line Highlight */}
         <line
-          x1="60"
-          y1="36"
-          x2="70"
-          y2="58"
-          stroke="#0B0E14"
-          strokeWidth="1.6"
-          strokeDasharray="1.6 2.0"
+          x1="86"
+          y1="18"
+          x2="48"
+          y2="64"
+          stroke="#FFF8EC"
+          strokeWidth="0.75"
           strokeLinecap="round"
-          opacity="0.85"
+          opacity="0.8"
         />
-        <line
-          x1="60"
-          y1="36"
-          x2="70"
-          y2="58"
-          stroke="#FFF2DC"
-          strokeWidth="0.6"
-          strokeDasharray="1.6 2.0"
-          strokeLinecap="round"
-          opacity="0.9"
-        />
-
-        {/* 7. Center Spine Fold Line */}
-        <line x1="84" y1="18" x2="48" y2="53" stroke="#FFF2DC" strokeWidth="0.6" opacity="0.7" />
       </svg>
     </div>
   );
@@ -141,10 +116,10 @@ export const Logo: React.FC<LogoProps> = ({
       {/* Master Mark: Champagne-Gold Folded Paper Plane */}
       <LogoMark size={markSize} />
 
-      {/* Live CSS Wordmark: "Crew" roman in warm off-white (#E9EDF5 / ivory-100) + "Kit" gold italic */}
+      {/* Live CSS Wordmark: "Crew" roman in warm off-white + "Kit" gold italic */}
       {showWordmark && (
         <span
-          className={`font-display ${textSize} tracking-tight leading-none text-[#E9EDF5] dark:text-ivory-100 flex items-center`}
+          className={`font-display ${textSize} tracking-tight leading-none text-ivory-100 flex items-center`}
         >
           <span className="font-normal">Crew</span>
           <span className="italic gold-gradient-text font-normal ml-[1px]">Kit</span>

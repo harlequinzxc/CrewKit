@@ -1,4 +1,13 @@
 /** @type {import('tailwindcss').Config} */
+function withOpacity(variableName) {
+  return ({ opacityValue }) => {
+    if (opacityValue !== undefined) {
+      return `rgb(var(${variableName}) / ${opacityValue})`;
+    }
+    return `rgb(var(${variableName}))`;
+  };
+}
+
 export default {
   content: [
     "./index.html",
@@ -8,32 +17,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Semantic Token Ramp
+        // Semantic Token Ramp with opacity support
         ink: {
-          950: 'var(--ink-950)',
-          900: 'var(--ink-900)',
-          850: 'var(--ink-850)',
-          800: 'var(--ink-800)',
-          700: 'var(--ink-700)',
-          600: 'var(--ink-600)',
+          950: withOpacity('--ink-950-rgb'),
+          900: withOpacity('--ink-900-rgb'),
+          850: withOpacity('--ink-850-rgb'),
+          800: withOpacity('--ink-800-rgb'),
+          700: withOpacity('--ink-700-rgb'),
+          600: withOpacity('--ink-600-rgb'),
+          500: withOpacity('--ink-500-rgb'),
           airline: '#002569',
         },
         gold: {
-          100: 'var(--gold-100)',
-          300: 'var(--gold-300)',
-          400: 'var(--gold-400)',
-          500: 'var(--gold-500)',
+          100: withOpacity('--gold-100-rgb'),
+          200: withOpacity('--gold-200-rgb'),
+          300: withOpacity('--gold-300-rgb'),
+          400: withOpacity('--gold-400-rgb'),
+          500: withOpacity('--gold-500-rgb'),
+          600: withOpacity('--gold-600-rgb'),
           dim: 'var(--gold-dim)',
           glow: 'var(--gold-glow)',
         },
         ivory: {
-          100: 'var(--ivory-100)',
-          200: 'var(--ivory-200)',
+          100: withOpacity('--ivory-100-rgb'),
+          200: withOpacity('--ivory-200-rgb'),
         },
         mist: {
-          300: 'var(--mist-300)',
-          400: 'var(--mist-400)',
-          500: 'var(--mist-500)',
+          300: withOpacity('--mist-300-rgb'),
+          400: withOpacity('--mist-400-rgb'),
+          500: withOpacity('--mist-500-rgb'),
         },
         // Constant Onyx (Deep Ink in BOTH themes for text on gold fills)
         onyx: {
@@ -53,18 +65,18 @@ export default {
           'sky-text': 'var(--chip-sky-text)',
         },
         // Backward-compatible semantic aliases
-        'bg-base': 'var(--ink-950)',
-        'bg-surface': 'var(--ink-900)',
-        'bg-elevated': 'var(--ink-850)',
+        'bg-base': withOpacity('--ink-950-rgb'),
+        'bg-surface': withOpacity('--ink-900-rgb'),
+        'bg-elevated': withOpacity('--ink-850-rgb'),
         'border-subtle': 'var(--gold-dim)',
         'border-medium': 'var(--gold-border)',
         'border-hover': 'var(--gold-border-hover)',
-        'text-primary': 'var(--ivory-100)',
-        'text-secondary': 'var(--mist-300)',
-        'text-tertiary': 'var(--mist-400)',
-        'accent': 'var(--gold-400)',
-        'accent-soft': 'var(--gold-100)',
-        'accent-dim': 'var(--gold-500)',
+        'text-primary': withOpacity('--ivory-100-rgb'),
+        'text-secondary': withOpacity('--mist-300-rgb'),
+        'text-tertiary': withOpacity('--mist-400-rgb'),
+        'accent': withOpacity('--gold-400-rgb'),
+        'accent-soft': withOpacity('--gold-100-rgb'),
+        'accent-dim': withOpacity('--gold-500-rgb'),
         'accent-glow': 'var(--gold-glow)',
         'danger': 'var(--danger)',
         'success': 'var(--success)',
@@ -73,14 +85,15 @@ export default {
         display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
         ui: ['Jost', 'Inter', 'sans-serif'],
-        sans: ['Inter', 'Jost', 'system-ui', 'sans-serif'],
+        sans: ['Jost', 'Inter', 'system-ui', 'sans-serif'],
       },
       letterSpacing: {
         eyebrow: '0.22em',
-        'eyebrow-wide': '0.32em',
+        'eyebrow-wide': '0.34em',
       },
       boxShadow: {
         'cabin-glass': 'var(--shadow-cabin-glass)',
+        'cabin': 'var(--shadow-cabin)',
         'gold-glow': '0 0 25px var(--gold-glow)',
         'gold-glow-lg': '0 0 45px var(--gold-glow)',
         'elevated-card': 'var(--shadow-elevated-card)',
