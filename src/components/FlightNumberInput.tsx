@@ -21,15 +21,15 @@ export const FlightNumberInput: React.FC<FlightNumberInputProps> = ({
 }) => {
   return (
     <div className={`w-full text-left ${className}`}>
-      {/* Overline Label */}
-      <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2.5 select-none">
+      {/* Overline Label (Jost uppercase) */}
+      <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
         Flight Number
       </label>
 
       {/* Two side-by-side elements, gap-3 */}
       <div className="flex items-center gap-3">
         {/* SQ Prefix Badge */}
-        <div className="w-12 sm:w-14 h-14 rounded-well bg-bg-elevated border border-border-subtle flex items-center justify-center text-accent font-semibold text-base tracking-wider shadow-sm shrink-0 select-none">
+        <div className="w-13 sm:w-14 h-13 sm:h-14 rounded-well bg-ink-850 border border-gold-dim flex items-center justify-center text-gold-300 font-ui font-bold text-base tracking-widest shadow-sm shrink-0 select-none">
           SQ
         </div>
 
@@ -43,23 +43,23 @@ export const FlightNumberInput: React.FC<FlightNumberInputProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className={`w-full h-14 px-4 rounded-well bg-bg-elevated text-text-primary placeholder:text-text-tertiary text-lg tracking-[0.3em] font-medium focus:outline-none transition-all ${
+            className={`w-full h-13 sm:h-14 px-4 rounded-well bg-ink-850 text-ivory-100 placeholder:text-mist-500 font-display text-2xl tracking-[0.25em] focus:outline-none transition-all ${
               error
-                ? 'border border-[rgba(196,91,91,0.6)] focus:ring-1 focus:ring-danger'
+                ? 'border border-danger focus:ring-1 focus:ring-danger'
                 : isValid && value.length > 0
-                ? 'border border-border-subtle focus:border-accent focus:ring-1 focus:ring-accent/40'
-                : 'border border-border-subtle focus:border-accent/80'
+                ? 'border border-gold-400 focus:ring-1 focus:ring-gold-400/40 shadow-sm'
+                : 'border border-gold-dim focus:border-gold-400'
             }`}
           />
           {isChecking && (
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-accent/40 border-t-accent rounded-full animate-spin" />
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-gold-dim border-t-gold-300 rounded-full animate-spin" />
           )}
         </div>
       </div>
 
-      {/* Error / Validation helper */}
+      {/* Error helper */}
       {error && (
-        <p className="text-[0.75rem] text-danger mt-1.5 ml-1 animate-fade-in font-medium">
+        <p className="text-[0.75rem] text-danger mt-1.5 ml-1 animate-fade-in font-sans font-medium">
           {error}
         </p>
       )}

@@ -75,7 +75,6 @@ export const FetchInterlude = <T,>({
         }, dur);
         timeouts.push(t);
       } else {
-        // Last message reached: wait for its duration, then mark timer finished
         const lastDur = messages[currentIdx].durationMs;
         const t = setTimeout(() => {
           if (!mountedRef.current) return;
@@ -100,7 +99,7 @@ export const FetchInterlude = <T,>({
   }, [taskFinished, timerFinished, taskData, isError, onSuccess]);
 
   return (
-    <div className="flex flex-col justify-between items-center h-full py-4 text-center select-none animate-fade-in">
+    <div className="flex flex-col justify-between items-center h-full py-4 text-center select-none animate-cabin-in">
       {/* Flight Chip at top */}
       <div className="shrink-0 pt-2">
         <FlightChip label={flightChipText} />
@@ -112,17 +111,17 @@ export const FetchInterlude = <T,>({
         <GoldRing isError={isError} />
 
         {/* Micro-copy line */}
-        <div className="mt-8 min-h-[32px] flex items-center justify-center">
+        <div className="mt-8 min-h-[36px] flex items-center justify-center">
           {isError ? (
             <button
               type="button"
               onClick={executeFetch}
-              className="font-serif italic text-danger hover:underline text-base sm:text-lg animate-fade-in cursor-pointer"
+              className="font-display italic text-danger hover:underline text-lg sm:text-xl animate-fade-in cursor-pointer"
             >
               {errorMessage || "Couldn't reach SQ. Tap to retry."}
             </button>
           ) : (
-            <p className="font-serif italic text-text-secondary text-base sm:text-lg transition-opacity duration-200 animate-fade-in">
+            <p className="font-display italic text-ivory-100/90 text-lg sm:text-xl transition-opacity duration-300 animate-fade-in tracking-wide">
               {messages[currentMessageIndex]?.text}
             </p>
           )}

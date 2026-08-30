@@ -13,6 +13,7 @@ import { CabinCode, MenuData, MenuSection } from '../lib/sq/types';
 import { exportToPNG } from '../lib/export/png';
 import { exportToPDF } from '../lib/export/pdf';
 import { exportToDOCX } from '../lib/export/docx';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Printer,
@@ -29,7 +30,7 @@ import {
 
 const INKFLIGHT_MESSAGES: InterludeMessage[] = [
   { text: 'Retrieving menu from seat pocket…', durationMs: 3000 },
-  { text: 'Formatting print receipt…', durationMs: 2000 },
+  { text: 'Formatting thermal receipt…', durationMs: 2000 },
 ];
 
 export const InkFlight: React.FC = () => {
@@ -47,12 +48,12 @@ export const InkFlight: React.FC = () => {
   // Screen Stages: 'form' | 'loading' | 'editor'
   const [stage, setStage] = useState<'form' | 'loading' | 'editor'>('form');
 
-  // Flight validation — start with EMPTY input unless passed from nav state
+  // Flight validation
   const validation = useFlightValidation(navState?.flightNo || '');
   const [dateISO, setDateISO] = useState<string>(initialTodayISO);
   const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Cabin detection states — Single Select
+  // Cabin detection states
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
   const [selectedCabin, setSelectedCabin] = useState<CabinCode>(navState?.cabin || 'BUSINESS');
@@ -70,7 +71,7 @@ export const InkFlight: React.FC = () => {
   // Mobile Tab View: 'editor' | 'preview'
   const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('preview');
 
-  // Receipt DOM element ref for PNG/PDF capture
+  // Receipt DOM element ref
   const receiptRef = useRef<HTMLDivElement>(null);
 
   // Cabin Detection
@@ -123,7 +124,6 @@ export const InkFlight: React.FC = () => {
     setSelectedCabin(code);
   };
 
-  // Start Fetch
   const handleStartFetch = () => {
     setStage('loading');
   };
@@ -134,20 +134,17 @@ export const InkFlight: React.FC = () => {
   };
 
   const handleFetchSuccess = (data: MenuData) => {
-    // Deep clone to allow editing
     const cloned = JSON.parse(JSON.stringify(data)) as MenuData;
     setEditableMenu(cloned);
     setStage('editor');
   };
 
-  // Auto-start fetch if navigated with full parameters
   useEffect(() => {
     if (navState?.flightNo && navState?.dateISO && stage === 'form') {
       handleStartFetch();
     }
   }, []);
 
-  // Editor Actions
   const toggleSectionVisibility = (secId: string) => {
     if (!editableMenu) return;
     setEditableMenu({
@@ -224,7 +221,6 @@ export const InkFlight: React.FC = () => {
     });
   };
 
-  // Export handlers
   const handleExportPng = async () => {
     if (!receiptRef.current) return;
     setIsExporting(true);
@@ -293,21 +289,18 @@ export const InkFlight: React.FC = () => {
 
       {/* 2. FORM FLOW */}
       {stage === 'form' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
+        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            {/* Eyebrow */}
-            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
               Prep,
             </span>
 
-            {/* Headline */}
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
               Let's ready your homework.
             </h2>
 
-            {/* Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={validation.flightNo}
@@ -319,7 +312,6 @@ export const InkFlight: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block */}
             {validation.isValid && validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -332,24 +324,22 @@ export const InkFlight: React.FC = () => {
               </div>
             )}
 
-            {/* Cabin Detection Loading Skeleton */}
             {isDetectingCabins && (
               <div className="w-full mt-5 text-left animate-fade-in">
-                <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
+                <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
                   Available Cabin Classes
                 </label>
                 <div className="flex items-center gap-2">
-                  <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
-                  <div className="h-8 w-24 rounded-full bg-bg-elevated animate-pulse" />
-                  <div className="h-8 w-20 rounded-full bg-bg-elevated animate-pulse" />
+                  <div className="h-9 w-20 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
+                  <div className="h-9 w-24 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
+                  <div className="h-9 w-20 rounded-full bg-ink-850 animate-pulse border border-gold-dim" />
                 </div>
               </div>
             )}
 
-            {/* Single-Select Cabin Classes */}
             {!isDetectingCabins && availableCabins.length > 0 && !flightNotFoundError && (
               <div className="w-full mt-5 text-left animate-fade-in">
-                <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2 select-none">
+                <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
                   Cabin Class for Printout
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -370,7 +360,6 @@ export const InkFlight: React.FC = () => {
 
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
-          {/* Progression CTA */}
           {validation.isValid &&
             validation.flightNo.length > 0 &&
             dateISO &&
@@ -391,44 +380,57 @@ export const InkFlight: React.FC = () => {
 
       {/* 3. EDITOR & RECEIPT PREVIEW (Split Layout) */}
       {stage === 'editor' && editableMenu && (
-        <div className="flex flex-col h-full overflow-hidden animate-fade-in">
-          
+        <div className="flex flex-col h-full overflow-hidden animate-cabin-in">
           {/* Top Bar with Flight Chip & Mobile Tab Switcher */}
-          <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-border-subtle/50">
+          <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-gold-dim">
             <FlightChip label={flightSummaryLine} />
 
-            {/* Mobile Tab Switcher */}
-            <div className="flex sm:hidden items-center p-0.5 mt-2 rounded-full bg-bg-surface border border-border-subtle">
+            {/* Mobile Tab Switcher with sliding pill */}
+            <div className="flex sm:hidden items-center p-0.5 mt-2 rounded-full bg-ink-850 border border-gold-dim relative">
               <button
                 type="button"
                 onClick={() => setMobileTab('editor')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  mobileTab === 'editor'
-                    ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary'
+                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
+                  mobileTab === 'editor' ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
                 }`}
               >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Customise</span>
+                {mobileTab === 'editor' && (
+                  <motion.div
+                    layoutId="mobile-inkflight-tab"
+                    className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>Customise</span>
+                </span>
               </button>
+
               <button
                 type="button"
                 onClick={() => setMobileTab('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  mobileTab === 'preview'
-                    ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
-                    : 'text-text-secondary hover:text-text-primary'
+                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
+                  mobileTab === 'preview' ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
                 }`}
               >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Receipt Preview</span>
+                {mobileTab === 'preview' && (
+                  <motion.div
+                    layoutId="mobile-inkflight-tab"
+                    className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Receipt Preview</span>
+                </span>
               </button>
             </div>
           </div>
 
           {/* Main Content Area (Split Grid on desktop, Tabbed on mobile) */}
-          <div className="flex-1 overflow-hidden grid grid-cols-1 sm:grid-cols-2 gap-3 py-2 min-h-0">
-            
+          <div className="flex-1 overflow-hidden grid grid-cols-1 sm:grid-cols-2 gap-4 py-3 min-h-0">
             {/* LEFT PANEL: Customize Controls & Reordering */}
             <div
               className={`flex-col h-full overflow-y-auto no-scrollbar space-y-3 pr-1 ${
@@ -436,94 +438,94 @@ export const InkFlight: React.FC = () => {
               }`}
             >
               {/* Global Receipt Toggles Card */}
-              <div className="p-3 rounded-card bg-bg-surface border border-border-subtle space-y-2.5 text-xs">
-                <div className="font-semibold text-text-primary text-[11px] uppercase tracking-wider pb-1 border-b border-border-subtle/50">
-                  Receipt Formatting
+              <div className="p-4 rounded-card bg-ink-850/80 border border-gold-dim space-y-3 text-xs text-left">
+                <div className="font-ui uppercase tracking-eyebrow font-semibold text-gold-300 text-xs pb-1.5 border-b border-gold-dim">
+                  Thermal Receipt Layout Options
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setIncludeHeaders(!includeHeaders)}
-                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
                       includeHeaders
-                        ? 'bg-accent/15 border-accent text-accent font-medium'
-                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
                     }`}
                   >
                     <span>Headers</span>
-                    <span className="text-[10px] font-mono">{includeHeaders ? 'ON' : 'OFF'}</span>
+                    <span className="font-mono text-[10px]">{includeHeaders ? 'ON' : 'OFF'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setIncludeDescriptions(!includeDescriptions)}
-                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
                       includeDescriptions
-                        ? 'bg-accent/15 border-accent text-accent font-medium'
-                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
                     }`}
                   >
                     <span>Descriptions</span>
-                    <span className="text-[10px] font-mono">{includeDescriptions ? 'ON' : 'OFF'}</span>
+                    <span className="font-mono text-[10px]">{includeDescriptions ? 'ON' : 'OFF'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setIncludeDrinks(!includeDrinks)}
-                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
                       includeDrinks
-                        ? 'bg-accent/15 border-accent text-accent font-medium'
-                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
                     }`}
                   >
                     <span>Drinks List</span>
-                    <span className="text-[10px] font-mono">{includeDrinks ? 'ON' : 'OFF'}</span>
+                    <span className="font-mono text-[10px]">{includeDrinks ? 'ON' : 'OFF'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setCompactMode(!compactMode)}
-                    className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between ${
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
                       compactMode
-                        ? 'bg-accent/15 border-accent text-accent font-medium'
-                        : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
                     }`}
                   >
                     <span>Compact</span>
-                    <span className="text-[10px] font-mono">{compactMode ? 'ON' : 'OFF'}</span>
+                    <span className="font-mono text-[10px]">{compactMode ? 'ON' : 'OFF'}</span>
                   </button>
 
-                  {/* Paper Width Selector: 108mm (A6 portrait) vs 210mm (A4 portrait) */}
-                  <div className="flex flex-col gap-1.5 col-span-2 pt-1 border-t border-border-subtle/40">
-                    <span className="text-[10px] font-medium text-text-secondary uppercase tracking-wider">
-                      Paper Width
+                  {/* Paper Width Selector */}
+                  <div className="flex flex-col gap-1.5 col-span-2 pt-2 border-t border-gold-dim">
+                    <span className="text-[10px] font-ui uppercase tracking-eyebrow text-mist-300">
+                      Paper Width Target
                     </span>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setPaperWidth('108mm')}
-                        className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between transition-all ${
+                        className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
                           paperWidth === '108mm'
-                            ? 'bg-accent/15 border-accent text-accent font-semibold'
-                            : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                            ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                            : 'bg-ink-800 border-gold-dim text-mist-300'
                         }`}
                       >
                         <span>108mm (A6)</span>
-                        <span className="text-[10px] font-mono">{paperWidth === '108mm' ? '✓' : ''}</span>
+                        <span className="font-mono text-[10px]">{paperWidth === '108mm' ? '✓' : ''}</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setPaperWidth('210mm')}
-                        className={`px-2.5 py-1.5 rounded-md border text-left flex items-center justify-between transition-all ${
+                        className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
                           paperWidth === '210mm'
-                            ? 'bg-accent/15 border-accent text-accent font-semibold'
-                            : 'bg-bg-elevated border-border-subtle text-text-secondary'
+                            ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                            : 'bg-ink-800 border-gold-dim text-mist-300'
                         }`}
                       >
                         <span>210mm (A4)</span>
-                        <span className="text-[10px] font-mono">{paperWidth === '210mm' ? '✓' : ''}</span>
+                        <span className="font-mono text-[10px]">{paperWidth === '210mm' ? '✓' : ''}</span>
                       </button>
                     </div>
                   </div>
@@ -536,18 +538,18 @@ export const InkFlight: React.FC = () => {
                   (sec) => (
                     <div
                       key={sec.id}
-                      className={`rounded-card bg-bg-surface border transition-opacity ${
-                        sec.hidden ? 'opacity-40 border-border-subtle/50' : 'border-border-subtle'
+                      className={`rounded-card bg-ink-850/70 border transition-opacity ${
+                        sec.hidden ? 'opacity-40 border-gold-dim' : 'border-gold-dim'
                       }`}
                     >
-                      <div className="p-2.5 bg-bg-elevated/70 flex items-center justify-between border-b border-border-subtle/40">
-                        <span className="font-serif text-xs font-semibold text-text-primary">
+                      <div className="p-2.5 bg-ink-800/80 flex items-center justify-between border-b border-gold-dim">
+                        <span className="font-display text-base font-light text-ivory-100">
                           {sec.title}
                         </span>
                         <button
                           type="button"
                           onClick={() => toggleSectionVisibility(sec.id)}
-                          className="p-1 rounded text-text-tertiary hover:text-text-primary"
+                          className="p-1 rounded text-mist-400 hover:text-gold-300"
                           title={sec.hidden ? 'Show Section' : 'Hide Section'}
                         >
                           {sec.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -559,7 +561,7 @@ export const InkFlight: React.FC = () => {
                           {sec.items.map((it, idx) => (
                             <div
                               key={it.id}
-                              className={`flex items-center gap-1.5 p-1.5 rounded-md bg-bg-elevated/40 border border-border-subtle/40 ${
+                              className={`flex items-center gap-1.5 p-1.5 rounded-lg bg-ink-900/60 border border-gold-dim/40 ${
                                 it.hidden ? 'opacity-35' : ''
                               }`}
                             >
@@ -569,7 +571,7 @@ export const InkFlight: React.FC = () => {
                                   type="button"
                                   disabled={idx === 0}
                                   onClick={() => moveItem(sec.id, idx, 'up')}
-                                  className="text-text-tertiary hover:text-accent disabled:opacity-20 p-0.5"
+                                  className="text-mist-400 hover:text-gold-300 disabled:opacity-20 p-0.5"
                                 >
                                   <ChevronUp className="w-3 h-3" />
                                 </button>
@@ -577,7 +579,7 @@ export const InkFlight: React.FC = () => {
                                   type="button"
                                   disabled={idx === sec.items.length - 1}
                                   onClick={() => moveItem(sec.id, idx, 'down')}
-                                  className="text-text-tertiary hover:text-accent disabled:opacity-20 p-0.5"
+                                  className="text-mist-400 hover:text-gold-300 disabled:opacity-20 p-0.5"
                                 >
                                   <ChevronDown className="w-3 h-3" />
                                 </button>
@@ -588,19 +590,19 @@ export const InkFlight: React.FC = () => {
                                 type="text"
                                 value={it.title}
                                 onChange={(e) => updateItemTitle(sec.id, it.id, e.target.value)}
-                                className="flex-1 bg-transparent border-0 text-text-primary text-[11px] font-sans focus:outline-none focus:ring-1 focus:ring-accent/40 rounded px-1"
+                                className="flex-1 bg-transparent border-0 text-ivory-100 text-xs font-sans focus:outline-none focus:ring-1 focus:ring-gold-400 rounded px-1"
                               />
 
                               {/* Toggle visibility */}
                               <button
                                 type="button"
                                 onClick={() => toggleItemVisibility(sec.id, it.id)}
-                                className="p-1 rounded text-text-tertiary hover:text-text-primary shrink-0"
+                                className="p-1 rounded text-mist-400 hover:text-gold-300 shrink-0"
                               >
                                 {it.hidden ? (
-                                  <EyeOff className="w-3 h-3 text-red-400" />
+                                  <EyeOff className="w-3.5 h-3.5 text-red-400" />
                                 ) : (
-                                  <Eye className="w-3 h-3 text-emerald-400" />
+                                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
                                 )}
                               </button>
                             </div>
@@ -702,29 +704,28 @@ export const InkFlight: React.FC = () => {
                 </div>
               </div>
             </div>
-
           </div>
 
           {/* Sticky Bottom Export Bar */}
-          <div className="shrink-0 flex items-center justify-between gap-2 pt-2 pb-1 border-t border-border-subtle/50">
+          <div className="shrink-0 flex items-center justify-between gap-2 pt-3 pb-1 border-t border-gold-dim">
             <button
               type="button"
               onClick={() => setStage('form')}
-              className="flex items-center gap-1 px-3 py-2 rounded-full border border-border-subtle hover:border-border-hover text-[11px] font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-mist-300 hover:text-ivory-100 transition-all active:scale-95"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-3.5 h-3.5" />
               <span>Reset</span>
             </button>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 disabled={isExporting}
                 onClick={handleExportPng}
-                className="flex items-center gap-1 px-3 py-2 rounded-full bg-bg-surface border border-border-subtle hover:border-accent text-[11px] font-medium text-text-primary transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-ink-850 border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-ivory-100 transition-all active:scale-95"
                 title="Download PNG image"
               >
-                <Download className="w-3 h-3 text-accent" />
+                <Download className="w-3.5 h-3.5 text-gold-400" />
                 <span>PNG</span>
               </button>
 
@@ -732,26 +733,25 @@ export const InkFlight: React.FC = () => {
                 type="button"
                 disabled={isExporting}
                 onClick={handleExportPdf}
-                className="flex items-center gap-1 px-3 py-2 rounded-full bg-bg-surface border border-border-subtle hover:border-accent text-[11px] font-medium text-text-primary transition-all active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-ink-850 border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-ivory-100 transition-all active:scale-95"
                 title={`Download ${paperWidth} PDF document`}
               >
-                <FileText className="w-3 h-3 text-accent" />
-                <span>PDF ({paperWidth})</span>
+                <FileText className="w-3.5 h-3.5 text-gold-400" />
+                <span>PDF</span>
               </button>
 
               <button
                 type="button"
                 disabled={isExporting}
                 onClick={handleExportDocx}
-                className="editorial-cta-btn flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-semibold tracking-wide"
+                className="gold-pill-button flex items-center gap-1.5 px-4 py-2 text-xs"
                 title="Download Microsoft Word document"
               >
-                <FileCode className="w-3 h-3 text-[#0B1E3E]" />
+                <FileCode className="w-3.5 h-3.5 text-onyx-900" />
                 <span>DOCX</span>
               </button>
             </div>
           </div>
-
         </div>
       )}
     </Layout>

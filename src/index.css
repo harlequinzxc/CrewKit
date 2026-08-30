@@ -2,53 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Dark Theme (Default) */
-  --bg-base: #070B14;
-  --bg-surface: #121826;
-  --bg-elevated: #161E30;
-  --border-subtle: rgba(201, 168, 76, 0.16);
-  --border-medium: rgba(201, 168, 76, 0.26);
-  --border-hover: rgba(201, 168, 76, 0.35);
-  --text-primary: #F0ECE4;
-  --text-secondary: #8B95A8;
-  --text-tertiary: #5C6578;
-  --accent: #C9A84C;
-  --accent-soft: #E8D5A3;
-  --accent-dim: #8A7333;
-  --accent-glow: rgba(201, 168, 76, 0.18);
-  --danger: #C45B5B;
+/* ==========================================================================
+   CREWKIT DUAL-THEME DESIGN TOKEN SYSTEM
+   Mood 1: Night Cabin (Default) | Mood 2: Day Cabin
+   ========================================================================== */
+
+:root,
+[data-theme="dark"],
+html.dark {
+  /* Night Cabin: Midnight Navy Ramp */
+  --ink-950: #04070F;
+  --ink-900: #060D1B;
+  --ink-850: #081226;
+  --ink-800: #0B1730;
+  --ink-700: #12224A;
+  --ink-600: #1A2F66;
+  --ink-airline: #002569;
+
+  /* Night Cabin: Champagne Gold Ramp */
+  --gold-100: #F2DEAE;
+  --gold-300: #E7C98A;
+  --gold-400: #D9B978;
+  --gold-500: #C8A45D;
+  --gold-dim: rgba(217, 185, 120, 0.14);
+  --gold-border: rgba(217, 185, 120, 0.24);
+  --gold-border-hover: rgba(231, 201, 138, 0.45);
+  --gold-glow: rgba(231, 201, 138, 0.18);
+
+  /* Night Cabin: Warm Ivory & Mist Text */
+  --ivory-100: #F5EFE2;
+  --ivory-200: #ECE3D2;
+  --mist-300: #9AA7C4;
+  --mist-400: #7C8AAC;
+  --mist-500: #4E5B7A;
+
+  /* Dietary & Accent Chips */
+  --chip-wellness: rgba(91, 168, 138, 0.15);
+  --chip-wellness-text: #7EE0BE;
+  --chip-veg: rgba(163, 230, 53, 0.15);
+  --chip-veg-text: #BEF264;
+  --chip-amber: rgba(245, 158, 11, 0.15);
+  --chip-amber-text: #FCD34D;
+  --chip-sky: rgba(56, 189, 248, 0.15);
+  --chip-sky-text: #7DD3FC;
+
+  --danger: #E06C75;
   --success: #5BA88A;
+
+  /* Theme Shadows & Blurs */
+  --shadow-cabin-glass: 0 20px 50px -10px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(217, 185, 120, 0.15);
+  --shadow-elevated-card: 0 12px 32px -4px rgba(0, 0, 0, 0.55);
+  --sky-gradient: radial-gradient(ellipse at 50% 20%, rgba(0, 37, 105, 0.35) 0%, rgba(4, 7, 15, 0.95) 75%), #04070F;
+  --selection-bg: rgba(217, 185, 120, 0.28);
+  --selection-color: #F5EFE2;
 }
 
+[data-theme="light"],
 html.light {
-  --bg-base: #F5F2EB;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #EAE5D9;
-  --border-subtle: rgba(11, 30, 62, 0.12);
-  --border-medium: rgba(11, 30, 62, 0.20);
-  --border-hover: rgba(168, 139, 46, 0.40);
-  --text-primary: #0B1E3E;
-  --text-secondary: #5C6B80;
-  --text-tertiary: #8B95A8;
-  --accent: #A88B2E;
-  --accent-soft: #C9A84C;
-  --accent-dim: #7A6620;
-  --accent-glow: rgba(168, 139, 46, 0.15);
-  --danger: #C45B5B;
-  --success: #5BA88A;
+  /* Day Cabin: Warm Cream Paper Ramp */
+  --ink-950: #FFFFFF;
+  --ink-900: #F8F4EA;
+  --ink-850: #F3ECDC;
+  --ink-800: #ECE2CB;
+  --ink-700: #E3D6B8;
+  --ink-600: #D5C49C;
+  --ink-airline: #002569;
+
+  /* Day Cabin: Antique Gold (Deepened for contrast >= 4.5:1) */
+  --gold-100: #D6B56B;
+  --gold-300: #AD8632;
+  --gold-400: #93702C;
+  --gold-500: #86611F;
+  --gold-dim: rgba(147, 112, 44, 0.15);
+  --gold-border: rgba(147, 112, 44, 0.25);
+  --gold-border-hover: rgba(147, 112, 44, 0.45);
+  --gold-glow: rgba(173, 134, 50, 0.14);
+
+  /* Day Cabin: Deep Midnight Navy & Slate Text */
+  --ivory-100: #131B30;
+  --ivory-200: #202C48;
+  --mist-300: #47557C;
+  --mist-400: #5A6A94;
+  --mist-500: #8492B4;
+
+  /* Dietary & Accent Chips */
+  --chip-wellness: rgba(31, 112, 80, 0.12);
+  --chip-wellness-text: #17573E;
+  --chip-veg: rgba(63, 112, 16, 0.12);
+  --chip-veg-text: #2D540A;
+  --chip-amber: rgba(146, 64, 14, 0.12);
+  --chip-amber-text: #78350F;
+  --chip-sky: rgba(3, 105, 161, 0.12);
+  --chip-sky-text: #0369A1;
+
+  --danger: #B91C1C;
+  --success: #15803D;
+
+  /* Theme Shadows & Blurs */
+  --shadow-cabin-glass: 0 16px 40px -8px rgba(19, 27, 48, 0.08), 0 0 1px 1px rgba(147, 112, 44, 0.12);
+  --shadow-elevated-card: 0 8px 24px -3px rgba(19, 27, 48, 0.06);
+  --sky-gradient: radial-gradient(ellipse at 85% 15%, rgba(242, 222, 174, 0.4) 0%, rgba(248, 244, 234, 0.95) 60%), #F8F4EA;
+  --selection-bg: rgba(173, 134, 50, 0.25);
+  --selection-color: #131B30;
 }
+
+/* ==========================================================================
+   GLOBAL RESET & SEAMLESS TRANSITIONS
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-color);
+}
+
 body {
-  background-color: var(--bg-base);
-  color: var(--text-primary);
+  background-color: var(--ink-950);
+  color: var(--ivory-100);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  transition: background-color 250ms ease, color 250ms ease, border-color 250ms ease;
+  transition: background-color 500ms cubic-bezier(0.22, 1, 0.36, 1),
+              color 500ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 500ms cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
   height: 100vh;
   height: 100dvh;
@@ -58,7 +136,7 @@ body {
   user-select: none;
 }
 
-/* Hide browser scrollbars for native app feel */
+/* Hide native scrollbars globally */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -67,20 +145,115 @@ body {
   scrollbar-width: none;
 }
 
-/* Base background atmospheric radial vignette applied to shell */
-.app-atmosphere {
-  background: radial-gradient(ellipse at 50% 35%, rgba(20, 28, 48, 0.55) 0%, transparent 55%), #070B14;
+/* ==========================================================================
+   ATMOSPHERIC CABIN BACKGROUNDS (NIGHT STARFIELD VS DAY PEARL SKY)
+   ========================================================================== */
+
+.cabin-atmosphere {
+  background: var(--sky-gradient);
+  position: relative;
 }
 
-html.light .app-atmosphere {
-  background: radial-gradient(ellipse at 50% 35%, rgba(255, 255, 255, 0.7) 0%, transparent 55%), #F5F2EB;
+/* Night Stars & Horizon */
+.starfield-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.65;
+  transition: opacity 500ms ease;
 }
 
-/* Page transitions: quiet fade + 4px rise */
-@keyframes pageFadeRise {
+[data-theme="light"] .starfield-layer {
+  opacity: 0.12;
+}
+
+/* Star twinkling animations */
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 0.95; transform: scale(1.15); }
+}
+
+.star-mote {
+  position: absolute;
+  border-radius: 9999px;
+  background: var(--gold-100);
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   SIGNATURE LUXURY DESIGN ELEMENTS
+   ========================================================================== */
+
+/* 1. Cabin Glass Panels */
+.cabin-glass {
+  background-color: rgba(6, 13, 27, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--gold-dim);
+  border-radius: 24px;
+  box-shadow: var(--shadow-cabin-glass);
+  transition: all 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme="light"] .cabin-glass {
+  background-color: rgba(248, 244, 234, 0.88);
+  border: 1px solid var(--gold-dim);
+  box-shadow: var(--shadow-cabin-glass);
+}
+
+/* 2. Hairline Gold Gradient Divider */
+.gold-hairline {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--gold-400) 50%, transparent 100%);
+  opacity: 0.35;
+}
+
+/* 3. Champagne Gradient Text */
+.gold-gradient-text {
+  background: linear-gradient(135deg, var(--gold-100) 0%, var(--gold-400) 50%, var(--gold-500) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 4. Primary Gold Button (Onyx text in BOTH themes) */
+.gold-pill-button {
+  background: linear-gradient(135deg, var(--gold-100) 0%, var(--gold-300) 45%, var(--gold-500) 100%);
+  color: #0B1220 !important; /* Constant Onyx */
+  font-family: 'Jost', 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 9999px;
+  box-shadow: 0 4px 20px var(--gold-glow);
+  transition: all 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gold-pill-button:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px var(--gold-glow);
+}
+
+.gold-pill-button:active {
+  transform: scale(0.96);
+  transition-duration: 100ms;
+}
+
+/* 5. Cellar Book Dotted Leader */
+.cellar-dotted-leader {
+  flex-grow: 1;
+  border-bottom: 1px dotted var(--gold-dim);
+  margin: 0 12px;
+  margin-bottom: 4px;
+}
+
+/* Page entrance animations */
+@keyframes cabinFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
@@ -88,79 +261,6 @@ html.light .app-atmosphere {
   }
 }
 
-.animate-fade-in {
-  animation: pageFadeRise 180ms ease-out forwards;
-}
-
-/* Menu open animation: fade + scale(0.96 -> 1) */
-@keyframes menuScaleIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-menu-in {
-  animation: menuScaleIn 150ms ease-out forwards;
-}
-
-/* Editorial Nav Cards */
-.editorial-nav-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 20px;
-  min-height: 108px;
-  transition: all 150ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-html.light .editorial-nav-card {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-}
-
-.editorial-nav-card:hover {
-  border-color: var(--border-hover);
-  box-shadow: 0 0 24px var(--accent-glow);
-  transform: translateY(-1px);
-}
-
-.editorial-nav-card:active {
-  transform: scale(0.98);
-  transition-duration: 100ms;
-}
-
-/* Primary Centered Pill CTA */
-.editorial-cta-btn {
-  background: linear-gradient(135deg, #E8D5A3 0%, #C9A84C 100%);
-  color: #0B1E3E;
-  box-shadow: 0 0 35px rgba(201, 168, 76, 0.25), 0 8px 24px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.editorial-cta-btn:hover {
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 0 45px rgba(201, 168, 76, 0.35), 0 10px 28px rgba(0, 0, 0, 0.5);
-}
-
-.editorial-cta-btn:active {
-  transform: scale(0.98);
-  transition-duration: 100ms;
-}
-
-/* Glass panel */
-.glass-panel {
-  background-color: rgba(22, 30, 48, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(201, 168, 76, 0.18);
-}
-
-html.light .glass-panel {
-  background-color: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(11, 30, 62, 0.14);
+.animate-cabin-in {
+  animation: cabinFadeIn 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }

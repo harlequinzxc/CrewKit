@@ -1,15 +1,37 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" data-theme="dark" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <!-- Title & Description -->
-    <title>CrewKit — Singapore Airlines Cabin Crew Toolkit</title>
-    <meta name="description" content="A refined progressive web toolkit for Singapore Airlines cabin crew. CrewCash allowance calculator, SkyMenu viewer, InkFlight formatter, and rate settings." />
+    <title>CrewKit — Singapore Airlines Cabin Crew Companion</title>
+    <meta name="description" content="A refined luxury progressive web toolkit for Singapore Airlines cabin crew. Inflight allowances, digital menus, thermal receipt homework, and customized seniority rates." />
     
+    <!-- Inline Theme Init (Zero FOUC) -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('crewkit-theme-preference');
+          var theme = (saved === 'light' || saved === 'dark')
+            ? saved
+            : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'light') {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+            document.documentElement.style.colorScheme = 'light';
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- PWA & Mobile Web App Meta -->
-    <meta name="theme-color" content="#070B14" />
+    <meta name="theme-color" content="#04070F" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -25,15 +47,15 @@
     <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
 
-    <!-- Google Fonts: Playfair Display + Inter -->
+    <!-- Google Fonts: Cormorant Garamond (Editorial Display) + Jost (UI Eyebrows) + Inter (Crisp Sans) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Inter:wght@300;400;500;600;700&family=Jost:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap"
       rel="stylesheet"
     />
   </head>
-  <body class="bg-bg-base text-text-primary antialiased select-none overflow-hidden touch-manipulation">
+  <body class="bg-ink-950 text-ivory-100 antialiased select-none overflow-hidden touch-manipulation">
     <div id="root" class="h-screen w-screen overflow-hidden flex flex-col"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -9,6 +9,7 @@ import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import { getFlightSchedule } from '../lib/sq/endpoints';
 import { Sector } from '../lib/sq/types';
+import { motion } from 'framer-motion';
 import {
   ArrowRight,
   Plane,
@@ -33,9 +34,6 @@ function formatBlockTime(minutes: number): string {
   return m > 0 ? `${h}h ${m < 10 ? '0' : ''}${m}m` : `${h}h 00m`;
 }
 
-/**
- * Calculate layover duration between arrival in station and departure from station
- */
 function calculateStationLayover(
   arrDate: string,
   arrTime: string,
@@ -68,22 +66,22 @@ export const CrewCash: React.FC = () => {
   const [stage, setStage] = useState<'sector1' | 'sector2' | 'sector3' | 'sector4' | 'loading' | 'result'>('sector1');
   const [activeSectorCount, setActiveSectorCount] = useState<2 | 4>(4);
 
-  // Sector 1: Flight Number & Departure Date
+  // Sector 1
   const sector1Validation = useFlightValidation('');
   const [sector1DateISO, setSector1DateISO] = useState<string>(initialTodayISO);
   const [sector1DateDisplay, setSector1DateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Sector 2: Flight Number & Departure Date
+  // Sector 2
   const sector2Validation = useFlightValidation('');
   const [sector2DateISO, setSector2DateISO] = useState<string>(initialTodayISO);
   const [sector2DateDisplay, setSector2DateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Sector 3: Flight Number & Departure Date
+  // Sector 3
   const sector3Validation = useFlightValidation('');
   const [sector3DateISO, setSector3DateISO] = useState<string>(initialTodayISO);
   const [sector3DateDisplay, setSector3DateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Sector 4: Flight Number & Departure Date
+  // Sector 4
   const sector4Validation = useFlightValidation('');
   const [sector4DateISO, setSector4DateISO] = useState<string>(initialTodayISO);
   const [sector4DateDisplay, setSector4DateDisplay] = useState<string>(initialTodayDisplay);
@@ -98,7 +96,6 @@ export const CrewCash: React.FC = () => {
   const [stationDepDate, setStationDepDate] = useState<string>('');
   const [rankSelection, setRankSelection] = useState<'FS/EY' | 'LS/LSS' | 'CS/CSS' | 'IFS'>('FS/EY');
 
-  // Auto-fill smart return flight numbers when proceeding
   const handleProceedToSector2 = () => {
     const num1 = parseInt(sector1Validation.flightNo, 10);
     if (!isNaN(num1) && (!sector2Validation.flightNo || sector2Validation.flightNo === '')) {
@@ -121,13 +118,11 @@ export const CrewCash: React.FC = () => {
     setStage('sector4');
   };
 
-  // Trigger Calculation
   const handleStartCalculation = (sectorCount: 2 | 4) => {
     setActiveSectorCount(sectorCount);
     setStage('loading');
   };
 
-  // Fetch Schedules & derive timings by pulling data from the flight numbers keyed in
   const executeSchedulesFetch = async () => {
     if (activeSectorCount === 2) {
       const [s1, s2] = await Promise.all([
@@ -148,17 +143,14 @@ export const CrewCash: React.FC = () => {
 
   const handleFetchSuccess = (data: { schedules: any[]; count: number }) => {
     const sectors: Sector[] = [];
-
     data.schedules.forEach((sch) => {
       if (sch && sch.sectors && sch.sectors.length > 0) {
-        // Add all sectors from the schedule (handles single leg and multi-leg routes)
         sectors.push(...sch.sectors);
       }
     });
 
     setAllSectors(sectors);
 
-    // Derive station arrival, departure, and layover
     if (sectors.length >= 2) {
       const midpoint = Math.floor(sectors.length / 2);
       const outboundStationSector = sectors[midpoint - 1];
@@ -184,17 +176,14 @@ export const CrewCash: React.FC = () => {
     setStage('sector1');
   };
 
-  // Total Flight Minutes across all sectors
   const grandTotalFlightMinutes = allSectors.reduce((acc, s) => acc + (s.blockMinutes || 0), 0);
   const totalFlightHoursDecimal = grandTotalFlightMinutes / 60;
 
-  // Station Layover duration
   const stationLayover =
     stationArrDate && stationArrTime && stationDepDate && stationDepTime
       ? calculateStationLayover(stationArrDate, stationArrTime, stationDepDate, stationDepTime)
       : null;
 
-  // Allowance calculation based on crew rank hourly rates (SIA standard rates)
   const rankHourlyRates: Record<string, number> = {
     'FS/EY': 12.8,
     'LS/LSS': 16.5,
@@ -203,7 +192,7 @@ export const CrewCash: React.FC = () => {
   };
   const hourlyRate = rankHourlyRates[rankSelection] || 12.8;
   const estimatedFlyingPay = Math.round(totalFlightHoursDecimal * hourlyRate);
-  const estimatedMealAllowance = allSectors.length * 45; // ~S$45 per sector meal allowance
+  const estimatedMealAllowance = allSectors.length * 45;
   const estimatedTotalEarnings = estimatedFlyingPay + estimatedMealAllowance;
 
   const flightChipSummary =
@@ -213,7 +202,7 @@ export const CrewCash: React.FC = () => {
 
   return (
     <Layout>
-      {/* 1. LOADING INTERLUDE (8s Minimum Duration, 4 messages @ 2s each) */}
+      {/* 1. LOADING INTERLUDE (8s Minimum Duration) */}
       {stage === 'loading' && (
         <FetchInterlude
           flightChipText={flightChipSummary}
@@ -225,27 +214,24 @@ export const CrewCash: React.FC = () => {
 
       {/* 2. STEP 1: SECTOR 1 */}
       {stage === 'sector1' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
-          {/* Sector Step Indicator */}
+        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
           <div className="shrink-0 flex justify-center pt-1">
-            <span className="text-[11px] font-mono tracking-widest uppercase text-accent font-semibold px-3 py-0.5 rounded-full bg-accent/10 border border-accent/20">
+            <span className="text-[10px] font-ui uppercase tracking-eyebrow-wide text-gold-300 font-semibold px-3.5 py-1 rounded-full bg-ink-850 border border-gold-dim">
               Sector 1 of 4
             </span>
           </div>
 
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
-          {/* Editorial Hero Block */}
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
               Departing,
             </span>
 
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
               First sector flight &amp; date.
             </h2>
 
-            {/* Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={sector1Validation.flightNo}
@@ -257,7 +243,6 @@ export const CrewCash: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block */}
             {sector1Validation.isValid && sector1Validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -273,7 +258,6 @@ export const CrewCash: React.FC = () => {
 
           <div className="flex-1 max-h-8 sm:max-h-12" />
 
-          {/* Progression CTA */}
           {sector1Validation.isValid && sector1Validation.flightNo.length > 0 && sector1DateISO && (
             <div className="shrink-0 pb-2">
               <RevealCTA
@@ -289,31 +273,28 @@ export const CrewCash: React.FC = () => {
 
       {/* 3. STEP 2: SECTOR 2 */}
       {stage === 'sector2' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
-          {/* Top Previous Sector Pill */}
+        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
           <div className="shrink-0 flex items-center justify-center gap-2 pt-1">
             <FlightChip
               label={`Sector 1: SQ${sector1Validation.cleanFlightNo} · ${sector1DateDisplay}`}
               onClick={() => setStage('sector1')}
             />
-            <span className="text-[11px] font-mono tracking-widest uppercase text-accent font-semibold px-2.5 py-0.5 rounded-full bg-accent/10 border border-accent/20">
+            <span className="text-[10px] font-ui uppercase tracking-eyebrow-wide text-gold-300 font-semibold px-3 py-1 rounded-full bg-ink-850 border border-gold-dim">
               Sector 2 of 4
             </span>
           </div>
 
           <div className="flex-1 max-h-6 sm:max-h-10" />
 
-          {/* Editorial Hero Block */}
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
               Returning / Next,
             </span>
 
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
               Second sector flight &amp; date.
             </h2>
 
-            {/* Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={sector2Validation.flightNo}
@@ -325,7 +306,6 @@ export const CrewCash: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block */}
             {sector2Validation.isValid && sector2Validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -341,7 +321,6 @@ export const CrewCash: React.FC = () => {
 
           <div className="flex-1 max-h-6 sm:max-h-10" />
 
-          {/* Progression CTA to Sector 3 or 2-Sector Calculate */}
           {sector2Validation.isValid && sector2Validation.flightNo.length > 0 && sector2DateISO && (
             <div className="shrink-0 pb-2 space-y-2 text-center">
               <RevealCTA
@@ -350,11 +329,10 @@ export const CrewCash: React.FC = () => {
                 summary={`SQ${sector2Validation.cleanFlightNo} · ${sector2DateDisplay}`}
                 onPress={handleProceedToSector3}
               />
-              
               <button
                 type="button"
                 onClick={() => handleStartCalculation(2)}
-                className="text-[11px] text-text-secondary hover:text-accent font-medium underline underline-offset-4 transition-colors"
+                className="font-ui text-[11px] uppercase tracking-wider text-mist-300 hover:text-gold-300 underline underline-offset-4 transition-colors block mx-auto"
               >
                 Or calculate 2 sectors only (SQ{sector1Validation.cleanFlightNo} &amp; SQ{sector2Validation.cleanFlightNo})
               </button>
@@ -365,35 +343,26 @@ export const CrewCash: React.FC = () => {
 
       {/* 4. STEP 3: SECTOR 3 */}
       {stage === 'sector3' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
-          {/* Top Previous Sectors Pills */}
+        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
           <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 pt-1">
-            <FlightChip
-              label={`S1: SQ${sector1Validation.cleanFlightNo}`}
-              onClick={() => setStage('sector1')}
-            />
-            <FlightChip
-              label={`S2: SQ${sector2Validation.cleanFlightNo}`}
-              onClick={() => setStage('sector2')}
-            />
-            <span className="text-[10px] font-mono tracking-widest uppercase text-accent font-semibold px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20">
+            <FlightChip label={`S1: SQ${sector1Validation.cleanFlightNo}`} onClick={() => setStage('sector1')} />
+            <FlightChip label={`S2: SQ${sector2Validation.cleanFlightNo}`} onClick={() => setStage('sector2')} />
+            <span className="text-[10px] font-ui uppercase tracking-eyebrow text-gold-300 font-semibold px-3 py-1 rounded-full bg-ink-850 border border-gold-dim">
               Sector 3 of 4
             </span>
           </div>
 
           <div className="flex-1 max-h-6 sm:max-h-10" />
 
-          {/* Editorial Hero Block */}
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
               Third Duty,
             </span>
 
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
               Third sector flight &amp; date.
             </h2>
 
-            {/* Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={sector3Validation.flightNo}
@@ -405,7 +374,6 @@ export const CrewCash: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block */}
             {sector3Validation.isValid && sector3Validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -421,7 +389,6 @@ export const CrewCash: React.FC = () => {
 
           <div className="flex-1 max-h-6 sm:max-h-10" />
 
-          {/* Progression CTA */}
           {sector3Validation.isValid && sector3Validation.flightNo.length > 0 && sector3DateISO && (
             <div className="shrink-0 pb-2">
               <RevealCTA
@@ -437,39 +404,27 @@ export const CrewCash: React.FC = () => {
 
       {/* 5. STEP 4: SECTOR 4 */}
       {stage === 'sector4' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-fade-in">
-          {/* Top Previous Sectors Pills */}
-          <div className="shrink-0 flex flex-wrap items-center justify-center gap-1 pt-1">
-            <FlightChip
-              label={`S1: SQ${sector1Validation.cleanFlightNo}`}
-              onClick={() => setStage('sector1')}
-            />
-            <FlightChip
-              label={`S2: SQ${sector2Validation.cleanFlightNo}`}
-              onClick={() => setStage('sector2')}
-            />
-            <FlightChip
-              label={`S3: SQ${sector3Validation.cleanFlightNo}`}
-              onClick={() => setStage('sector3')}
-            />
-            <span className="text-[10px] font-mono tracking-widest uppercase text-accent font-semibold px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20">
+        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
+          <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 pt-1">
+            <FlightChip label={`S1: SQ${sector1Validation.cleanFlightNo}`} onClick={() => setStage('sector1')} />
+            <FlightChip label={`S2: SQ${sector2Validation.cleanFlightNo}`} onClick={() => setStage('sector2')} />
+            <FlightChip label={`S3: SQ${sector3Validation.cleanFlightNo}`} onClick={() => setStage('sector3')} />
+            <span className="text-[10px] font-ui uppercase tracking-eyebrow text-gold-300 font-semibold px-3 py-1 rounded-full bg-ink-850 border border-gold-dim">
               Sector 4 of 4
             </span>
           </div>
 
           <div className="flex-1 max-h-6 sm:max-h-10" />
 
-          {/* Editorial Hero Block */}
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-serif italic text-accent text-base sm:text-lg tracking-wide mb-1">
+            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
               Final Sector,
             </span>
 
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-text-primary tracking-tight leading-snug">
+            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
               Fourth sector flight &amp; date.
             </h2>
 
-            {/* Flight Number Input */}
             <div className="w-full mt-6 text-left">
               <FlightNumberInput
                 value={sector4Validation.flightNo}
@@ -481,7 +436,6 @@ export const CrewCash: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block */}
             {sector4Validation.isValid && sector4Validation.flightNo.length > 0 && (
               <div className="w-full mt-5 text-left">
                 <DepartureBlock
@@ -497,12 +451,11 @@ export const CrewCash: React.FC = () => {
 
           <div className="flex-1 max-h-6 sm:max-h-10" />
 
-          {/* Calculate CTA */}
           {sector4Validation.isValid && sector4Validation.flightNo.length > 0 && sector4DateISO && (
             <div className="shrink-0 pb-2">
               <RevealCTA
                 label="Calculate 4 Sectors"
-                icon={<Wallet className="w-4 h-4 text-[#0B1E3E]" />}
+                icon={<Wallet className="w-4 h-4 text-onyx-900" />}
                 summary={`SQ${sector4Validation.cleanFlightNo} · ${sector4DateDisplay}`}
                 onPress={() => handleStartCalculation(4)}
               />
@@ -511,207 +464,216 @@ export const CrewCash: React.FC = () => {
         </div>
       )}
 
-      {/* 6. RESULT SCREEN — ALL SECTORS, STATION TIMINGS, AND ALLOWANCES */}
+      {/* 6. RESULT SCREEN — EDITORIAL LUXURY VIEW WITH GIANT IATA CODES */}
       {stage === 'result' && allSectors.length > 0 && (
-        <div className="flex flex-col h-full overflow-hidden py-1 animate-fade-in">
-          
-          {/* Top Flight Summary Chip */}
-          <div className="shrink-0 text-center pt-1 pb-2 border-b border-border-subtle/50">
+        <div className="flex flex-col h-full overflow-hidden py-1 animate-cabin-in text-left">
+          {/* Top Flight Chip Summary */}
+          <div className="shrink-0 text-center pt-1 pb-3 border-b border-gold-dim">
             <FlightChip label={flightChipSummary} />
           </div>
 
-          {/* Scrollable Sector Cards Container */}
-          <div className="flex-1 overflow-y-auto no-scrollbar py-2.5 space-y-3 px-1">
-            
-            {/* Station Layover & Station Rest Summary Card */}
+          {/* Main Scrollable Content */}
+          <div className="flex-1 overflow-y-auto no-scrollbar py-4 space-y-6 px-1">
+            {/* Station Layover & Station Rest Card */}
             {stationName && stationArrTime && stationDepTime && (
-              <div className="p-3.5 rounded-card bg-bg-surface border border-accent/40 shadow-sm space-y-2.5">
-                <div className="flex items-center justify-between border-b border-border-subtle/50 pb-2">
-                  <div className="flex items-center gap-1.5 text-accent text-xs font-semibold uppercase tracking-wider">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>Station Layover · {stationCity} ({stationName})</span>
+              <div className="cabin-glass p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
+                  <div className="flex items-center gap-2 text-gold-300 text-xs font-ui uppercase tracking-eyebrow font-semibold">
+                    <MapPin className="w-4 h-4 text-gold-400" />
+                    <span>Station Layover &bull; {stationCity} ({stationName})</span>
                   </div>
                   {stationLayover && (
-                    <span className="text-[11px] font-mono text-text-primary px-2.5 py-0.5 rounded-full bg-accent/15 border border-accent/30 font-semibold">
+                    <span className="text-xs font-ui uppercase tracking-wider text-onyx-900 px-3 py-1 rounded-full bg-gold-400 font-bold shadow-sm">
                       {stationLayover} Layover
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 text-left">
-                  {/* Arrival in Station */}
-                  <div className="p-2.5 rounded bg-bg-elevated/70 border border-border-subtle/40">
-                    <span className="text-[10px] text-text-secondary uppercase font-medium block">
-                      Local Arrival in Station ({stationName})
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
+                    <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                      Local Arrival &bull; {stationName}
                     </span>
-                    <span className="text-base sm:text-lg font-serif font-bold text-text-primary block mt-0.5">
+                    <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                       {stationArrTime}
                     </span>
-                    <span className="text-[10px] font-mono text-text-tertiary block mt-0.5">
+                    <span className="text-xs font-ui text-mist-400 block mt-0.5">
                       {formatDateDisplay(stationArrDate)}
                     </span>
                   </div>
 
-                  {/* Departure from Station */}
-                  <div className="p-2.5 rounded bg-bg-elevated/70 border border-border-subtle/40">
-                    <span className="text-[10px] text-text-secondary uppercase font-medium block">
-                      Local Departure from Station ({stationName})
+                  <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
+                    <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                      Local Departure &bull; {stationName}
                     </span>
-                    <span className="text-base sm:text-lg font-serif font-bold text-text-primary block mt-0.5">
+                    <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                       {stationDepTime}
                     </span>
-                    <span className="text-[10px] font-mono text-text-tertiary block mt-0.5">
+                    <span className="text-xs font-ui text-mist-400 block mt-0.5">
                       {formatDateDisplay(stationDepDate)}
                     </span>
                   </div>
                 </div>
 
-                {/* Total Flight Time Across All Sectors */}
-                <div className="flex items-center justify-between pt-1 text-xs">
-                  <span className="text-text-secondary flex items-center gap-1.5 text-[11px]">
-                    <Clock className="w-3.5 h-3.5 text-accent" />
-                    <span>Total Flight Time ({allSectors.length} Sectors)</span>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-mist-300 flex items-center gap-2 text-xs font-ui uppercase tracking-wider">
+                    <Clock className="w-4 h-4 text-gold-400" />
+                    <span>Total Flight Time across {allSectors.length} Sectors</span>
                   </span>
-                  <span className="font-serif italic text-accent font-semibold text-xs sm:text-sm">
+                  <span className="font-display text-2xl font-normal text-gold-300">
                     {formatBlockTime(grandTotalFlightMinutes)}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Individual Sectors Breakdown (All Sectors clearly numbered 1 through 4) */}
-            <div className="p-3.5 rounded-card bg-bg-surface border border-border-subtle shadow-sm space-y-2.5">
-              <div className="flex items-center justify-between pb-1.5 border-b border-border-subtle/60 text-xs">
-                <span className="font-semibold text-accent tracking-wider uppercase text-[10px]">
-                  Sector Timings Breakdown ({allSectors.length} Sectors)
-                </span>
-                <span className="text-[10px] text-text-tertiary font-mono">
-                  Pulled from flight schedule
+            {/* Individual Sectors Breakdown with GIANT IATA CODES (4rem+) */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
+                <h3 className="font-display text-2xl font-light text-ivory-100">
+                  Sector Timings Breakdown
+                </h3>
+                <span className="text-xs font-ui uppercase tracking-eyebrow text-mist-400">
+                  {allSectors.length} Sectors Scheduled
                 </span>
               </div>
 
-              {allSectors.map((sec, idx) => (
-                <div
-                  key={idx}
-                  className="p-2.5 rounded-lg bg-bg-elevated/50 border border-border-subtle/50"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-accent/90 uppercase tracking-wider font-mono">
-                      Sector {idx + 1}
-                    </span>
-                    <span className="text-[10px] text-text-tertiary font-mono">
-                      {sec.depDateLocal ? formatDateDisplay(sec.depDateLocal) : ''}
-                    </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {allSectors.map((sec, idx) => (
+                  <div
+                    key={idx}
+                    className="cabin-glass p-5 flex flex-col justify-between hover:border-gold-400/40 transition-all"
+                  >
+                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-gold-dim">
+                      <span className="text-xs font-ui uppercase tracking-eyebrow text-gold-300 font-semibold">
+                        Sector {idx + 1}
+                      </span>
+                      <span className="text-xs font-ui text-mist-400">
+                        {sec.depDateLocal ? formatDateDisplay(sec.depDateLocal) : ''}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      {/* Origin with Giant IATA code */}
+                      <div className="text-left">
+                        <span className="text-xs font-ui text-mist-300 uppercase tracking-wider block">
+                          {sec.fromCity || sec.from}
+                        </span>
+                        <span className="font-display text-4xl sm:text-5xl font-light text-ivory-100 tracking-tight block">
+                          {sec.from}
+                        </span>
+                        <span className="text-sm font-ui text-gold-300 font-semibold block mt-1">
+                          {sec.depLocal}
+                        </span>
+                      </div>
+
+                      {/* Flight Duration Indicator */}
+                      <div className="flex flex-col items-center px-3 text-center">
+                        <Plane className="w-4 h-4 text-gold-400 rotate-90 my-1" strokeWidth={1.75} />
+                        <span className="font-display italic text-gold-300 text-sm font-medium">
+                          {formatBlockTime(sec.blockMinutes)}
+                        </span>
+                        <span className="text-[10px] font-ui uppercase tracking-widest text-mist-400 mt-0.5">
+                          Flight Time
+                        </span>
+                      </div>
+
+                      {/* Destination with Giant IATA code */}
+                      <div className="text-right">
+                        <span className="text-xs font-ui text-mist-300 uppercase tracking-wider block">
+                          {sec.toCity || sec.to}
+                        </span>
+                        <span className="font-display text-4xl sm:text-5xl font-light text-ivory-100 tracking-tight block">
+                          {sec.to}
+                        </span>
+                        <span className="text-sm font-ui text-gold-300 font-semibold block mt-1">
+                          {sec.arrLocal}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    {/* Origin */}
-                    <div className="text-left w-1/3">
-                      <span className="text-[10px] text-text-secondary block truncate font-medium">
-                        {sec.fromCity || sec.from}
-                      </span>
-                      <span className="font-serif text-lg sm:text-xl font-bold text-text-primary">
-                        {sec.from}
-                      </span>
-                      <span className="text-xs font-mono text-text-primary block font-semibold mt-0.5">
-                        {sec.depLocal}
-                      </span>
-                    </div>
-
-                    {/* Flight Time Duration */}
-                    <div className="flex flex-col items-center px-1 w-1/3 text-center">
-                      <Plane className="w-3.5 h-3.5 text-accent rotate-90 my-0.5" strokeWidth={1.8} />
-                      <span className="font-serif italic text-accent text-xs font-semibold">
-                        {formatBlockTime(sec.blockMinutes)}
-                      </span>
-                      <span className="text-[9px] text-text-tertiary font-mono">Flight Time</span>
-                    </div>
-
-                    {/* Destination */}
-                    <div className="text-right w-1/3">
-                      <span className="text-[10px] text-text-secondary block truncate font-medium">
-                        {sec.toCity || sec.to}
-                      </span>
-                      <span className="font-serif text-lg sm:text-xl font-bold text-text-primary">
-                        {sec.to}
-                      </span>
-                      <span className="text-xs font-mono text-text-primary block font-semibold mt-0.5">
-                        {sec.arrLocal}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             {/* Crew Flying & Meal Allowance Calculator Card */}
-            <div className="p-3.5 rounded-card bg-bg-surface border border-border-subtle shadow-sm space-y-3">
-              <div className="flex items-center justify-between pb-1 border-b border-border-subtle/50">
-                <span className="font-semibold text-accent uppercase tracking-wider text-[10px] flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5" />
+            <div className="cabin-glass p-6 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
+                <span className="font-display text-xl font-light text-ivory-100 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-gold-400" />
                   <span>Allowance &amp; Flying Pay Estimate</span>
                 </span>
-                
-                {/* Rank Selector */}
-                <div className="flex items-center gap-1 p-0.5 rounded bg-bg-elevated border border-border-subtle text-[10px]">
+
+                {/* Rank Selector using sliding pill */}
+                <div className="flex items-center gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim">
                   {(['FS/EY', 'LS/LSS', 'CS/CSS', 'IFS'] as const).map((rk) => (
                     <button
                       key={rk}
                       type="button"
                       onClick={() => setRankSelection(rk)}
-                      className={`px-1.5 py-0.5 rounded font-medium transition-all ${
-                        rankSelection === rk
-                          ? 'bg-accent text-[#0B1E3E] font-bold'
-                          : 'text-text-secondary hover:text-text-primary'
+                      className={`relative px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
+                        rankSelection === rk ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
                       }`}
                     >
-                      {rk}
+                      {rankSelection === rk && (
+                        <motion.div
+                          layoutId="crew-rank-pill"
+                          className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
+                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                      <span className="relative z-10">{rk}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-left">
-                <div className="p-2 rounded bg-bg-elevated/70 border border-border-subtle/30">
-                  <span className="text-[9px] text-text-secondary uppercase block">Flying Pay</span>
-                  <span className="font-serif text-sm sm:text-base font-bold text-text-primary block mt-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
+                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                    Flying Pay
+                  </span>
+                  <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                     S${estimatedFlyingPay}
                   </span>
-                  <span className="text-[9px] text-text-tertiary font-mono block">
+                  <span className="text-xs font-ui text-mist-400 block mt-0.5">
                     {totalFlightHoursDecimal.toFixed(1)}h @ S${hourlyRate}/h
                   </span>
                 </div>
 
-                <div className="p-2 rounded bg-bg-elevated/70 border border-border-subtle/30">
-                  <span className="text-[9px] text-text-secondary uppercase block">Meal Allowance</span>
-                  <span className="font-serif text-sm sm:text-base font-bold text-text-primary block mt-0.5">
+                <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
+                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                    Meal Allowance
+                  </span>
+                  <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                     S${estimatedMealAllowance}
                   </span>
-                  <span className="text-[9px] text-text-tertiary font-mono block">
-                    {allSectors.length} sectors
+                  <span className="text-xs font-ui text-mist-400 block mt-0.5">
+                    {allSectors.length} sectors scheduled
                   </span>
                 </div>
 
-                <div className="p-2 rounded bg-accent/15 border border-accent/40">
-                  <span className="text-[9px] text-accent uppercase font-bold block">Est. Total</span>
-                  <span className="font-serif text-sm sm:text-base font-bold text-accent block mt-0.5">
+                <div className="p-4 rounded-card bg-gold-400/15 border border-gold-400/40">
+                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-gold-300 font-semibold block">
+                    Estimated Total
+                  </span>
+                  <span className="font-display text-2xl sm:text-3xl font-normal gold-gradient-text block mt-1">
                     S${estimatedTotalEarnings}
                   </span>
-                  <span className="text-[9px] text-text-tertiary font-mono block">
-                    SGD Gross
+                  <span className="text-xs font-ui text-mist-400 block mt-0.5">
+                    SGD Gross Estimated
                   </span>
                 </div>
               </div>
             </div>
-
           </div>
 
-          {/* Bottom Action Footer */}
-          <div className="shrink-0 flex items-center justify-between gap-3 pt-2 pb-1 border-t border-border-subtle/50">
+          {/* Bottom Clean Action */}
+          <div className="shrink-0 flex items-center justify-between gap-3 pt-3 pb-1 border-t border-gold-dim">
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="px-4 py-2 rounded-full border border-border-subtle hover:border-border-hover text-xs font-medium text-text-secondary hover:text-text-primary transition-all active:scale-95"
+              className="px-5 py-2.5 rounded-full border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-mist-300 hover:text-ivory-100 transition-all active:scale-95"
             >
               Back to Home
             </button>
@@ -719,7 +681,7 @@ export const CrewCash: React.FC = () => {
             <button
               type="button"
               onClick={handleReset}
-              className="editorial-cta-btn flex items-center gap-1.5 px-5 py-2 rounded-full text-xs font-semibold tracking-wide"
+              className="gold-pill-button flex items-center gap-2 px-6 py-2.5 text-xs"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>New Calculation</span>

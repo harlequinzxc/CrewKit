@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar as CalendarIcon } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface DepartureBlockProps {
   onDateSelect: (dateISO: string, formattedDisplay: string) => void;
@@ -7,9 +8,6 @@ interface DepartureBlockProps {
   className?: string;
 }
 
-/**
- * Return today's date ISO string in local timezone (YYYY-MM-DD)
- */
 export function getTodayISO(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -18,9 +16,6 @@ export function getTodayISO(): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Return tomorrow's date ISO string in local timezone (YYYY-MM-DD)
- */
 export function getTomorrowISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -30,9 +25,6 @@ export function getTomorrowISO(): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Return max date ISO string in local timezone (today + 42 days / 6 weeks)
- */
 export function getMaxDateISO(): string {
   const d = new Date();
   d.setDate(d.getDate() + 42);
@@ -42,9 +34,6 @@ export function getMaxDateISO(): string {
   return `${year}-${month}-${day}`;
 }
 
-/**
- * Format local ISO string (YYYY-MM-DD) into UK/Singapore display (e.g. 30 Aug 2026)
- */
 export function formatDateDisplay(iso: string): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-').map(Number);
@@ -104,61 +93,69 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
   return (
     <div className={`w-full text-left transition-all duration-300 animate-fade-in ${className}`}>
       {/* Overline Label */}
-      <label className="block text-[0.7rem] font-medium tracking-[0.2em] uppercase text-text-secondary mb-2.5 select-none">
-        Departure
+      <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
+        Departure Date
       </label>
 
-      {/* Mode 1: 3-Pill Row (Today / Tomorrow / Pick date) */}
+      {/* Mode 1: Sliding Pill Selection */}
       {activePreset !== 'custom' ? (
-        <div className="flex items-center gap-2 select-none">
-          {/* Today Pill */}
+        <div className="flex items-center gap-2 p-1 rounded-full bg-ink-850 border border-gold-dim select-none relative">
+          {/* Today Button */}
           <button
             type="button"
             onClick={handleSelectToday}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
-              activePreset === 'today'
-                ? 'bg-accent text-[#0B1E3E] font-semibold shadow-gold-glow'
-                : 'bg-bg-elevated text-text-secondary hover:text-text-primary border border-border-subtle'
+            className={`relative flex-1 py-2 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-colors duration-200 z-10 ${
+              activePreset === 'today' ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
             }`}
           >
-            Today
+            {activePreset === 'today' && (
+              <motion.div
+                layoutId="departure-pill-active"
+                className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">Today</span>
           </button>
 
-          {/* Tomorrow Pill */}
+          {/* Tomorrow Button */}
           <button
             type="button"
             onClick={handleSelectTomorrow}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-200 ${
-              activePreset === 'tomorrow'
-                ? 'bg-accent text-[#0B1E3E] font-semibold shadow-gold-glow'
-                : 'bg-bg-elevated text-text-secondary hover:text-text-primary border border-border-subtle'
+            className={`relative flex-1 py-2 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-colors duration-200 z-10 ${
+              activePreset === 'tomorrow' ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
             }`}
           >
-            Tomorrow
+            {activePreset === 'tomorrow' && (
+              <motion.div
+                layoutId="departure-pill-active"
+                className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
+                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              />
+            )}
+            <span className="relative z-10">Tomorrow</span>
           </button>
 
-          {/* Pick date button */}
+          {/* Pick Date Button */}
           <button
             type="button"
             onClick={() => {
               setActivePreset('custom');
               onDateSelect(customDate, formatDateDisplay(customDate));
             }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium bg-bg-elevated text-text-secondary hover:text-accent border border-border-subtle transition-all duration-200"
+            className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-full text-xs font-ui uppercase tracking-wider font-semibold text-mist-300 hover:text-gold-300 transition-colors z-10"
           >
             <CalendarIcon className="w-3.5 h-3.5" />
-            <span>Pick date</span>
+            <span>Pick Date</span>
           </button>
         </div>
       ) : (
-        /* Mode 2: Custom Date Picker Input with back link */
+        /* Mode 2: Custom Date Picker Input */
         <div className="flex items-center gap-2 animate-fade-in">
           <button
             type="button"
-            onClick={() => {
-              handleSelectToday();
-            }}
-            className="w-10 h-10 rounded-full bg-bg-elevated border border-border-subtle flex items-center justify-center text-text-secondary hover:text-accent shrink-0 active:scale-95 transition-all"
+            onClick={handleSelectToday}
+            className="w-11 h-11 rounded-full bg-ink-850 border border-gold-dim flex items-center justify-center text-mist-300 hover:text-gold-300 shrink-0 active:scale-95 transition-all shadow-sm"
             aria-label="Back to quick presets"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -171,7 +168,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
               max={maxDateISO}
               value={customDate}
               onChange={(e) => handleCustomDateChange(e.target.value)}
-              className="w-full h-11 px-3.5 rounded-well bg-bg-elevated border border-border-subtle text-text-primary text-xs font-mono focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/40"
+              className="w-full h-11 px-4 rounded-well bg-ink-850 border border-gold-dim text-ivory-100 text-xs font-ui tracking-wide focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400/40"
             />
           </div>
         </div>

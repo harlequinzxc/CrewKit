@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { APP_VERSION, APP_NAME } from '../config/version';
 import { Logo } from './Logo';
 import { BackButton } from './BackButton';
+import { ThemeMorphButton } from './ThemeMorphButton';
+import { Starfield } from './Starfield';
 import {
   Menu,
   X,
@@ -12,7 +14,7 @@ import {
   Settings,
   ExternalLink,
   Sun,
-  Moon
+  Moon,
 } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
@@ -21,7 +23,10 @@ interface LayoutProps {
   containerClassName?: string;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = 'w-full md:w-[90%] max-w-6xl' }) => {
+export const Layout: React.FC<LayoutProps> = ({
+  children,
+  containerClassName = 'w-full md:w-[90%] max-w-6xl',
+}) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -29,11 +34,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme, setTheme } = useTheme();
+  const { toggleTheme, setTheme, isNight } = useTheme();
   const isHome = location.pathname === '/';
 
   useEffect(() => {
-    // Check if running as installed PWA (standalone)
     const checkStandalone = () => {
       const isStandaloneMode =
         window.matchMedia('(display-mode: standalone)').matches ||
@@ -41,7 +45,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
       setIsStandalone(Boolean(isStandaloneMode));
     };
 
-    // Check iOS user agent
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIOSDevice);
@@ -62,11 +65,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
   };
 
   return (
-    <div className="h-screen h-[100dvh] w-screen overflow-hidden flex flex-col bg-bg-base app-atmosphere text-text-primary transition-colors duration-250 select-none">
-      {/* Centered App Container */}
-      <div className={`w-full ${containerClassName} mx-auto h-full flex flex-col justify-between px-4 sm:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] relative overflow-hidden transition-all duration-300`}>
-        
-        {/* Top Bar */}
+    <div className="h-screen h-[100dvh] w-screen overflow-hidden flex flex-col bg-ink-950 text-ivory-100 cabin-atmosphere select-none relative">
+      {/* Dynamic Starfield / Atmospheric Motes */}
+      <Starfield />
+
+      {/* Centered Luxury App Container (90% width on Desktop) */}
+      <div
+        className={`w-full ${containerClassName} mx-auto h-full flex flex-col justify-between px-4 sm:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] relative z-10 overflow-hidden transition-all duration-300`}
+      >
+        {/* Top Header Bar */}
         <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">
           {/* LEFT: Back button on inner pages + Nav lockup */}
           <div className="flex items-center gap-3">
@@ -74,22 +81,26 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
             <Logo to="/" size="sm" />
           </div>
 
-          {/* RIGHT: Single Circular Ghost Hamburger Button (40px) */}
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-bg-elevated border flex items-center justify-center transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg-base ${
-              menuOpen
-                ? 'border-accent/60 text-accent ring-2 ring-accent/20'
-                : 'border-border-subtle text-text-secondary hover:text-accent hover:border-border-hover'
-            }`}
-          >
-            {menuOpen ? (
-              <X className="w-4.5 h-4.5 text-accent" strokeWidth={2} />
-            ) : (
-              <Menu className="w-4.5 h-4.5 text-text-secondary hover:text-accent" strokeWidth={1.75} />
-            )}
-          </button>
+          {/* RIGHT: Quick Sun/Moon Morph Toggle + Circular Ghost Hamburger Menu */}
+          <div className="flex items-center gap-2">
+            <ThemeMorphButton />
+
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-ink-900/80 backdrop-blur-md border flex items-center justify-center transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-2 focus:ring-offset-ink-950 ${
+                menuOpen
+                  ? 'border-gold-400 text-gold-300 ring-2 ring-gold-400/20'
+                  : 'border-gold-dim text-mist-300 hover:text-gold-300 hover:border-gold-400'
+              }`}
+            >
+              {menuOpen ? (
+                <X className="w-4.5 h-4.5 text-gold-300" strokeWidth={2} />
+              ) : (
+                <Menu className="w-4.5 h-4.5 text-mist-300 hover:text-gold-300" strokeWidth={1.75} />
+              )}
+            </button>
+          </div>
         </header>
 
         {/* Floating Glass Dropdown Menu */}
@@ -98,14 +109,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
             {/* Scrim Overlay */}
             <div
               onClick={() => setMenuOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity animate-fade-in"
             />
 
             {/* Glass Panel Anchored Top-Right */}
-            <div className="absolute top-16 right-6 w-80 max-w-[calc(100vw-3rem)] rounded-card glass-panel p-2 z-50 shadow-elevated-glass animate-menu-in flex flex-col gap-0.5 text-left">
-              
+            <div className="absolute top-16 right-4 sm:right-6 w-84 max-w-[calc(100vw-2rem)] cabin-glass p-2 z-50 animate-menu-in flex flex-col gap-0.5 text-left border border-gold-dim">
               {installPromptMsg && (
-                <div className="mx-2 my-1.5 p-2 rounded-lg bg-accent/15 border border-accent/30 text-[11px] text-accent font-medium text-center animate-fade-in">
+                <div className="mx-2 my-1.5 p-2 rounded-lg bg-gold-400/15 border border-gold-400/30 text-xs text-gold-300 font-ui tracking-wide text-center animate-fade-in">
                   {installPromptMsg}
                 </div>
               )}
@@ -114,71 +124,71 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
               {!isStandalone && (
                 <button
                   onClick={handleInstallClick}
-                  className="flex items-center gap-3 w-full px-3 py-3.5 rounded-xl hover:bg-bg-surface text-left transition-colors group min-h-[44px]"
+                  className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group min-h-[44px]"
                 >
-                  <div className="w-9 h-9 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center text-accent group-hover:border-accent/40 shrink-0">
-                    <Smartphone className="w-4.5 h-4.5 text-accent" strokeWidth={1.75} />
+                  <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
+                    <Smartphone className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-text-primary group-hover:text-accent leading-tight">
+                    <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
                       Install CrewKit
                     </span>
-                    <span className="text-[11px] text-text-secondary mt-0.5">
+                    <span className="text-[11px] text-mist-300 mt-0.5">
                       {isIOS ? 'Tap Share → Add to Home Screen' : 'Full-screen, offline-ready access'}
                     </span>
                   </div>
                 </button>
               )}
 
-              {/* Row 2: Appearance (Whole Row Toggles Theme + Mini Segmented Switch) */}
+              {/* Row 2: Mood Switching (Night Cabin vs Day Cabin) */}
               <div
                 onClick={() => toggleTheme()}
-                className="flex items-center justify-between w-full px-3 py-3.5 rounded-xl hover:bg-bg-surface text-left transition-colors group cursor-pointer min-h-[44px]"
+                className="flex items-center justify-between w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group cursor-pointer min-h-[44px]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center text-accent group-hover:border-accent/40 shrink-0">
-                    <SunMoon className="w-4.5 h-4.5 text-accent" strokeWidth={1.75} />
+                  <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
+                    <SunMoon className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-text-primary group-hover:text-accent leading-tight">
-                      Appearance
+                    <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                      Cabin Mood
                     </span>
-                    <span className="text-[11px] text-text-secondary mt-0.5">
-                      Switch light / dark
+                    <span className="text-[11px] text-mist-300 mt-0.5">
+                      {isNight ? 'Night Cabin (Midnight)' : 'Day Cabin (Pearl Cream)'}
                     </span>
                   </div>
                 </div>
 
-                {/* Real Mini Segmented Toggle */}
+                {/* Segmented Switch */}
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center p-0.5 bg-bg-elevated border border-border-subtle rounded-full relative shrink-0"
+                  className="flex items-center p-0.5 bg-ink-800 border border-gold-dim rounded-full relative shrink-0"
                 >
                   <button
                     type="button"
                     onClick={() => setTheme('dark')}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
-                      theme === 'dark'
-                        ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
-                        : 'text-text-secondary hover:text-text-primary'
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-ui uppercase tracking-wider font-semibold transition-all ${
+                      isNight
+                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
+                        : 'text-mist-300 hover:text-ivory-100'
                     }`}
-                    aria-label="Set dark theme"
+                    aria-label="Set Night Cabin"
                   >
                     <Moon className="w-3 h-3" />
-                    <span>Dark</span>
+                    <span>Night</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setTheme('light')}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
-                      theme === 'light'
-                        ? 'bg-accent text-[#0B1E3E] font-semibold shadow-sm'
-                        : 'text-text-secondary hover:text-text-primary'
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-ui uppercase tracking-wider font-semibold transition-all ${
+                      !isNight
+                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
+                        : 'text-mist-300 hover:text-ivory-100'
                     }`}
-                    aria-label="Set light theme"
+                    aria-label="Set Day Cabin"
                   >
                     <Sun className="w-3 h-3" />
-                    <span>Light</span>
+                    <span>Day</span>
                   </button>
                 </div>
               </div>
@@ -188,22 +198,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
                 href="https://t.me"
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-between w-full px-3 py-3.5 rounded-xl hover:bg-bg-surface text-left transition-colors group min-h-[44px]"
+                className="flex items-center justify-between w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group min-h-[44px]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center text-accent group-hover:border-accent/40 shrink-0">
-                    <MessageCircle className="w-4.5 h-4.5 text-accent" strokeWidth={1.75} />
+                  <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
+                    <MessageCircle className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-text-primary group-hover:text-accent leading-tight">
-                      Feedback &amp; Suggestions
+                    <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                      Feedback &amp; Crew Chat
                     </span>
-                    <span className="text-[11px] text-text-secondary mt-0.5">
+                    <span className="text-[11px] text-mist-300 mt-0.5">
                       Chat with developer on Telegram
                     </span>
                   </div>
                 </div>
-                <ExternalLink className="w-3.5 h-3.5 text-text-tertiary group-hover:text-accent mr-1" />
+                <ExternalLink className="w-3.5 h-3.5 text-mist-400 group-hover:text-gold-300 mr-1" />
               </a>
 
               {/* Row 4: Settings */}
@@ -212,27 +222,27 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
                   setMenuOpen(false);
                   navigate('/settings');
                 }}
-                className={`flex items-center gap-3 w-full px-3 py-3.5 rounded-xl hover:bg-bg-surface text-left transition-colors group min-h-[44px] ${
-                  location.pathname === '/settings' ? 'bg-accent/10 text-accent' : ''
+                className={`flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group min-h-[44px] ${
+                  location.pathname === '/settings' ? 'bg-gold-400/10 text-gold-300' : ''
                 }`}
               >
-                <div className="w-9 h-9 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center text-accent group-hover:border-accent/40 shrink-0">
-                  <Settings className="w-4.5 h-4.5 text-accent" strokeWidth={1.75} />
+                <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
+                  <Settings className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium text-text-primary group-hover:text-accent leading-tight">
-                    Settings
+                  <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                    Settings &amp; Rates
                   </span>
-                  <span className="text-[11px] text-text-secondary mt-0.5">
-                    Rates, data, preferences
+                  <span className="text-[11px] text-mist-300 mt-0.5">
+                    Allowances, modifiers, diagnostics
                   </span>
                 </div>
               </button>
 
               {/* Divider & Footer */}
-              <div className="mt-1 pt-2.5 border-t border-[rgba(201,168,76,0.10)] px-3 py-1.5 text-center">
-                <span className="text-xs text-text-tertiary">
-                  {APP_NAME} <span className="font-mono text-text-secondary">v{APP_VERSION}</span> &bull; For Crew
+              <div className="mt-1 pt-2 border-t border-gold-dim px-3 py-1 text-center">
+                <span className="text-[11px] text-mist-400 font-ui tracking-wide">
+                  {APP_NAME} <span className="font-mono text-gold-300">v{APP_VERSION}</span> &bull; SQ Cabin Crew
                 </span>
               </div>
             </div>
@@ -245,12 +255,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, containerClassName = '
         </main>
 
         {/* Thin Single Whisper Line Footer */}
-        <footer className="shrink-0 text-center py-3 select-none">
-          <p className="text-[0.7rem] text-text-tertiary tracking-wide">
+        <footer className="shrink-0 text-center py-2 select-none">
+          <p className="text-[0.68rem] text-mist-400 font-ui uppercase tracking-eyebrow">
             Unofficial crew companion &bull; CrewKit is an independent tool &bull; Not affiliated with SQ
           </p>
         </footer>
-
       </div>
     </div>
   );
