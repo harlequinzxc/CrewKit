@@ -1,40 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { isValidFlightNumber, normalizeFlightNumber } from '../lib/sq/endpoints';
 
-export function useFlightValidation(initialValue = '', debounceMs = 150) {
-  const [flightNo, setFlightNo] = useState(initialValue);
-  const [isValid, setIsValid] = useState<boolean>(initialValue ? isValidFlightNumber(initialValue) : false);
-  const [error, setError] = useState<string | null>(null);
+export function useFlightValidation(initialValue = '') {
+  const [flightNo, setRawFlightNo] = useState(() => {
+    return initialValue ? initialValue.replace(/\D/g, '').slice(0, 4) : '';
+  });
 
-  useEffect(() => {
-    if (!flightNo || flightNo.trim() === '') {
-      setIsValid(false);
-      setError(null);
-      return;
-    }
+  const cleanFlightNo = normalizeFlightNumber(flightNo);
+  const isValid = isValidFlightNumber(flightNo);
+  const error = flightNo.length > 0 && !isValid
+    ? 'Please enter a valid flight number (1–4 digits)'
+    : null;
 
-    const timer = setTimeout(() => {
-      const valid = isValidFlightNumber(flightNo);
-      setIsValid(valid);
-      if (!valid && flightNo.length > 0) {
-        setError('Please enter a valid flight number (1–4 digits)');
-      } else {
-        setError(null);
-      }
-    }, debounceMs);
-
-    return () => clearTimeout(timer);
-  }, [flightNo, debounceMs]);
-
-  const handleFlightChange = (value: string) => {
-    // accept only digits, max 4 chars
+  const handleFlightChange = useCallback((value: string) => {
+    // Extract only digits, max 4 chars
     const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
-    setFlightNo(digitsOnly);
-  };
+    setRawFlightNo(digitsOnly);
+  }, []);
 
   return {
     flightNo,
-    cleanFlightNo: normalizeFlightNumber(flightNo),
+    cleanFlightNo,
     isValid,
     error,
     setFlightNo: handleFlightChange,
