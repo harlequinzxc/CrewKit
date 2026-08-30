@@ -77,7 +77,7 @@ export const DishCard: React.FC<DishCardProps> = ({
       className="cabin-glass flex flex-col justify-between overflow-hidden p-4 group hover:border-gold-400/40 hover:shadow-gold-glow transition-all text-left"
     >
       <div>
-        {/* 1. 16:10 or Slot Image Container */}
+        {/* 1. 16:10 Aspect-Ratio Image Container */}
         {isLoading ? (
           <div className="w-full aspect-[16/10] rounded-xl bg-ink-800 animate-pulse border border-gold-dim mb-3.5" />
         ) : hasPhoto ? (
@@ -96,12 +96,6 @@ export const DishCard: React.FC<DishCardProps> = ({
             />
             {/* Bottom Gradient Fade into Card Surface */}
             <div className="absolute inset-0 bg-gradient-to-t from-ink-900/90 via-transparent to-transparent pointer-events-none" />
-
-            {imageState?.source === 'sq' && (
-              <span className="absolute top-2 right-2 px-2 py-0.5 rounded-sm bg-ink-950/80 backdrop-blur-md border border-gold-dim text-[9px] font-ui uppercase tracking-wider text-gold-300">
-                Official Photo
-              </span>
-            )}
           </div>
         ) : (
           <div className="w-full h-20 rounded-xl bg-ink-850/60 border border-gold-dim/40 flex items-center justify-center text-mist-400 mb-3.5">

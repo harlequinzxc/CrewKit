@@ -214,25 +214,25 @@ export const CrewCash: React.FC = () => {
 
       {/* 2. STEP 1: SECTOR 1 */}
       {stage === 'sector1' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
-          <div className="shrink-0 flex justify-center pt-1">
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-3 sm:pt-5 pb-8 px-1 animate-cabin-in">
+          <div className="shrink-0 flex justify-center pb-4">
             <span className="text-[10px] font-ui uppercase tracking-eyebrow-wide text-gold-300 font-semibold px-3.5 py-1 rounded-full bg-ink-850 border border-gold-dim">
               Sector 1 of 4
             </span>
           </div>
 
-          <div className="flex-1 max-h-8 sm:max-h-12" />
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
+            <div>
+              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
+                Departing,
+              </span>
 
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
-              Departing,
-            </span>
+              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+                First sector flight &amp; date.
+              </h2>
+            </div>
 
-            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
-              First sector flight &amp; date.
-            </h2>
-
-            <div className="w-full mt-6 text-left">
+            <div className="w-full text-left">
               <FlightNumberInput
                 value={sector1Validation.flightNo}
                 onChange={sector1Validation.setFlightNo}
@@ -244,7 +244,7 @@ export const CrewCash: React.FC = () => {
             </div>
 
             {sector1Validation.isValid && sector1Validation.flightNo.length > 0 && (
-              <div className="w-full mt-5 text-left">
+              <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={sector1DateISO}
                   onDateSelect={(iso, display) => {
@@ -254,27 +254,25 @@ export const CrewCash: React.FC = () => {
                 />
               </div>
             )}
+
+            {sector1Validation.isValid && sector1Validation.flightNo.length > 0 && sector1DateISO && (
+              <div className="w-full pt-3 pb-4">
+                <RevealCTA
+                  label="Proceed to Sector 2"
+                  icon={ArrowRight}
+                  summary={`SQ${sector1Validation.cleanFlightNo} · ${sector1DateDisplay}`}
+                  onPress={handleProceedToSector2}
+                />
+              </div>
+            )}
           </div>
-
-          <div className="flex-1 max-h-8 sm:max-h-12" />
-
-          {sector1Validation.isValid && sector1Validation.flightNo.length > 0 && sector1DateISO && (
-            <div className="shrink-0 pb-2">
-              <RevealCTA
-                label="Proceed to Sector 2"
-                icon={ArrowRight}
-                summary={`SQ${sector1Validation.cleanFlightNo} · ${sector1DateDisplay}`}
-                onPress={handleProceedToSector2}
-              />
-            </div>
-          )}
         </div>
       )}
 
       {/* 3. STEP 2: SECTOR 2 */}
       {stage === 'sector2' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
-          <div className="shrink-0 flex items-center justify-center gap-2 pt-1">
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-3 sm:pt-5 pb-8 px-1 animate-cabin-in">
+          <div className="shrink-0 flex items-center justify-center gap-2 pb-4">
             <FlightChip
               label={`Sector 1: SQ${sector1Validation.cleanFlightNo} · ${sector1DateDisplay}`}
               onClick={() => setStage('sector1')}
@@ -284,18 +282,18 @@ export const CrewCash: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex-1 max-h-6 sm:max-h-10" />
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
+            <div>
+              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
+                Returning / Next,
+              </span>
 
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
-              Returning / Next,
-            </span>
+              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+                Second sector flight &amp; date.
+              </h2>
+            </div>
 
-            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
-              Second sector flight &amp; date.
-            </h2>
-
-            <div className="w-full mt-6 text-left">
+            <div className="w-full text-left">
               <FlightNumberInput
                 value={sector2Validation.flightNo}
                 onChange={sector2Validation.setFlightNo}
@@ -307,7 +305,7 @@ export const CrewCash: React.FC = () => {
             </div>
 
             {sector2Validation.isValid && sector2Validation.flightNo.length > 0 && (
-              <div className="w-full mt-5 text-left">
+              <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={sector2DateISO}
                   onDateSelect={(iso, display) => {
@@ -317,34 +315,32 @@ export const CrewCash: React.FC = () => {
                 />
               </div>
             )}
+
+            {sector2Validation.isValid && sector2Validation.flightNo.length > 0 && sector2DateISO && (
+              <div className="w-full pt-3 pb-4 space-y-2 text-center">
+                <RevealCTA
+                  label="Proceed to Sector 3"
+                  icon={ArrowRight}
+                  summary={`SQ${sector2Validation.cleanFlightNo} · ${sector2DateDisplay}`}
+                  onPress={handleProceedToSector3}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleStartCalculation(2)}
+                  className="font-ui text-[11px] uppercase tracking-wider text-mist-300 hover:text-gold-300 underline underline-offset-4 transition-colors block mx-auto pt-1"
+                >
+                  Or calculate 2 sectors only (SQ{sector1Validation.cleanFlightNo} &amp; SQ{sector2Validation.cleanFlightNo})
+                </button>
+              </div>
+            )}
           </div>
-
-          <div className="flex-1 max-h-6 sm:max-h-10" />
-
-          {sector2Validation.isValid && sector2Validation.flightNo.length > 0 && sector2DateISO && (
-            <div className="shrink-0 pb-2 space-y-2 text-center">
-              <RevealCTA
-                label="Proceed to Sector 3"
-                icon={ArrowRight}
-                summary={`SQ${sector2Validation.cleanFlightNo} · ${sector2DateDisplay}`}
-                onPress={handleProceedToSector3}
-              />
-              <button
-                type="button"
-                onClick={() => handleStartCalculation(2)}
-                className="font-ui text-[11px] uppercase tracking-wider text-mist-300 hover:text-gold-300 underline underline-offset-4 transition-colors block mx-auto"
-              >
-                Or calculate 2 sectors only (SQ{sector1Validation.cleanFlightNo} &amp; SQ{sector2Validation.cleanFlightNo})
-              </button>
-            </div>
-          )}
         </div>
       )}
 
       {/* 4. STEP 3: SECTOR 3 */}
       {stage === 'sector3' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
-          <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 pt-1">
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-3 sm:pt-5 pb-8 px-1 animate-cabin-in">
+          <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 pb-4">
             <FlightChip label={`S1: SQ${sector1Validation.cleanFlightNo}`} onClick={() => setStage('sector1')} />
             <FlightChip label={`S2: SQ${sector2Validation.cleanFlightNo}`} onClick={() => setStage('sector2')} />
             <span className="text-[10px] font-ui uppercase tracking-eyebrow text-gold-300 font-semibold px-3 py-1 rounded-full bg-ink-850 border border-gold-dim">
@@ -352,18 +348,18 @@ export const CrewCash: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex-1 max-h-6 sm:max-h-10" />
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
+            <div>
+              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
+                Third Duty,
+              </span>
 
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
-              Third Duty,
-            </span>
+              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+                Third sector flight &amp; date.
+              </h2>
+            </div>
 
-            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
-              Third sector flight &amp; date.
-            </h2>
-
-            <div className="w-full mt-6 text-left">
+            <div className="w-full text-left">
               <FlightNumberInput
                 value={sector3Validation.flightNo}
                 onChange={sector3Validation.setFlightNo}
@@ -375,7 +371,7 @@ export const CrewCash: React.FC = () => {
             </div>
 
             {sector3Validation.isValid && sector3Validation.flightNo.length > 0 && (
-              <div className="w-full mt-5 text-left">
+              <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={sector3DateISO}
                   onDateSelect={(iso, display) => {
@@ -385,27 +381,25 @@ export const CrewCash: React.FC = () => {
                 />
               </div>
             )}
+
+            {sector3Validation.isValid && sector3Validation.flightNo.length > 0 && sector3DateISO && (
+              <div className="w-full pt-3 pb-4">
+                <RevealCTA
+                  label="Proceed to Sector 4"
+                  icon={ArrowRight}
+                  summary={`SQ${sector3Validation.cleanFlightNo} · ${sector3DateDisplay}`}
+                  onPress={handleProceedToSector4}
+                />
+              </div>
+            )}
           </div>
-
-          <div className="flex-1 max-h-6 sm:max-h-10" />
-
-          {sector3Validation.isValid && sector3Validation.flightNo.length > 0 && sector3DateISO && (
-            <div className="shrink-0 pb-2">
-              <RevealCTA
-                label="Proceed to Sector 4"
-                icon={ArrowRight}
-                summary={`SQ${sector3Validation.cleanFlightNo} · ${sector3DateDisplay}`}
-                onPress={handleProceedToSector4}
-              />
-            </div>
-          )}
         </div>
       )}
 
       {/* 5. STEP 4: SECTOR 4 */}
       {stage === 'sector4' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
-          <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 pt-1">
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-3 sm:pt-5 pb-8 px-1 animate-cabin-in">
+          <div className="shrink-0 flex flex-wrap items-center justify-center gap-1.5 pb-4">
             <FlightChip label={`S1: SQ${sector1Validation.cleanFlightNo}`} onClick={() => setStage('sector1')} />
             <FlightChip label={`S2: SQ${sector2Validation.cleanFlightNo}`} onClick={() => setStage('sector2')} />
             <FlightChip label={`S3: SQ${sector3Validation.cleanFlightNo}`} onClick={() => setStage('sector3')} />
@@ -414,18 +408,18 @@ export const CrewCash: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex-1 max-h-6 sm:max-h-10" />
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
+            <div>
+              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
+                Final Sector,
+              </span>
 
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
-              Final Sector,
-            </span>
+              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+                Fourth sector flight &amp; date.
+              </h2>
+            </div>
 
-            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
-              Fourth sector flight &amp; date.
-            </h2>
-
-            <div className="w-full mt-6 text-left">
+            <div className="w-full text-left">
               <FlightNumberInput
                 value={sector4Validation.flightNo}
                 onChange={sector4Validation.setFlightNo}
@@ -437,7 +431,7 @@ export const CrewCash: React.FC = () => {
             </div>
 
             {sector4Validation.isValid && sector4Validation.flightNo.length > 0 && (
-              <div className="w-full mt-5 text-left">
+              <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={sector4DateISO}
                   onDateSelect={(iso, display) => {
@@ -447,20 +441,18 @@ export const CrewCash: React.FC = () => {
                 />
               </div>
             )}
+
+            {sector4Validation.isValid && sector4Validation.flightNo.length > 0 && sector4DateISO && (
+              <div className="w-full pt-3 pb-4">
+                <RevealCTA
+                  label="Calculate 4 Sectors"
+                  icon={<Wallet className="w-4 h-4 text-onyx-900" />}
+                  summary={`SQ${sector4Validation.cleanFlightNo} · ${sector4DateDisplay}`}
+                  onPress={() => handleStartCalculation(4)}
+                />
+              </div>
+            )}
           </div>
-
-          <div className="flex-1 max-h-6 sm:max-h-10" />
-
-          {sector4Validation.isValid && sector4Validation.flightNo.length > 0 && sector4DateISO && (
-            <div className="shrink-0 pb-2">
-              <RevealCTA
-                label="Calculate 4 Sectors"
-                icon={<Wallet className="w-4 h-4 text-onyx-900" />}
-                summary={`SQ${sector4Validation.cleanFlightNo} · ${sector4DateDisplay}`}
-                onPress={() => handleStartCalculation(4)}
-              />
-            </div>
-          )}
         </div>
       )}
 

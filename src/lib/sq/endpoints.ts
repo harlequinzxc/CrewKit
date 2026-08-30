@@ -810,7 +810,38 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
     const fd = leg.flightDetails || {};
     const origin = fd.departureAirportCode || fd.origin || 'SIN';
     const destination = fd.arrivalAirportCode || fd.destination || 'SIN';
+    const originCity = AIRPORT_CITIES[origin] || origin;
+    const destinationCity = AIRPORT_CITIES[destination] || destination;
     const legId = `${origin}-${destination}`;
+
+    const depIso = fd.departureLocalDate || fd.departureDate || dateISO;
+    const arrIso = fd.arrivalLocalDate || fd.arrivalDate || dateISO;
+    let depTime = depIso.includes('T') ? depIso.split('T')[1].substring(0, 5) : undefined;
+    let arrTime = arrIso.includes('T') ? arrIso.split('T')[1].substring(0, 5) : undefined;
+    const depDateLocal = depIso.includes('T') ? depIso.split('T')[0] : dateISO;
+    const arrDateLocal = arrIso.includes('T') ? arrIso.split('T')[0] : dateISO;
+    const depUtc = fd.departureUtcDate || fd.departureUtc;
+    const arrUtc = fd.arrivalUtcDate || fd.arrivalUtc;
+
+    let arrDayShift = 0;
+    if (depDateLocal && arrDateLocal) {
+      const d1 = new Date(depDateLocal).getTime();
+      const d2 = new Date(arrDateLocal).getTime();
+      if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+        arrDayShift = Math.round((d2 - d1) / (24 * 3600 * 1000));
+      }
+    }
+
+    // Offline fallback for timings if live feed omitted flightDetails
+    if (!depTime || !arrTime) {
+      const offlineMatch = KNOWN_ACTIVE_SQ_SCHEDULES[flightNo];
+      if (offlineMatch && offlineMatch.sectors && offlineMatch.sectors[lIdx]) {
+        const sec = offlineMatch.sectors[lIdx];
+        depTime = sec.depTime;
+        arrTime = sec.arrTime;
+        arrDayShift = sec.arrDayOffset;
+      }
+    }
 
     const mealServices: MealService[] = [];
     const drinksSections: MenuSection[] = [];
@@ -1004,8 +1035,17 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       legId,
       origin,
       destination,
+      originCity,
+      destinationCity,
+      depTime,
+      arrTime,
+      depUtc,
+      arrUtc,
+      depDateLocal,
+      arrDateLocal,
       departureLocalDate: fd.departureLocalDate,
       arrivalLocalDate: fd.arrivalLocalDate,
+      arrDayShift,
       mealServices,
       drinks: drinksSections,
       snacks: snacksList,

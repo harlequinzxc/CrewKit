@@ -10,9 +10,9 @@ interface LogoProps {
 
 /**
  * Master Brand Mark:
- * A champagne-gold paper plane folded like a boarding-pass ticket (#D4AF7A, lit edge #E9CFA5, fold shadow #B78D55)
+ * A Champagne-Gold folded paper plane (#D4AF7A, lit edge #E9CFA5, fold shadow #B78D55)
  * with a perforated tear-line across the wing and five fading runway-light dots, with faint warm glow beneath.
- * Pure flat vector, no 3D, no clouds, no ink bottles, no text in the icon.
+ * Pure flat vector, no 3D, no clouds, no ink bottles, no emoji styling, no text in the icon.
  */
 export const LogoMark: React.FC<{ className?: string; size?: number }> = ({
   className = '',
@@ -43,7 +43,7 @@ export const LogoMark: React.FC<{ className?: string; size?: number }> = ({
         <defs>
           {/* Faint Warm Glow Pooling Beneath */}
           <radialGradient id={glowId} cx="50%" cy="58%" r="42%">
-            <stop offset="0%" stopColor="#D4AF7A" stopOpacity="0.35" />
+            <stop offset="0%" stopColor="#D4AF7A" stopOpacity="0.38" />
             <stop offset="60%" stopColor="#B78D55" stopOpacity="0.12" />
             <stop offset="100%" stopColor="#B78D55" stopOpacity="0" />
           </radialGradient>
@@ -138,16 +138,16 @@ export const Logo: React.FC<LogoProps> = ({
 
   const content = (
     <div className={`flex items-center gap-2 select-none ${className}`}>
-      {/* Master Mark: Boarding Pass Folded Paper Plane */}
+      {/* Master Mark: Champagne-Gold Folded Paper Plane */}
       <LogoMark size={markSize} />
 
-      {/* Live CSS Wordmark: "Ink" roman in warm off-white (#E9EDF5) + "Flight" gold italic */}
+      {/* Live CSS Wordmark: "Crew" roman in warm off-white (#E9EDF5 / ivory-100) + "Kit" gold italic */}
       {showWordmark && (
         <span
           className={`font-display ${textSize} tracking-tight leading-none text-[#E9EDF5] dark:text-ivory-100 flex items-center`}
         >
-          <span className="font-normal">Ink</span>
-          <span className="italic gold-gradient-text font-normal ml-[1px]">Flight</span>
+          <span className="font-normal">Crew</span>
+          <span className="italic gold-gradient-text font-normal ml-[1px]">Kit</span>
         </span>
       )}
     </div>
@@ -158,7 +158,7 @@ export const Logo: React.FC<LogoProps> = ({
       <Link
         to={to}
         className="group inline-flex items-center focus:outline-none focus:ring-1 focus:ring-gold-400 rounded-lg"
-        aria-label="InkFlight Home"
+        aria-label="CrewKit Home"
       >
         {content}
       </Link>

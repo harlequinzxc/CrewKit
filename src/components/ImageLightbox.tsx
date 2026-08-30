@@ -55,7 +55,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
         aria-modal="true"
         aria-label={title}
         onClick={onClose}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-ink-950/85 backdrop-blur-xl animate-fade-in select-none"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-fade-in select-none"
       >
         {/* Top Right Close Button */}
         <button

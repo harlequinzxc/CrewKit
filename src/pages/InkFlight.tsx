@@ -287,21 +287,21 @@ export const InkFlight: React.FC = () => {
         />
       )}
 
-      {/* 2. FORM FLOW */}
+      {/* 2. FORM FLOW (PUSH DOWNWARD LAYOUT — NO VERTICAL BOUNCING) */}
       {stage === 'form' && (
-        <div className="flex flex-col justify-between h-full py-1 animate-cabin-in">
-          <div className="flex-1 max-h-8 sm:max-h-12" />
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-4 sm:pt-6 pb-8 px-1 animate-cabin-in">
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
+            <div>
+              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
+                Prep,
+              </span>
 
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center my-auto">
-            <span className="font-display italic text-gold-300 text-xl tracking-wide mb-1">
-              Prep,
-            </span>
+              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+                Let's ready your homework.
+              </h2>
+            </div>
 
-            <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
-              Let's ready your homework.
-            </h2>
-
-            <div className="w-full mt-6 text-left">
+            <div className="w-full text-left">
               <FlightNumberInput
                 value={validation.flightNo}
                 onChange={validation.setFlightNo}
@@ -313,7 +313,7 @@ export const InkFlight: React.FC = () => {
             </div>
 
             {validation.isValid && validation.flightNo.length > 0 && (
-              <div className="w-full mt-5 text-left">
+              <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={dateISO}
                   onDateSelect={(iso, display) => {
@@ -325,7 +325,7 @@ export const InkFlight: React.FC = () => {
             )}
 
             {isDetectingCabins && (
-              <div className="w-full mt-5 text-left animate-fade-in">
+              <div className="w-full text-left animate-fade-in">
                 <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
                   Available Cabin Classes
                 </label>
@@ -338,7 +338,7 @@ export const InkFlight: React.FC = () => {
             )}
 
             {!isDetectingCabins && availableCabins.length > 0 && !flightNotFoundError && (
-              <div className="w-full mt-5 text-left animate-fade-in">
+              <div className="w-full text-left animate-cabin-in">
                 <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
                   Cabin Class for Printout
                 </label>
@@ -356,25 +356,24 @@ export const InkFlight: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Progression CTA */}
+            {validation.isValid &&
+              validation.flightNo.length > 0 &&
+              dateISO &&
+              availableCabins.length > 0 &&
+              !flightNotFoundError &&
+              !isDetectingCabins && (
+                <div className="w-full pt-3 pb-4">
+                  <RevealCTA
+                    label="Fetch Menu"
+                    icon={Sparkles}
+                    summary={flightSummaryLine}
+                    onPress={handleStartFetch}
+                  />
+                </div>
+              )}
           </div>
-
-          <div className="flex-1 max-h-8 sm:max-h-12" />
-
-          {validation.isValid &&
-            validation.flightNo.length > 0 &&
-            dateISO &&
-            availableCabins.length > 0 &&
-            !flightNotFoundError &&
-            !isDetectingCabins && (
-              <div className="shrink-0 pb-2">
-                <RevealCTA
-                  label="Fetch Menu"
-                  icon={Sparkles}
-                  summary={flightSummaryLine}
-                  onPress={handleStartFetch}
-                />
-              </div>
-            )}
         </div>
       )}
 

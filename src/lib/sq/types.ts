@@ -73,8 +73,18 @@ export type LegMenuData = {
   legId: string;
   origin: string;
   destination: string;
+  originCity?: string;
+  destinationCity?: string;
+  depTime?: string;
+  arrTime?: string;
+  depUtc?: string;
+  arrUtc?: string;
+  depDateLocal?: string;
+  arrDateLocal?: string;
   departureLocalDate?: string;
   arrivalLocalDate?: string;
+  arrDayShift?: number;
+  status?: string;
   mealServices: MealService[];
   drinks: MenuSection[];
   snacks: MenuItem[];
