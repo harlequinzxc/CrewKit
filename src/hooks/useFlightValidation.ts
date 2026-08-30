@@ -8,9 +8,16 @@ export function useFlightValidation(initialValue = '') {
 
   const cleanFlightNo = normalizeFlightNumber(flightNo);
   const isValid = isValidFlightNumber(flightNo);
-  const error = flightNo.length > 0 && !isValid
-    ? 'Please enter a valid flight number (1–4 digits)'
-    : null;
+
+  // Show helpful validation feedback:
+  // - Empty or 1 digit: no error while typing
+  // - 2+ digits and invalid: informative error
+  let error: string | null = null;
+  if (flightNo === '0') {
+    error = 'Please enter a valid flight number (e.g. 12, 322)';
+  } else if (flightNo.length >= 2 && !isValid) {
+    error = `SQ${flightNo} is not an active Singapore Airlines flight`;
+  }
 
   const handleFlightChange = useCallback((value: string) => {
     // Extract only digits, max 4 chars
