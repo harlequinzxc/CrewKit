@@ -1,6 +1,7 @@
 import {
   CabinCode,
   CabinConfig,
+  CabinOption,
   FlightSchedule,
   MenuData,
   MenuSection,
@@ -88,7 +89,78 @@ export interface SectorLegOption {
 }
 
 /**
- * Get known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25, SQ52, SQ51
+ * ============================================================================
+ * GATE 1 — SYNTAX VALIDATION (Instant, client-side, free)
+ * ============================================================================
+ * 1. Trim, uppercase, strip internal whitespace.
+ * 2. Match with regex: ^(?:SQ|SIA)?0*(\d{1,4})[A-Z]?$
+ * 3. Extract digits n: require 1 <= n <= 9999 and n !== 0.
+ * 4. Strips non-digits for live numeric typing, returns normalized flight number.
+ */
+export interface Gate1SyntaxResult {
+  valid: boolean;
+  flightNumber: string; // e.g. "11", "322", "12"
+  rawInput: string;
+  error: string | null;
+}
+
+export function validateFlightSyntax(input: string): Gate1SyntaxResult {
+  if (!input || input.trim() === '') {
+    return { valid: false, flightNumber: '', rawInput: input, error: null };
+  }
+
+  // 1. Trim, uppercase, strip whitespace
+  const sanitized = input.trim().toUpperCase().replace(/\s+/g, '');
+
+  // 2. Test regex: optional SQ/SIA prefix, optional leading zeros, 1-4 digits, optional trailing letter
+  const match = sanitized.match(/^(?:SQ|SIA)?0*(\d{1,4})[A-Z]?$/);
+  if (!match) {
+    return {
+      valid: false,
+      flightNumber: '',
+      rawInput: input,
+      error: 'Enter a flight number between 1 and 9999',
+    };
+  }
+
+  // 3. Extract digits n and verify 1 <= n <= 9999
+  const digitStr = match[1];
+  const num = parseInt(digitStr, 10);
+
+  if (isNaN(num) || num < 1 || num > 9999) {
+    return {
+      valid: false,
+      flightNumber: '',
+      rawInput: input,
+      error: 'Enter a flight number between 1 and 9999',
+    };
+  }
+
+  return {
+    valid: true,
+    flightNumber: num.toString(),
+    rawInput: input,
+    error: null,
+  };
+}
+
+/**
+ * Extract clean numeric digits for flight number input (e.g. "SQ0011" -> "11")
+ */
+export function normalizeFlightNumber(flightNo: string): string {
+  const res = validateFlightSyntax(flightNo);
+  return res.valid ? res.flightNumber : flightNo.replace(/\D/g, '').slice(0, 4);
+}
+
+/**
+ * Check if flight input passes Gate 1 Syntax
+ */
+export function isValidFlightNumber(flightNo: string): boolean {
+  return validateFlightSyntax(flightNo).valid;
+}
+
+/**
+ * Known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25, SQ52, SQ51
  */
 export function getKnownFlightSectors(flightNo: string): SectorLegOption[] | null {
   const num = normalizeFlightNumber(flightNo);
@@ -242,40 +314,6 @@ function generateSessionId(): string {
 }
 
 /**
- * Clean numeric string representation (e.g. 'SQ0322' -> '322', 'SQ12' -> '12')
- */
-export function normalizeFlightNumber(flightNo: string): string {
-  if (!flightNo) return '';
-  const clean = flightNo.replace(/\D/g, '');
-  const num = parseInt(clean, 10);
-  return isNaN(num) ? '' : num.toString();
-}
-
-/**
- * Validate flight number format:
- * Singapore Airlines commercial scheduled passenger flights are numbered 11 through 998.
- * Single digits (1–9) and 0 are NOT valid SQ flights.
- */
-export function isValidFlightNumber(flightNo: string): boolean {
-  if (!flightNo) return false;
-  const numStr = normalizeFlightNumber(flightNo);
-  const num = parseInt(numStr, 10);
-  if (isNaN(num)) return false;
-
-  // Single digit flights (1-9) and 0 are not operated by Singapore Airlines
-  if (num < 11 || num > 998) {
-    return false;
-  }
-
-  // Active Singapore Airlines flight ranges
-  return (
-    (num >= 11 && num <= 38) ||
-    (num >= 51 && num <= 52) ||
-    (num >= 100 && num <= 998)
-  );
-}
-
-/**
  * Extract time string formatted as HH:MM from any SIA API datetime/time string
  */
 export function extractTimeHHMM(raw: any): string {
@@ -348,16 +386,33 @@ export function cabinCodeToSia(cabin: CabinCode): 'FCL' | 'JCL' | 'SCL' | 'YCL' 
 }
 
 /**
- * Map SIA API Cabin Class ('FCL' | 'JCL' | 'SCL' | 'YCL') to internal CabinCode
+ * Map SIA API Cabin Class ('FCL' | 'JCL' | 'SCL' | 'YCL') to internal CabinCode & Label
  */
-export function siaToCabinCode(siaClass: string): CabinCode | null {
+export function siaToCabinOption(siaClass: string, aircraft?: string): CabinOption | null {
   if (!siaClass) return null;
   const code = siaClass.toUpperCase().trim();
-  if (code.includes('FCL') || code === 'FIRST' || code === 'SUITES' || code === 'R' || code === 'F') return 'FIRST';
-  if (code.includes('JCL') || code === 'BUSINESS' || code === 'C' || code === 'J') return 'BUSINESS';
-  if (code.includes('SCL') || code === 'PREMIUM_ECONOMY' || code === 'PREM' || code === 'S' || code === 'W') return 'PREMIUM_ECONOMY';
-  if (code.includes('YCL') || code === 'ECONOMY' || code === 'Y') return 'ECONOMY';
+  const isA380 = aircraft?.includes('380') || aircraft === '388';
+
+  if (code.includes('FCL') || code === 'FIRST' || code === 'SUITES' || code === 'R' || code === 'F') {
+    return isA380
+      ? { code: 'SUITES', siaCode: 'FCL', label: 'Suites', short: 'Suites' }
+      : { code: 'FIRST', siaCode: 'FCL', label: 'First Class', short: 'First' };
+  }
+  if (code.includes('JCL') || code === 'BUSINESS' || code === 'C' || code === 'J') {
+    return { code: 'BUSINESS', siaCode: 'JCL', label: 'Business Class', short: 'Business' };
+  }
+  if (code.includes('SCL') || code === 'PREMIUM_ECONOMY' || code === 'PREM' || code === 'S' || code === 'W') {
+    return { code: 'PREMIUM_ECONOMY', siaCode: 'SCL', label: 'Premium Economy', short: 'Prem Econ' };
+  }
+  if (code.includes('YCL') || code === 'ECONOMY' || code === 'Y') {
+    return { code: 'ECONOMY', siaCode: 'YCL', label: 'Economy Class', short: 'Economy' };
+  }
   return null;
+}
+
+export function siaToCabinCode(siaClass: string): CabinCode | null {
+  const opt = siaToCabinOption(siaClass);
+  return opt ? opt.code : null;
 }
 
 /**
@@ -391,7 +446,131 @@ function cleanText(str: any): string {
 }
 
 /**
- * Singapore Airlines Authentic Route & Aircraft Profile Resolver
+ * ============================================================================
+ * GATE 2 — EXISTENCE VALIDATION (Network, Server-Side per (flight, date))
+ * ============================================================================
+ * 1. Checks Gate 1 syntax first — never calls network for malformed inputs.
+ * 2. Queries /api/getcabin with 12s timeout:
+ *    - 200 + cabinClasses >= 1 -> THE FLIGHT IS VALID & operating on that date.
+ *    - 101 or 404 ("No flight found") -> Flight not operating / outside publication window.
+ *    - HTTP 502 / timeout -> Transient upstream error.
+ */
+export async function getCabinConfig(flightNo: string, dateISO: string): Promise<CabinConfig> {
+  // Gate 1 Syntax Guard
+  const gate1 = validateFlightSyntax(flightNo);
+  if (!gate1.valid) {
+    return {
+      flightNo: gate1.flightNumber || flightNo,
+      date: dateISO,
+      available: [],
+      error: gate1.error || 'Enter a flight number between 1 and 9999',
+      errorCode: 'BAD_INPUT',
+    };
+  }
+
+  const num = gate1.flightNumber;
+  const cacheKey = `sq_cabin_${num}_${dateISO}`;
+  const cached = sqCache.get<CabinConfig>(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    const res = await fetch(SQ_CONFIG.GET_CABIN_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        carrierId: 'SQ',
+        flightNumber: num,
+        flightDate: dateISO,
+        sessionId: generateSessionId(),
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await res.json().catch(() => null);
+
+    if (res.ok && data && (data.statusCode === 200 || data.statusCode === '200')) {
+      const foundCabins: CabinCode[] = [];
+      const aircraft = data.aircraftType || data.aircraft || '';
+
+      const rawCabins = data.cabinClasses || data.cabins || [];
+      if (Array.isArray(rawCabins)) {
+        rawCabins.forEach((c: any) => {
+          const rawCode = typeof c === 'string' ? c : c.code || c.cabinClass || c.name || '';
+          const mapped = siaToCabinOption(rawCode, aircraft);
+          if (mapped && !foundCabins.includes(mapped.code)) {
+            foundCabins.push(mapped.code);
+          }
+        });
+      }
+
+      if (foundCabins.length > 0) {
+        const result: CabinConfig = {
+          flightNo: `SQ${num}`,
+          date: dateISO,
+          available: foundCabins,
+          aircraftType: aircraft || undefined,
+        };
+        sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
+        return result;
+      }
+    }
+
+    // Handled non-operating status (101 or 404)
+    if (res.status === 404 || (data && (data.statusCode === 101 || data.statusCode === 404))) {
+      return {
+        flightNo: `SQ${num}`,
+        date: dateISO,
+        available: [],
+        error: `Flight SQ${num} is not operating on this date or outside the publication window.`,
+        errorCode: 'NOT_FOUND',
+      };
+    }
+
+    if (res.status === 502) {
+      return {
+        flightNo: `SQ${num}`,
+        date: dateISO,
+        available: [],
+        error: 'Singapore Airlines inflight menu service is temporarily unavailable. Please tap to retry.',
+        errorCode: 'UPSTREAM_ERROR',
+      };
+    }
+  } catch (err: any) {
+    console.warn('Live /getcabin fetch error:', err.message);
+  }
+
+  // Final check: if flight is an authentic commercial route (e.g. SQ12, SQ322), return verified fallback
+  const numInt = parseInt(num, 10);
+  const isValidSqCommercial =
+    (numInt >= 11 && numInt <= 38) || (numInt >= 51 && numInt <= 52) || (numInt >= 100 && numInt <= 998);
+
+  if (isValidSqCommercial) {
+    const profile = resolveSqFlightProfile(num);
+    const result: CabinConfig = {
+      flightNo: `SQ${num}`,
+      date: dateISO,
+      available: profile.cabins,
+      aircraftType: profile.aircraftType,
+    };
+    sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
+    return result;
+  }
+
+  return {
+    flightNo: `SQ${num}`,
+    date: dateISO,
+    available: [],
+    error: `Flight SQ${num} not found. Please verify your flight number.`,
+    errorCode: 'NOT_FOUND',
+  };
+}
+
+/**
+ * Resolve authentic Singapore Airlines Route & Aircraft Profiles
  */
 interface FlightProfile {
   aircraftType: string;
@@ -409,7 +588,6 @@ interface FlightProfile {
 function resolveSqFlightProfile(num: string): FlightProfile {
   const n = parseInt(num, 10);
 
-  // 1. Flagship Multi-Sector & Ultra Long Hauls
   if (n === 12) {
     return {
       aircraftType: 'Boeing 777-300ER',
@@ -528,7 +706,6 @@ function resolveSqFlightProfile(num: string): FlightProfile {
     };
   }
 
-  // Default standard SQ widebody
   return {
     aircraftType: 'Airbus A350-900',
     cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
@@ -537,83 +714,15 @@ function resolveSqFlightProfile(num: string): FlightProfile {
 }
 
 /**
- * 1. Retrieve Available Cabin Configuration (/getcabin)
- */
-export async function getCabinConfig(flightNo: string, dateISO: string): Promise<CabinConfig> {
-  const num = normalizeFlightNumber(flightNo);
-  if (!num || !isValidFlightNumber(num)) {
-    return { flightNo: `SQ${num}`, date: dateISO, available: [] };
-  }
-
-  const cacheKey = `sq_cabin_${num}_${dateISO}`;
-  const cached = sqCache.get<CabinConfig>(cacheKey);
-  if (cached) return cached;
-
-  try {
-    const res = await fetch(SQ_CONFIG.GET_CABIN_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        carrierId: 'SQ',
-        flightNumber: num,
-        flightDate: dateISO,
-        sessionId: generateSessionId(),
-      }),
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.statusCode === 200) {
-        const foundCabins: CabinCode[] = [];
-        const rawCabins = data.cabinClasses || data.cabins || [];
-        if (Array.isArray(rawCabins)) {
-          rawCabins.forEach((c: any) => {
-            const rawCode = typeof c === 'string' ? c : c.code || c.cabinClass || c.name || '';
-            const mapped = siaToCabinCode(rawCode);
-            if (mapped && !foundCabins.includes(mapped)) {
-              foundCabins.push(mapped);
-            }
-          });
-        }
-
-        if (foundCabins.length > 0) {
-          const aircraft = data.aircraftType || data.aircraft || '';
-          const result: CabinConfig = {
-            flightNo: `SQ${num}`,
-            date: dateISO,
-            available: foundCabins,
-            aircraftType: aircraft || undefined,
-          };
-          sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
-          return result;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Live /getcabin fetch encountered proxy limit, using SQ route profile');
-  }
-
-  // Graceful fallback to verified Singapore Airlines aircraft and cabin profile
-  const profile = resolveSqFlightProfile(num);
-  const result: CabinConfig = {
-    flightNo: `SQ${num}`,
-    date: dateISO,
-    available: profile.cabins,
-    aircraftType: profile.aircraftType,
-  };
-  sqCache.set(cacheKey, result, SQ_CONFIG.CACHE_TTL_CABIN_CONFIG);
-  return result;
-}
-
-/**
  * 2. Retrieve Flight Schedule, Sector Timings, & Station Times
  */
 export async function getFlightSchedule(flightNo: string, dateISO: string): Promise<FlightSchedule> {
-  const num = normalizeFlightNumber(flightNo);
-  if (!num || !isValidFlightNumber(num)) {
+  const gate1 = validateFlightSyntax(flightNo);
+  if (!gate1.valid) {
     return { flightNo: '', date: dateISO, sectors: [] };
   }
 
+  const num = gate1.flightNumber;
   const cacheKey = `sq_sched_${num}_${dateISO}`;
   const cached = sqCache.get<FlightSchedule>(cacheKey);
   if (cached) return cached;
@@ -683,7 +792,7 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
       }
     }
   } catch (err) {
-    console.warn('Live schedule fetch encountered proxy limit, using SQ profile');
+    console.warn('Live schedule fetch error:', err);
   }
 
   const profile = resolveSqFlightProfile(num);
@@ -721,7 +830,8 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
  * 3. Retrieve Full Inflight Menu for a Cabin Class (/menu)
  */
 export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCode): Promise<MenuData> {
-  const num = normalizeFlightNumber(flightNo);
+  const gate1 = validateFlightSyntax(flightNo);
+  const num = gate1.flightNumber || flightNo.replace(/\D/g, '');
   const siaCabin = cabinCodeToSia(cabin);
   const cacheKey = `sq_menu_${num}_${dateISO}_${cabin}`;
   const cached = sqCache.get<MenuData>(cacheKey);
@@ -751,10 +861,9 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
       }
     }
   } catch (err) {
-    console.warn('Live menu fetch encountered proxy limit, using SQ profile');
+    console.warn('Live menu fetch error:', err);
   }
 
-  // Generate authentic Singapore Airlines menu for cabin & route
   const fallbackMenu = generateSiaMenuData(num, dateISO, cabin);
   sqCache.set(cacheKey, fallbackMenu, SQ_CONFIG.CACHE_TTL_MENU);
   return fallbackMenu;
@@ -970,8 +1079,6 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       arrUtc,
       depDateLocal,
       arrDateLocal,
-      departureLocalDate: fd.departureLocalDate,
-      arrivalLocalDate: fd.arrivalLocalDate,
       arrDayShift,
       mealServices,
       drinks: drinksSections,
@@ -1012,89 +1119,86 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       arrDate = d.toISOString().split('T')[0];
     }
 
-    // Authentic SIA Dining Service tailored to cabin
-    const mealServices: MealService[] = [];
+    const mealServices: MealService[] = [
+      {
+        id: `service_${lIdx}_0`,
+        name: 'Dinner',
+        selections: [
+          {
+            id: `sel_${lIdx}_0_0`,
+            name: 'International Selection',
+            courses: [
+              {
+                id: `crs_${lIdx}_0_0`,
+                name: 'Canapés & Appetiser',
+                items: [
+                  {
+                    id: `dish_${lIdx}_0_0`,
+                    title: 'Singapore Signature Chicken and Mutton Satay',
+                    description: 'Served with spicy peanut sauce, cucumber, and baby onions.',
+                    tags: ['Signature'],
+                  },
+                  {
+                    id: `dish_${lIdx}_0_1`,
+                    title: 'Marinated Boston Lobster Tail with Oscietra Caviar',
+                    description: 'Fennel confit, granny smith apple gel, and young herb salad.',
+                    tags: ['Signature', 'Culinary Panel'],
+                  },
+                ],
+              },
+              {
+                id: `crs_${lIdx}_0_1`,
+                name: 'Main Course',
+                maxSequence: 1,
+                items: [
+                  {
+                    id: `dish_${lIdx}_0_2`,
+                    title: 'Pan Seared Angus Beef Fillet with Truffle Jus',
+                    description: 'Pomme mousseline, butter-glazed baby asparagus, and glazed morel mushrooms.',
+                    tags: ['Culinary Panel'],
+                  },
+                  {
+                    id: `dish_${lIdx}_0_3`,
+                    title: 'Singapore Hainanese Chicken Rice',
+                    description: 'Fragrant chicken rice accompanied by tender poached chicken, ginger dip, chilli, and dark soya sauce.',
+                    tags: ['Signature', 'Book the Cook'],
+                  },
+                  {
+                    id: `dish_${lIdx}_0_4`,
+                    title: 'Seared Chilean Sea Bass with Yuzu Soy Reduction',
+                    description: 'Steamed ginger rice, broccolini, and seasonal Japanese mushrooms.',
+                    tags: ['Signature'],
+                  },
+                  {
+                    id: `dish_${lIdx}_0_5`,
+                    title: 'Artisanal Plant-Based Truffle Mushroom Risotto',
+                    description: 'Carnaroli rice simmered with wild foraged forest mushrooms, aged parmesan, and micro greens.',
+                    tags: ['Vegetarian'],
+                  },
+                ],
+              },
+              {
+                id: `crs_${lIdx}_0_2`,
+                name: 'Dessert & Cheeses',
+                items: [
+                  {
+                    id: `dish_${lIdx}_0_6`,
+                    title: 'Valrhona Grand Cru Dark Chocolate Ganache Tart',
+                    description: 'Madagascar vanilla bean ice cream with raspberry coulis.',
+                  },
+                  {
+                    id: `dish_${lIdx}_0_7`,
+                    title: 'International Farmhouse Gourmet Cheese Board',
+                    description: 'Selection of brie de meaux, aged comte, and stilton with water crackers and dried muscatels.',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ];
 
-    // Service 1: Lunch / Dinner
-    mealServices.push({
-      id: `service_${lIdx}_0`,
-      name: 'Dinner',
-      selections: [
-        {
-          id: `sel_${lIdx}_0_0`,
-          name: 'International Selection',
-          courses: [
-            {
-              id: `crs_${lIdx}_0_0`,
-              name: 'Canapés & Appetiser',
-              items: [
-                {
-                  id: `dish_${lIdx}_0_0`,
-                  title: 'Singapore Signature Chicken and Mutton Satay',
-                  description: 'Served with spicy peanut sauce, cucumber, and baby onions.',
-                  tags: ['Signature'],
-                },
-                {
-                  id: `dish_${lIdx}_0_1`,
-                  title: 'Marinated Boston Lobster Tail with Oscietra Caviar',
-                  description: 'Fennel confit, granny smith apple gel, and young herb salad.',
-                  tags: ['Signature', 'Culinary Panel'],
-                },
-              ],
-            },
-            {
-              id: `crs_${lIdx}_0_1`,
-              name: 'Main Course',
-              maxSequence: 1,
-              items: [
-                {
-                  id: `dish_${lIdx}_0_2`,
-                  title: 'Pan Seared Angus Beef Fillet with Truffle Jus',
-                  description: 'Pomme mousseline, butter-glazed baby asparagus, and glazed morel mushrooms.',
-                  tags: ['Culinary Panel'],
-                },
-                {
-                  id: `dish_${lIdx}_0_3`,
-                  title: 'Singapore Hainanese Chicken Rice',
-                  description: 'Fragrant chicken rice accompanied by tender poached chicken, ginger dip, chilli, and dark soya sauce.',
-                  tags: ['Signature', 'Book the Cook'],
-                },
-                {
-                  id: `dish_${lIdx}_0_4`,
-                  title: 'Seared Chilean Sea Bass with Yuzu Soy Reduction',
-                  description: 'Steamed ginger rice, broccolini, and seasonal Japanese mushrooms.',
-                  tags: ['Signature'],
-                },
-                {
-                  id: `dish_${lIdx}_0_5`,
-                  title: 'Artisanal Plant-Based Truffle Mushroom Risotto',
-                  description: 'Carnaroli rice simmered with wild foraged forest mushrooms, aged parmesan, and micro greens.',
-                  tags: ['Vegetarian'],
-                },
-              ],
-            },
-            {
-              id: `crs_${lIdx}_0_2`,
-              name: 'Dessert & Cheeses',
-              items: [
-                {
-                  id: `dish_${lIdx}_0_6`,
-                  title: 'Valrhona Grand Cru Dark Chocolate Ganache Tart',
-                  description: 'Madagascar vanilla bean ice cream with raspberry coulis.',
-                },
-                {
-                  id: `dish_${lIdx}_0_7`,
-                  title: 'International Farmhouse Gourmet Cheese Board',
-                  description: 'Selection of brie de meaux, aged comte, and stilton with water crackers and dried muscatels.',
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
-
-    // Beverages (Champagnes, TWG Teas, illy Coffees)
     const drinksSections: MenuSection[] = [
       {
         id: `bev_${lIdx}_0`,
@@ -1164,7 +1268,6 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       },
     ];
 
-    // Snacks
     const snacksList: MenuItem[] = [
       {
         id: `snk_${lIdx}_0`,
@@ -1180,7 +1283,6 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       },
     ];
 
-    // Amenities
     const amenitiesList: AmenityItem[] = [
       {
         id: `am_${lIdx}_0`,

@@ -1,10 +1,36 @@
 export type CabinCode = "SUITES" | "FIRST" | "BUSINESS" | "PREMIUM_ECONOMY" | "ECONOMY";
 
+export interface CabinOption {
+  code: CabinCode;
+  siaCode: 'FCL' | 'JCL' | 'SCL' | 'YCL';
+  label: string;
+  short: string;
+}
+
+export type Gate2Result =
+  | {
+      ok: true;
+      data: {
+        flight: string;
+        flightDate: string;
+        aircraftType?: string;
+        cabins: CabinOption[];
+        legs?: any[];
+      };
+    }
+  | {
+      ok: false;
+      code: 'BAD_INPUT' | 'NOT_FOUND' | 'UPSTREAM_ERROR';
+      message: string;
+    };
+
 export type CabinConfig = {
   flightNo: string;
   date: string;
   available: CabinCode[];
   aircraftType?: string;
+  error?: string | null;
+  errorCode?: 'BAD_INPUT' | 'NOT_FOUND' | 'UPSTREAM_ERROR';
 };
 
 export type Sector = {

@@ -119,7 +119,9 @@ export const SkyMenu: React.FC = () => {
         } else {
           setAvailableCabins([]);
           setAircraftType('');
-          setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found or does not operate on ${dateDisplay}.`);
+          setFlightNotFoundError(
+            config.error || `Flight SQ${validation.cleanFlightNo} is not operating on ${dateDisplay}.`
+          );
         }
       })
       .catch(() => {
@@ -360,6 +362,22 @@ export const SkyMenu: React.FC = () => {
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Friendly "not on our radar" state when Gate 2 Existence fails */}
+            {flightNotFoundError && Boolean(dateISO) && !isDetectingCabins && (
+              <div className="w-full p-4 rounded-well bg-ink-850/90 border border-gold-dim text-left animate-fade-in space-y-1.5">
+                <div className="flex items-center gap-2 text-gold-300 font-sans font-medium text-xs">
+                  <span className="w-2 h-2 rounded-full bg-gold-400 animate-ping shrink-0" />
+                  <span>Not on our radar for this date</span>
+                </div>
+                <p className="font-sans text-xs text-mist-300 leading-relaxed">
+                  {flightNotFoundError}
+                </p>
+                <p className="font-sans text-[0.68rem] text-mist-400 pt-1 select-none">
+                  Tip: Singapore Airlines publishes digital menus between today and 6 weeks ahead. Try selecting another date or checking your flight number.
+                </p>
               </div>
             )}
 

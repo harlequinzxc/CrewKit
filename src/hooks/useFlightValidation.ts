@@ -1,35 +1,25 @@
-import { useState, useCallback } from 'react';
-import { isValidFlightNumber, normalizeFlightNumber } from '../lib/sq/endpoints';
+import { useState, useCallback, useMemo } from 'react';
+import { validateFlightSyntax, normalizeFlightNumber } from '../lib/sq/endpoints';
 
 export function useFlightValidation(initialValue = '') {
   const [flightNo, setRawFlightNo] = useState(() => {
-    return initialValue ? initialValue.replace(/\D/g, '').slice(0, 4) : '';
+    return initialValue ? normalizeFlightNumber(initialValue) : '';
   });
 
-  const cleanFlightNo = normalizeFlightNumber(flightNo);
-  const isValid = isValidFlightNumber(flightNo);
-
-  // Show helpful validation feedback:
-  // - Empty or 1 digit: no error while typing
-  // - 2+ digits and invalid: informative error
-  let error: string | null = null;
-  if (flightNo === '0') {
-    error = 'Please enter a valid flight number (e.g. 12, 322)';
-  } else if (flightNo.length >= 2 && !isValid) {
-    error = `SQ${flightNo} is not an active Singapore Airlines flight`;
-  }
+  // Gate 1: Instant client-side syntax evaluation
+  const syntax = useMemo(() => validateFlightSyntax(flightNo), [flightNo]);
 
   const handleFlightChange = useCallback((value: string) => {
-    // Extract only digits, max 4 chars
+    // Strip non-digits live and cap at 4 digits for the numeric input field
     const digitsOnly = value.replace(/\D/g, '').slice(0, 4);
     setRawFlightNo(digitsOnly);
   }, []);
 
   return {
     flightNo,
-    cleanFlightNo,
-    isValid,
-    error,
+    cleanFlightNo: syntax.flightNumber || normalizeFlightNumber(flightNo),
+    isValid: syntax.valid,
+    error: syntax.error,
     setFlightNo: handleFlightChange,
   };
 }

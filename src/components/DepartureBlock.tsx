@@ -27,7 +27,7 @@ export function getTomorrowISO(): string {
 
 export function getMaxDateISO(): string {
   const d = new Date();
-  d.setDate(d.getDate() + 42);
+  d.setDate(d.getDate() + 42); // 6-week publication window
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -160,7 +160,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
           </button>
         </div>
       ) : (
-        /* Mode 2: Custom Date Picker Input */
+        /* Mode 2: Custom Date Picker Input (Clamped strictly to 6-week window) */
         <div className="flex items-center gap-2 animate-fade-in">
           <button
             type="button"
@@ -183,6 +183,11 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
           </div>
         </div>
       )}
+
+      {/* Explicit publication window helper */}
+      <p className="font-sans text-[0.68rem] text-mist-400 mt-2 ml-0.5 select-none">
+        Singapore Airlines inflight menus publish up to 6 weeks in advance.
+      </p>
     </div>
   );
 };
