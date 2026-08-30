@@ -94,6 +94,65 @@ export function isValidFlightNumber(flightNo: string): boolean {
 }
 
 /**
+ * Extract time string formatted as HH:MM from any SIA API datetime/time string
+ * Handles "YYYY-MM-DD HH:MM:SS", "YYYY-MM-DDTHH:MM:SS", "HH:MM", "HHMM", etc.
+ */
+export function extractTimeHHMM(raw: any): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const clean = raw.trim();
+
+  // Pattern 1: "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS"
+  const matchDateTime = clean.match(/\d{4}-\d{2}-\d{2}[T\s](\d{1,2}):(\d{2})/);
+  if (matchDateTime) {
+    return `${matchDateTime[1].padStart(2, '0')}:${matchDateTime[2]}`;
+  }
+
+  // Pattern 2: "HH:MM" or "HH:MM:SS"
+  const matchTime = clean.match(/^(\d{1,2}):(\d{2})/);
+  if (matchTime) {
+    return `${matchTime[1].padStart(2, '0')}:${matchTime[2]}`;
+  }
+
+  // Pattern 3: 4 digits "1840"
+  const match4Digits = clean.match(/^(\d{2})(\d{2})$/);
+  if (match4Digits) {
+    return `${match4Digits[1]}:${match4Digits[2]}`;
+  }
+
+  return '';
+}
+
+/**
+ * Extract ISO date string (YYYY-MM-DD) from SIA API datetime/date string
+ */
+export function extractDateISO(raw: any, fallbackISO?: string): string {
+  if (!raw || typeof raw !== 'string') return fallbackISO || '';
+  const clean = raw.trim();
+
+  // Match YYYY-MM-DD
+  const matchDate = clean.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (matchDate) {
+    return matchDate[1];
+  }
+
+  return fallbackISO || '';
+}
+
+/**
+ * Normalize UTC string to standard format "YYYY-MM-DD HH:MM:SS"
+ */
+export function extractUtcString(raw: any): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const clean = raw.trim();
+  const match = clean.match(/(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2}(?::\d{2})?)/);
+  if (match) {
+    const time = match[2].length === 5 ? `${match[2]}:00` : match[2];
+    return `${match[1]} ${time}`;
+  }
+  return clean;
+}
+
+/**
  * Map internal CabinCode to SIA API Cabin Class ('FCL' | 'JCL' | 'SCL' | 'YCL')
  */
 export function cabinCodeToSia(cabin: CabinCode): 'FCL' | 'JCL' | 'SCL' | 'YCL' {
@@ -255,26 +314,35 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
           const fd = leg.flightDetails || leg;
           const from = fd.departureAirportCode || fd.origin || 'SIN';
           const to = fd.arrivalAirportCode || fd.destination || 'SIN';
-          const depIso = fd.departureLocalDate || fd.departureDate || dateISO;
-          const arrIso = fd.arrivalLocalDate || fd.arrivalDate || dateISO;
 
-          const depTime = depIso.includes('T') ? depIso.split('T')[1].substring(0, 5) : '09:00';
-          const arrTime = arrIso.includes('T') ? arrIso.split('T')[1].substring(0, 5) : '17:00';
-          const depDate = depIso.includes('T') ? depIso.split('T')[0] : dateISO;
-          const arrDate = arrIso.includes('T') ? arrIso.split('T')[0] : dateISO;
+          const rawDep = fd.departureLocalDate || fd.departureDate || fd.departureTime || fd.std || dateISO;
+          const rawArr = fd.arrivalLocalDate || fd.arrivalDate || fd.arrivalTime || fd.sta || dateISO;
+          const rawDepUtc = fd.departureUtcDate || fd.departureUtc;
+          const rawArrUtc = fd.arrivalUtcDate || fd.arrivalUtc;
+
+          const depLocal = extractTimeHHMM(rawDep) || (rawDepUtc ? extractTimeHHMM(rawDepUtc) : '09:00');
+          const arrLocal = extractTimeHHMM(rawArr) || (rawArrUtc ? extractTimeHHMM(rawArrUtc) : '17:00');
+          const depDateLocal = extractDateISO(rawDep, dateISO);
+          const arrDateLocal = extractDateISO(rawArr, dateISO);
+          const depUtc = extractUtcString(rawDepUtc);
+          const arrUtc = extractUtcString(rawArrUtc);
 
           let blockMinutes = 0;
-          if (fd.departureUtcDate && fd.arrivalUtcDate) {
-            const depUtc = new Date(fd.departureUtcDate.replace(' ', 'T') + (fd.departureUtcDate.endsWith('Z') ? '' : 'Z')).getTime();
-            const arrUtc = new Date(fd.arrivalUtcDate.replace(' ', 'T') + (fd.arrivalUtcDate.endsWith('Z') ? '' : 'Z')).getTime();
-            if (!isNaN(depUtc) && !isNaN(arrUtc) && arrUtc > depUtc) {
-              blockMinutes = Math.round((arrUtc - depUtc) / 60000);
+          if (depUtc && arrUtc) {
+            const normalize = (s: string) => {
+              const c = s.trim().replace(' ', 'T');
+              return c.endsWith('Z') ? c : `${c}Z`;
+            };
+            const dUtc = Date.parse(normalize(depUtc));
+            const aUtc = Date.parse(normalize(arrUtc));
+            if (!isNaN(dUtc) && !isNaN(aUtc) && aUtc > dUtc) {
+              blockMinutes = Math.round((aUtc - dUtc) / 60000);
             }
           }
 
-          if (blockMinutes <= 0 && depIso.includes('T') && arrIso.includes('T')) {
-            const d1 = new Date(depIso).getTime();
-            const d2 = new Date(arrIso).getTime();
+          if (blockMinutes <= 0 && depDateLocal && arrDateLocal && depLocal && arrLocal) {
+            const d1 = new Date(`${depDateLocal}T${depLocal}:00`).getTime();
+            const d2 = new Date(`${arrDateLocal}T${arrLocal}:00`).getTime();
             if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
               blockMinutes = Math.round((d2 - d1) / 60000);
             }
@@ -285,10 +353,10 @@ export async function getFlightSchedule(flightNo: string, dateISO: string): Prom
             fromCity: AIRPORT_CITIES[from] || from,
             to,
             toCity: AIRPORT_CITIES[to] || to,
-            depLocal: depTime,
-            depDateLocal: depDate,
-            arrLocal: arrTime,
-            arrDateLocal: arrDate,
+            depLocal,
+            depDateLocal,
+            arrLocal,
+            arrDateLocal,
             blockMinutes,
           });
         });
@@ -396,21 +464,24 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
     const destinationCity = AIRPORT_CITIES[destination] || destination;
     const legId = `${origin}-${destination}`;
 
-    const depIso = fd.departureLocalDate || fd.departureDate || dateISO;
-    const arrIso = fd.arrivalLocalDate || fd.arrivalDate || dateISO;
-    const depTime = depIso.includes('T') ? depIso.split('T')[1].substring(0, 5) : undefined;
-    const arrTime = arrIso.includes('T') ? arrIso.split('T')[1].substring(0, 5) : undefined;
-    const depDateLocal = depIso.includes('T') ? depIso.split('T')[0] : dateISO;
-    const arrDateLocal = arrIso.includes('T') ? arrIso.split('T')[0] : dateISO;
-    const depUtc = fd.departureUtcDate || fd.departureUtc;
-    const arrUtc = fd.arrivalUtcDate || fd.arrivalUtc;
+    const rawDep = fd.departureLocalDate || fd.departureDate || fd.departureTime || fd.std || dateISO;
+    const rawArr = fd.arrivalLocalDate || fd.arrivalDate || fd.arrivalTime || fd.sta || dateISO;
+    const rawDepUtc = fd.departureUtcDate || fd.departureUtc;
+    const rawArrUtc = fd.arrivalUtcDate || fd.arrivalUtc;
+
+    const depTime = extractTimeHHMM(rawDep) || (rawDepUtc ? extractTimeHHMM(rawDepUtc) : undefined);
+    const arrTime = extractTimeHHMM(rawArr) || (rawArrUtc ? extractTimeHHMM(rawArrUtc) : undefined);
+    const depDateLocal = extractDateISO(rawDep, dateISO);
+    const arrDateLocal = extractDateISO(rawArr, dateISO);
+    const depUtc = extractUtcString(rawDepUtc);
+    const arrUtc = extractUtcString(rawArrUtc);
 
     let arrDayShift = 0;
     if (depDateLocal && arrDateLocal) {
       const d1 = new Date(depDateLocal).getTime();
       const d2 = new Date(arrDateLocal).getTime();
       if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
-        arrDayShift = Math.round((d2 - d1) / (24 * 3600 * 1000));
+        arrDayShift = Math.max(0, Math.round((d2 - d1) / (24 * 3600 * 1000)));
       }
     }
 
