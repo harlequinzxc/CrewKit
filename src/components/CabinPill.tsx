@@ -23,7 +23,6 @@ export const CabinPill: React.FC<CabinPillProps> = ({
   code,
   isSelected,
   onToggle,
-  hasAnySelection = false,
   delayIndex = 0,
 }) => {
   const info = CABIN_INFO[code] || { label: code, icon: Star };
@@ -40,8 +39,6 @@ export const CabinPill: React.FC<CabinPillProps> = ({
       className={`relative inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all select-none ${
         isSelected
           ? 'bg-gold-400 text-onyx-900 shadow-gold-glow ring-2 ring-gold-400/30'
-          : hasAnySelection
-          ? 'bg-ink-850 text-mist-300 border border-gold-dim opacity-50 hover:opacity-90'
           : 'bg-ink-850 text-mist-300 border border-gold-dim hover:border-gold-400 hover:text-ivory-100'
       }`}
     >

@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
+import { DepartureBlock } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
 import { FlightChip } from '../components/FlightChip';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { useFlightValidation } from '../hooks/useFlightValidation';
-import { getCabinConfig, getMenu } from '../lib/sq/endpoints';
+import { getCabinConfig, getMenu, getKnownFlightSectors, SectorLegOption } from '../lib/sq/endpoints';
 import { CabinCode, MenuData, MenuSection } from '../lib/sq/types';
 import { exportToPNG } from '../lib/export/png';
 import { exportToPDF } from '../lib/export/pdf';
@@ -42,21 +42,26 @@ export const InkFlight: React.FC = () => {
     cabin?: CabinCode;
   } | null;
 
-  const initialTodayISO = navState?.dateISO || getTodayISO();
-  const initialTodayDisplay = navState?.dateDisplay || formatDateDisplay(initialTodayISO);
-
   // Screen Stages: 'form' | 'loading' | 'editor'
   const [stage, setStage] = useState<'form' | 'loading' | 'editor'>('form');
 
   // Flight validation
   const validation = useFlightValidation(navState?.flightNo || '');
-  const [dateISO, setDateISO] = useState<string>(initialTodayISO);
-  const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Cabin detection states
+  // Step 2: Departure Date (not selected by default unless passed in navState)
+  const [dateISO, setDateISO] = useState<string>(navState?.dateISO || '');
+  const [dateDisplay, setDateDisplay] = useState<string>(navState?.dateDisplay || '');
+
+  // Special multi-sector flight detection (e.g. SQ12, SQ11, SQ26, SQ25)
+  const [multiSectors, setMultiSectors] = useState<SectorLegOption[] | null>(null);
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
+
+  // Step 4: Cabin detection & Multi-selection (not selected by default)
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
-  const [selectedCabin, setSelectedCabin] = useState<CabinCode>(navState?.cabin || 'BUSINESS');
+  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
+    navState?.cabin ? [navState.cabin] : []
+  );
   const [flightNotFoundError, setFlightNotFoundError] = useState<string | null>(null);
 
   // InkFlight Editor State
@@ -74,16 +79,33 @@ export const InkFlight: React.FC = () => {
   // Receipt DOM element ref
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  // Cabin Detection
+  // 1. Live change: when flight number changes, reset all downstream selections
   useEffect(() => {
-    if (!validation.flightNo || validation.flightNo.trim().length === 0) {
+    if (!navState?.flightNo) {
+      setDateISO('');
+      setDateDisplay('');
+      setSelectedSectorIds([]);
       setAvailableCabins([]);
+      setSelectedCabins([]);
       setFlightNotFoundError(null);
-      return;
     }
 
-    if (!validation.isValid) {
+    if (validation.isValid && validation.flightNo) {
+      const known = getKnownFlightSectors(validation.flightNo);
+      setMultiSectors(known);
+    } else {
+      setMultiSectors(null);
+    }
+  }, [validation.flightNo, validation.isValid]);
+
+  const isMultiSector = Boolean(multiSectors && multiSectors.length > 1);
+
+  // 2. Live change: when date is selected, trigger cabin detection
+  useEffect(() => {
+    if (!validation.flightNo || !validation.isValid || !dateISO) {
       setAvailableCabins([]);
+      setSelectedCabins([]);
+      setFlightNotFoundError(null);
       return;
     }
 
@@ -98,14 +120,11 @@ export const InkFlight: React.FC = () => {
         if (config.available && config.available.length > 0) {
           setAvailableCabins(config.available);
           setFlightNotFoundError(null);
-          if (config.available.includes('BUSINESS')) {
-            setSelectedCabin('BUSINESS');
-          } else {
-            setSelectedCabin(config.available[0]);
-          }
         } else {
           setAvailableCabins([]);
-          setFlightNotFoundError(`Flight SQ${validation.cleanFlightNo} not found or does not operate on ${dateDisplay}.`);
+          setFlightNotFoundError(
+            `Flight SQ${validation.cleanFlightNo} not found or does not operate on ${dateDisplay}.`
+          );
         }
       })
       .catch(() => {
@@ -120,8 +139,18 @@ export const InkFlight: React.FC = () => {
     };
   }, [validation.flightNo, validation.isValid, dateISO, dateDisplay]);
 
-  const handleSelectCabin = (code: CabinCode) => {
-    setSelectedCabin(code);
+  // Handle Sector Toggle
+  const handleToggleSector = (sectorId: string) => {
+    setSelectedSectorIds((prev) =>
+      prev.includes(sectorId) ? prev.filter((id) => id !== sectorId) : [...prev, sectorId]
+    );
+  };
+
+  // Handle Cabin Toggle (Multi-select)
+  const handleToggleCabin = (code: CabinCode) => {
+    setSelectedCabins((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   };
 
   const handleStartFetch = () => {
@@ -129,8 +158,81 @@ export const InkFlight: React.FC = () => {
   };
 
   const executeMenuFetch = async () => {
-    const menu = await getMenu(validation.flightNo, dateISO, selectedCabin);
-    return menu;
+    const cabinsToFetch = selectedCabins.length > 0 ? selectedCabins : (['BUSINESS'] as CabinCode[]);
+    const menus = await Promise.all(
+      cabinsToFetch.map((c) => getMenu(validation.flightNo, dateISO, c))
+    );
+
+    // Merge sections & drinks across selected cabins
+    const allSections: MenuSection[] = [];
+    const allDrinks: MenuSection[] = [];
+
+    menus.forEach((m, cIdx) => {
+      const cabinTag = cabinsToFetch[cIdx];
+      const prefix = cabinsToFetch.length > 1 ? `[${cabinTag}] ` : '';
+
+      // Filter legs if specific sectors were chosen
+      let legsToUse = m.legs;
+      if (selectedSectorIds.length > 0 && legsToUse && legsToUse.length > 0) {
+        legsToUse = legsToUse.filter((leg) => {
+          const legKey = `${leg.origin}-${leg.destination}`;
+          return (
+            selectedSectorIds.includes(legKey) ||
+            selectedSectorIds.some((id) => id.includes(leg.origin) && id.includes(leg.destination))
+          );
+        });
+      }
+
+      if (legsToUse && legsToUse.length > 0) {
+        legsToUse.forEach((leg) => {
+          leg.mealServices.forEach((srv) => {
+            srv.selections.forEach((sel) => {
+              sel.courses.forEach((crs) => {
+                allSections.push({
+                  id: `${cabinTag}_${leg.legId}_${crs.id}`,
+                  title: `${prefix}${leg.origin}→${leg.destination} · ${srv.name} · ${crs.name}`,
+                  items: crs.items,
+                });
+              });
+            });
+          });
+
+          leg.drinks.forEach((d) => {
+            allDrinks.push({
+              id: `${cabinTag}_${leg.legId}_${d.id}`,
+              title: `${prefix}${leg.origin}→${leg.destination} · ${d.title}`,
+              items: d.items,
+            });
+          });
+        });
+      } else {
+        m.sections.forEach((s) => {
+          allSections.push({
+            id: `${cabinTag}_${s.id}`,
+            title: `${prefix}${s.title}`,
+            items: s.items,
+          });
+        });
+        m.drinks.forEach((d) => {
+          allDrinks.push({
+            id: `${cabinTag}_${d.id}`,
+            title: `${prefix}${d.title}`,
+            items: d.items,
+          });
+        });
+      }
+    });
+
+    const combinedMenu: MenuData = {
+      flightNo: `SQ${validation.cleanFlightNo}`,
+      date: dateISO,
+      cabin: selectedCabins[0] || 'BUSINESS',
+      legs: menus[0]?.legs || [],
+      sections: allSections,
+      drinks: allDrinks,
+    };
+
+    return combinedMenu;
   };
 
   const handleFetchSuccess = (data: MenuData) => {
@@ -138,12 +240,6 @@ export const InkFlight: React.FC = () => {
     setEditableMenu(cloned);
     setStage('editor');
   };
-
-  useEffect(() => {
-    if (navState?.flightNo && navState?.dateISO && stage === 'form') {
-      handleStartFetch();
-    }
-  }, []);
 
   const toggleSectionVisibility = (secId: string) => {
     if (!editableMenu) return;
@@ -256,7 +352,7 @@ export const InkFlight: React.FC = () => {
       await exportToDOCX(
         `SQ${validation.cleanFlightNo}`,
         dateDisplay,
-        selectedCabin,
+        selectedCabins.join(', '),
         [...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])],
         includeDescriptions,
         `CrewKit_${validation.cleanFlightNo}_Menu`
@@ -268,12 +364,32 @@ export const InkFlight: React.FC = () => {
     }
   };
 
-  const cabinLabel =
-    selectedCabin === 'PREMIUM_ECONOMY'
+  const flightSummaryLine = [
+    `SQ${validation.cleanFlightNo}`,
+    selectedSectorIds.length > 0 ? selectedSectorIds.join(' & ') : '',
+    dateDisplay,
+    selectedCabins.length > 1
+      ? `${selectedCabins.length} Cabins`
+      : selectedCabins[0] === 'PREMIUM_ECONOMY'
       ? 'Prem Econ'
-      : selectedCabin.charAt(0) + selectedCabin.slice(1).toLowerCase();
+      : selectedCabins[0]
+      ? selectedCabins[0].charAt(0) + selectedCabins[0].slice(1).toLowerCase()
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  const flightSummaryLine = `SQ${validation.cleanFlightNo} · ${dateDisplay} · ${cabinLabel}`;
+  // Visibility flags strictly adhering to workflow:
+  const showDateStep = validation.isValid && validation.flightNo.length > 0;
+  const showSectorStep = showDateStep && Boolean(dateISO) && isMultiSector;
+  const showCabinStep =
+    showDateStep &&
+    Boolean(dateISO) &&
+    (!isMultiSector || selectedSectorIds.length > 0) &&
+    !isDetectingCabins &&
+    availableCabins.length > 0 &&
+    !flightNotFoundError;
+  const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
   return (
     <Layout>
@@ -287,7 +403,7 @@ export const InkFlight: React.FC = () => {
         />
       )}
 
-      {/* 2. FORM FLOW (PUSH DOWNWARD LAYOUT — NO VERTICAL BOUNCING) */}
+      {/* 2. FORM FLOW (PROGRESSIVE STEP-BY-STEP WORKFLOW) */}
       {stage === 'form' && (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-4 sm:pt-6 pb-8 px-1 animate-cabin-in">
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
@@ -301,6 +417,7 @@ export const InkFlight: React.FC = () => {
               </h2>
             </div>
 
+            {/* STEP 1: Flight Number */}
             <div className="w-full text-left">
               <FlightNumberInput
                 value={validation.flightNo}
@@ -312,19 +429,78 @@ export const InkFlight: React.FC = () => {
               />
             </div>
 
-            {validation.isValid && validation.flightNo.length > 0 && (
+            {/* STEP 2: Departure Date (Appears only if valid flight number; none selected by default) */}
+            {showDateStep && (
               <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={dateISO}
                   onDateSelect={(iso, display) => {
                     setDateISO(iso);
                     setDateDisplay(display);
+                    // Reset downstream selections on date change
+                    setSelectedSectorIds([]);
+                    setSelectedCabins([]);
                   }}
                 />
               </div>
             )}
 
-            {isDetectingCabins && (
+            {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
+            {showSectorStep && multiSectors && (
+              <div className="w-full text-left animate-cabin-in space-y-2">
+                <div className="flex items-center justify-between mb-1 select-none">
+                  <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300">
+                    Select Sector Leg(s)
+                  </label>
+                  <span className="font-ui text-[10px] uppercase tracking-wider text-gold-300 font-semibold">
+                    Multi-select
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {multiSectors.map((sec) => {
+                    const isSelected = selectedSectorIds.includes(sec.id);
+                    return (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        onClick={() => handleToggleSector(sec.id)}
+                        className={`flex items-center justify-between p-3 rounded-well border transition-all text-left ${
+                          isSelected
+                            ? 'bg-gold-400/15 border-gold-400 text-ivory-100 ring-1 ring-gold-400/40 shadow-sm'
+                            : 'bg-ink-850 text-mist-300 border-gold-dim hover:border-gold-400/60 hover:text-ivory-100'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span
+                            className={`font-display text-lg font-light ${
+                              isSelected ? 'text-gold-300 font-normal' : 'text-ivory-100'
+                            }`}
+                          >
+                            {sec.label}
+                          </span>
+                          <span className="text-[11px] text-mist-400 font-ui truncate mt-0.5">
+                            {sec.description}
+                          </span>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs transition-all ${
+                            isSelected
+                              ? 'bg-gold-400 border-gold-400 text-onyx-900 font-bold'
+                              : 'border-gold-dim bg-ink-900 text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Loading skeleton while detecting cabins */}
+            {isDetectingCabins && Boolean(dateISO) && (!isMultiSector || selectedSectorIds.length > 0) && (
               <div className="w-full text-left animate-fade-in">
                 <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
                   Available Cabin Classes
@@ -337,42 +513,37 @@ export const InkFlight: React.FC = () => {
               </div>
             )}
 
-            {!isDetectingCabins && availableCabins.length > 0 && !flightNotFoundError && (
+            {/* STEP 4: Cabin Classes Multi-Select (none selected by default) */}
+            {showCabinStep && (
               <div className="w-full text-left animate-cabin-in">
                 <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
-                  Cabin Class for Printout
+                  Cabin Class(es) for Printout
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {availableCabins.map((code, idx) => (
                     <CabinPill
                       key={code}
                       code={code}
-                      isSelected={selectedCabin === code}
-                      hasAnySelection={true}
+                      isSelected={selectedCabins.includes(code)}
                       delayIndex={idx}
-                      onToggle={handleSelectCabin}
+                      onToggle={handleToggleCabin}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Progression CTA */}
-            {validation.isValid &&
-              validation.flightNo.length > 0 &&
-              dateISO &&
-              availableCabins.length > 0 &&
-              !flightNotFoundError &&
-              !isDetectingCabins && (
-                <div className="w-full pt-3 pb-4">
-                  <RevealCTA
-                    label="Fetch Menu"
-                    icon={Sparkles}
-                    summary={flightSummaryLine}
-                    onPress={handleStartFetch}
-                  />
-                </div>
-              )}
+            {/* STEP 5: Progression CTA (Appears only after cabin class/classes are selected) */}
+            {showFetchButton && (
+              <div className="w-full pt-3 pb-4">
+                <RevealCTA
+                  label="Fetch Menu"
+                  icon={Sparkles}
+                  summary={flightSummaryLine}
+                  onPress={handleStartFetch}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -639,7 +810,7 @@ export const InkFlight: React.FC = () => {
                     <span>{dateDisplay}</span>
                   </div>
                   <div className="text-[9px] text-neutral-600 text-left mt-0.5">
-                    CLASS: {selectedCabin}
+                    CLASS: {selectedCabins.join(', ')}
                   </div>
                 </div>
 

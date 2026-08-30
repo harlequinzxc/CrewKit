@@ -54,24 +54,28 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
   const tomorrowISO = getTomorrowISO();
   const maxDateISO = getMaxDateISO();
 
-  const [activePreset, setActivePreset] = useState<'today' | 'tomorrow' | 'custom'>(() => {
+  const [activePreset, setActivePreset] = useState<'today' | 'tomorrow' | 'custom' | null>(() => {
+    if (!selectedDateISO) return null;
+    if (selectedDateISO === todayISO) return 'today';
     if (selectedDateISO === tomorrowISO) return 'tomorrow';
-    if (selectedDateISO && selectedDateISO !== todayISO) return 'custom';
-    return 'today';
+    return 'custom';
   });
 
-  const [customDate, setCustomDate] = useState<string>(selectedDateISO || todayISO);
+  const [customDate, setCustomDate] = useState<string>(selectedDateISO || '');
 
   useEffect(() => {
-    if (selectedDateISO) {
-      if (selectedDateISO === todayISO) {
-        setActivePreset('today');
-      } else if (selectedDateISO === tomorrowISO) {
-        setActivePreset('tomorrow');
-      } else {
-        setActivePreset('custom');
-        setCustomDate(selectedDateISO);
-      }
+    if (!selectedDateISO) {
+      setActivePreset(null);
+      setCustomDate('');
+      return;
+    }
+    if (selectedDateISO === todayISO) {
+      setActivePreset('today');
+    } else if (selectedDateISO === tomorrowISO) {
+      setActivePreset('tomorrow');
+    } else {
+      setActivePreset('custom');
+      setCustomDate(selectedDateISO);
     }
   }, [selectedDateISO, todayISO, tomorrowISO]);
 
@@ -85,21 +89,30 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
     onDateSelect(tomorrowISO, formatDateDisplay(tomorrowISO));
   };
 
+  const handleOpenCustomPicker = () => {
+    setActivePreset('custom');
+    const targetDate = customDate || todayISO;
+    setCustomDate(targetDate);
+    onDateSelect(targetDate, formatDateDisplay(targetDate));
+  };
+
   const handleCustomDateChange = (val: string) => {
     setCustomDate(val);
-    onDateSelect(val, formatDateDisplay(val));
+    if (val) {
+      onDateSelect(val, formatDateDisplay(val));
+    }
   };
 
   return (
     <div className={`w-full text-left transition-all duration-300 animate-fade-in ${className}`}>
       {/* Overline Label */}
       <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
-        Departure Date
+        Select Departure Date
       </label>
 
       {/* Mode 1: Sliding Pill Selection */}
       {activePreset !== 'custom' ? (
-        <div className="flex items-center gap-2 p-1 rounded-full bg-ink-850 border border-gold-dim select-none relative">
+        <div className="flex items-center gap-1.5 p-1 rounded-full bg-ink-850 border border-gold-dim select-none relative">
           {/* Today Button */}
           <button
             type="button"
@@ -139,10 +152,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
           {/* Pick Date Button */}
           <button
             type="button"
-            onClick={() => {
-              setActivePreset('custom');
-              onDateSelect(customDate, formatDateDisplay(customDate));
-            }}
+            onClick={handleOpenCustomPicker}
             className="flex items-center justify-center gap-1.5 flex-1 py-2 rounded-full text-xs font-ui uppercase tracking-wider font-semibold text-mist-300 hover:text-gold-300 transition-colors z-10"
           >
             <CalendarIcon className="w-3.5 h-3.5" />
@@ -154,7 +164,7 @@ export const DepartureBlock: React.FC<DepartureBlockProps> = ({
         <div className="flex items-center gap-2 animate-fade-in">
           <button
             type="button"
-            onClick={handleSelectToday}
+            onClick={() => setActivePreset(null)}
             className="w-11 h-11 rounded-full bg-ink-850 border border-gold-dim flex items-center justify-center text-mist-300 hover:text-gold-300 shrink-0 active:scale-95 transition-all shadow-sm"
             aria-label="Back to quick presets"
           >

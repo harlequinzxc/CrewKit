@@ -60,6 +60,112 @@ const AIRPORT_CITIES: Record<string, string> = {
   DEL: 'Delhi',
 };
 
+export interface SectorLegOption {
+  id: string; // e.g. "SIN-NRT"
+  origin: string;
+  destination: string;
+  originCity: string;
+  destinationCity: string;
+  label: string;
+  description: string;
+}
+
+/**
+ * Get known multi-sector / 4-sector legs for flights like SQ12, SQ11, SQ26, SQ25
+ */
+export function getKnownFlightSectors(flightNo: string): SectorLegOption[] | null {
+  const num = normalizeFlightNumber(flightNo);
+  if (num === '12') {
+    return [
+      {
+        id: 'SIN-NRT',
+        origin: 'SIN',
+        destination: 'NRT',
+        originCity: 'Singapore',
+        destinationCity: 'Tokyo Narita',
+        label: 'SIN → NRT',
+        description: 'Singapore to Tokyo Narita',
+      },
+      {
+        id: 'NRT-LAX',
+        origin: 'NRT',
+        destination: 'LAX',
+        originCity: 'Tokyo Narita',
+        destinationCity: 'Los Angeles',
+        label: 'NRT → LAX',
+        description: 'Tokyo Narita to Los Angeles',
+      },
+    ];
+  }
+  if (num === '11') {
+    return [
+      {
+        id: 'LAX-NRT',
+        origin: 'LAX',
+        destination: 'NRT',
+        originCity: 'Los Angeles',
+        destinationCity: 'Tokyo Narita',
+        label: 'LAX → NRT',
+        description: 'Los Angeles to Tokyo Narita',
+      },
+      {
+        id: 'NRT-SIN',
+        origin: 'NRT',
+        destination: 'SIN',
+        originCity: 'Tokyo Narita',
+        destinationCity: 'Singapore',
+        label: 'NRT → SIN',
+        description: 'Tokyo Narita to Singapore',
+      },
+    ];
+  }
+  if (num === '26') {
+    return [
+      {
+        id: 'SIN-FRA',
+        origin: 'SIN',
+        destination: 'FRA',
+        originCity: 'Singapore',
+        destinationCity: 'Frankfurt',
+        label: 'SIN → FRA',
+        description: 'Singapore to Frankfurt',
+      },
+      {
+        id: 'FRA-JFK',
+        origin: 'FRA',
+        destination: 'JFK',
+        originCity: 'Frankfurt',
+        destinationCity: 'New York JFK',
+        label: 'FRA → JFK',
+        description: 'Frankfurt to New York JFK',
+      },
+    ];
+  }
+  if (num === '25') {
+    return [
+      {
+        id: 'JFK-FRA',
+        origin: 'JFK',
+        destination: 'FRA',
+        originCity: 'New York JFK',
+        destinationCity: 'Frankfurt',
+        label: 'JFK → FRA',
+        description: 'New York JFK to Frankfurt',
+      },
+      {
+        id: 'FRA-SIN',
+        origin: 'FRA',
+        destination: 'SIN',
+        originCity: 'Frankfurt',
+        destinationCity: 'Singapore',
+        label: 'FRA → SIN',
+        description: 'Frankfurt to Singapore',
+      },
+    ];
+  }
+  return null;
+}
+
 /**
  * Generate client-side UUID for SIA Session
  */

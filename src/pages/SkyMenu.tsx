@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
+import { DepartureBlock } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
@@ -9,7 +9,7 @@ import { DishCard } from '../components/DishCard';
 import { ImageLightbox } from '../components/ImageLightbox';
 import { RouteHero } from '../components/RouteHero';
 import { useFlightValidation } from '../hooks/useFlightValidation';
-import { getCabinConfig, getMenu } from '../lib/sq/endpoints';
+import { getCabinConfig, getMenu, getKnownFlightSectors, SectorLegOption } from '../lib/sq/endpoints';
 import { CabinCode, MenuData, LegMenuData } from '../lib/sq/types';
 import { motion } from 'framer-motion';
 import {
@@ -29,26 +29,30 @@ const SKYMENU_MESSAGES: InterludeMessage[] = [
 ];
 
 export const SkyMenu: React.FC = () => {
-  const initialTodayISO = getTodayISO();
-  const initialTodayDisplay = formatDateDisplay(initialTodayISO);
-
   // Screen Stages: 'form' | 'loading' | 'result'
   const [stage, setStage] = useState<'form' | 'loading' | 'result'>('form');
 
   // Flight validation
   const validation = useFlightValidation('');
-  const [dateISO, setDateISO] = useState<string>(initialTodayISO);
-  const [dateDisplay, setDateDisplay] = useState<string>(initialTodayDisplay);
 
-  // Cabin detection states
+  // Step 2: Departure Date (not selected by default)
+  const [dateISO, setDateISO] = useState<string>('');
+  const [dateDisplay, setDateDisplay] = useState<string>('');
+
+  // Special multi-sector flight detection (e.g. SQ12, SQ11, SQ26, SQ25)
+  const [multiSectors, setMultiSectors] = useState<SectorLegOption[] | null>(null);
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
+
+  // Step 4: Cabin detection & Multi-selection (not selected by default)
   const [isDetectingCabins, setIsDetectingCabins] = useState(false);
   const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
-  const [selectedCabin, setSelectedCabin] = useState<CabinCode>('BUSINESS');
+  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>([]);
   const [aircraftType, setAircraftType] = useState<string>('');
   const [flightNotFoundError, setFlightNotFoundError] = useState<string | null>(null);
 
-  // Menu results
-  const [menuData, setMenuData] = useState<MenuData | null>(null);
+  // Result Menu states
+  const [activeCabinView, setActiveCabinView] = useState<CabinCode>('BUSINESS');
+  const [menuByCabin, setMenuByCabin] = useState<Record<string, MenuData>>({});
   const [activeLegIndex, setActiveLegIndex] = useState<number>(0);
   const [activeSegment, setActiveSegment] = useState<'dining' | 'cellar' | 'snacks' | 'amenities'>('dining');
 
@@ -70,20 +74,37 @@ export const SkyMenu: React.FC = () => {
     title: '',
   });
 
+  // 1. Live change: when flight number changes, reset all downstream selections
   useEffect(() => {
-    if (!validation.flightNo || validation.flightNo.trim().length === 0) {
+    setDateISO('');
+    setDateDisplay('');
+    setSelectedSectorIds([]);
+    setAvailableCabins([]);
+    setSelectedCabins([]);
+    setAircraftType('');
+    setFlightNotFoundError(null);
+
+    if (validation.isValid && validation.flightNo) {
+      const known = getKnownFlightSectors(validation.flightNo);
+      setMultiSectors(known);
+    } else {
+      setMultiSectors(null);
+    }
+  }, [validation.flightNo, validation.isValid]);
+
+  const isMultiSector = Boolean(multiSectors && multiSectors.length > 1);
+
+  // 2. Live change: when date is selected, trigger cabin detection (for standard flights) or wait for sector selection
+  useEffect(() => {
+    if (!validation.flightNo || !validation.isValid || !dateISO) {
       setAvailableCabins([]);
+      setSelectedCabins([]);
       setAircraftType('');
       setFlightNotFoundError(null);
       return;
     }
 
-    if (!validation.isValid) {
-      setAvailableCabins([]);
-      setAircraftType('');
-      return;
-    }
-
+    // For multi-sector flights, cabin detection runs after sector is chosen or when date is set
     let isSubscribed = true;
     setIsDetectingCabins(true);
     setFlightNotFoundError(null);
@@ -96,11 +117,6 @@ export const SkyMenu: React.FC = () => {
           setAvailableCabins(config.available);
           setAircraftType(config.aircraftType || '');
           setFlightNotFoundError(null);
-          if (config.available.includes('BUSINESS')) {
-            setSelectedCabin('BUSINESS');
-          } else {
-            setSelectedCabin(config.available[0]);
-          }
         } else {
           setAvailableCabins([]);
           setAircraftType('');
@@ -119,8 +135,19 @@ export const SkyMenu: React.FC = () => {
     };
   }, [validation.flightNo, validation.isValid, dateISO, dateDisplay]);
 
-  const handleSelectCabin = (code: CabinCode) => {
-    setSelectedCabin(code);
+  // Handle Sector Toggle
+  const handleToggleSector = (sectorId: string) => {
+    setSelectedSectorIds((prev) => {
+      const next = prev.includes(sectorId) ? prev.filter((id) => id !== sectorId) : [...prev, sectorId];
+      return next;
+    });
+  };
+
+  // Handle Cabin Toggle (Multi-select)
+  const handleToggleCabin = (code: CabinCode) => {
+    setSelectedCabins((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   };
 
   const handleStartFetch = () => {
@@ -128,19 +155,45 @@ export const SkyMenu: React.FC = () => {
   };
 
   const executeMenuFetch = async () => {
-    const data = await getMenu(validation.flightNo, dateISO, selectedCabin);
-    return data;
+    const cabinsToFetch = selectedCabins.length > 0 ? selectedCabins : (['BUSINESS'] as CabinCode[]);
+    const menus = await Promise.all(
+      cabinsToFetch.map((c) => getMenu(validation.flightNo, dateISO, c))
+    );
+
+    const mapping: Record<string, MenuData> = {};
+    cabinsToFetch.forEach((c, idx) => {
+      const menu = menus[idx];
+      // If specific sectors were chosen, filter legs to only the selected sectors
+      if (selectedSectorIds.length > 0 && menu.legs && menu.legs.length > 0) {
+        const filtered = menu.legs.filter((leg) => {
+          const legKey = `${leg.origin}-${leg.destination}`;
+          return (
+            selectedSectorIds.includes(legKey) ||
+            selectedSectorIds.some((id) => id.includes(leg.origin) && id.includes(leg.destination))
+          );
+        });
+        if (filtered.length > 0) {
+          menu.legs = filtered;
+        }
+      }
+      mapping[c] = menu;
+    });
+
+    return { mapping, cabins: cabinsToFetch };
   };
 
-  const handleFetchSuccess = (data: MenuData) => {
-    setMenuData(data);
+  const handleFetchSuccess = (result: { mapping: Record<string, MenuData>; cabins: CabinCode[] }) => {
+    setMenuByCabin(result.mapping);
+    const initialCabin = result.cabins[0] || 'BUSINESS';
+    setActiveCabinView(initialCabin);
     setActiveLegIndex(0);
     setActiveSegment('dining');
 
     // Default selection to International/Western menu if multiple selections exist
+    const primary = result.mapping[initialCabin];
     const initialSelections: Record<string, string> = {};
-    if (data.legs && data.legs.length > 0) {
-      data.legs.forEach((leg) => {
+    if (primary && primary.legs && primary.legs.length > 0) {
+      primary.legs.forEach((leg) => {
         leg.mealServices.forEach((srv) => {
           if (srv.selections && srv.selections.length > 0) {
             const preferred = srv.selections.find(
@@ -164,22 +217,49 @@ export const SkyMenu: React.FC = () => {
     }));
   };
 
-  const cabinLabel =
-    selectedCabin === 'PREMIUM_ECONOMY'
+  const activeMenuData: MenuData | null = menuByCabin[activeCabinView] || Object.values(menuByCabin)[0] || null;
+
+  const activeCabinLabel =
+    activeCabinView === 'PREMIUM_ECONOMY'
       ? 'Premium Economy'
-      : selectedCabin.charAt(0) + selectedCabin.slice(1).toLowerCase();
+      : activeCabinView.charAt(0) + activeCabinView.slice(1).toLowerCase();
 
-  const cabinShort =
-    selectedCabin === 'PREMIUM_ECONOMY'
+  const activeCabinShort =
+    activeCabinView === 'PREMIUM_ECONOMY'
       ? 'Prem Econ'
-      : selectedCabin.charAt(0) + selectedCabin.slice(1).toLowerCase();
-
-  const flightSummaryLine = `SQ${validation.cleanFlightNo} · ${dateDisplay} · ${cabinLabel}`;
+      : activeCabinView.charAt(0) + activeCabinView.slice(1).toLowerCase();
 
   const currentLeg: LegMenuData | null =
-    menuData && menuData.legs && menuData.legs.length > 0
-      ? menuData.legs[activeLegIndex] || menuData.legs[0]
+    activeMenuData && activeMenuData.legs && activeMenuData.legs.length > 0
+      ? activeMenuData.legs[activeLegIndex] || activeMenuData.legs[0]
       : null;
+
+  const flightSummaryLine = [
+    `SQ${validation.cleanFlightNo}`,
+    selectedSectorIds.length > 0 ? selectedSectorIds.join(' & ') : '',
+    dateDisplay,
+    selectedCabins.length > 1
+      ? `${selectedCabins.length} Cabins`
+      : selectedCabins[0] === 'PREMIUM_ECONOMY'
+      ? 'Prem Econ'
+      : selectedCabins[0]
+      ? selectedCabins[0].charAt(0) + selectedCabins[0].slice(1).toLowerCase()
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  // Visibility flags strictly adhering to workflow:
+  const showDateStep = validation.isValid && validation.flightNo.length > 0;
+  const showSectorStep = showDateStep && Boolean(dateISO) && isMultiSector;
+  const showCabinStep =
+    showDateStep &&
+    Boolean(dateISO) &&
+    (!isMultiSector || selectedSectorIds.length > 0) &&
+    !isDetectingCabins &&
+    availableCabins.length > 0 &&
+    !flightNotFoundError;
+  const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
   return (
     <Layout containerClassName="w-full md:w-[90%] max-w-6xl">
@@ -193,7 +273,7 @@ export const SkyMenu: React.FC = () => {
         />
       )}
 
-      {/* 2. FORM FLOW (PUSH DOWNWARD LAYOUT — NO VERTICAL BOUNCING) */}
+      {/* 2. FORM FLOW (PROGRESSIVE STEP-BY-STEP WORKFLOW) */}
       {stage === 'form' && (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-4 sm:pt-6 pb-8 px-1 animate-cabin-in">
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
@@ -207,7 +287,7 @@ export const SkyMenu: React.FC = () => {
               </h2>
             </div>
 
-            {/* Flight Number Input */}
+            {/* STEP 1: Flight Number Input */}
             <div className="w-full text-left">
               <FlightNumberInput
                 value={validation.flightNo}
@@ -219,21 +299,78 @@ export const SkyMenu: React.FC = () => {
               />
             </div>
 
-            {/* Departure Block */}
-            {validation.isValid && validation.flightNo.length > 0 && (
+            {/* STEP 2: Departure Date (Appears only if valid flight number; none selected by default) */}
+            {showDateStep && (
               <div className="w-full text-left animate-cabin-in">
                 <DepartureBlock
                   selectedDateISO={dateISO}
                   onDateSelect={(iso, display) => {
                     setDateISO(iso);
                     setDateDisplay(display);
+                    // Reset downstream selections on date change
+                    setSelectedSectorIds([]);
+                    setSelectedCabins([]);
                   }}
                 />
               </div>
             )}
 
-            {/* Cabin Detection Loading Skeleton */}
-            {isDetectingCabins && (
+            {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
+            {showSectorStep && multiSectors && (
+              <div className="w-full text-left animate-cabin-in space-y-2">
+                <div className="flex items-center justify-between mb-1 select-none">
+                  <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300">
+                    Select Sector Leg(s)
+                  </label>
+                  <span className="font-ui text-[10px] uppercase tracking-wider text-gold-300 font-semibold">
+                    Multi-select
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {multiSectors.map((sec) => {
+                    const isSelected = selectedSectorIds.includes(sec.id);
+                    return (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        onClick={() => handleToggleSector(sec.id)}
+                        className={`flex items-center justify-between p-3 rounded-well border transition-all text-left ${
+                          isSelected
+                            ? 'bg-gold-400/15 border-gold-400 text-ivory-100 ring-1 ring-gold-400/40 shadow-sm'
+                            : 'bg-ink-850 text-mist-300 border-gold-dim hover:border-gold-400/60 hover:text-ivory-100'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span
+                            className={`font-display text-lg font-light ${
+                              isSelected ? 'text-gold-300 font-normal' : 'text-ivory-100'
+                            }`}
+                          >
+                            {sec.label}
+                          </span>
+                          <span className="text-[11px] text-mist-400 font-ui truncate mt-0.5">
+                            {sec.description}
+                          </span>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs transition-all ${
+                            isSelected
+                              ? 'bg-gold-400 border-gold-400 text-onyx-900 font-bold'
+                              : 'border-gold-dim bg-ink-900 text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Loading skeleton while detecting cabins */}
+            {isDetectingCabins && Boolean(dateISO) && (!isMultiSector || selectedSectorIds.length > 0) && (
               <div className="w-full text-left animate-fade-in">
                 <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 mb-2 select-none">
                   Available Cabin Classes
@@ -249,12 +386,12 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* Single Select Cabin Class Pills */}
-            {!isDetectingCabins && availableCabins.length > 0 && !flightNotFoundError && (
+            {/* STEP 4: Cabin Classes Multi-Select (none selected by default) */}
+            {showCabinStep && (
               <div className="w-full text-left animate-cabin-in">
                 <div className="flex items-center justify-between mb-2 select-none">
                   <label className="block text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300">
-                    Select Cabin Class
+                    Select Cabin Class(es)
                   </label>
                   {aircraftType && (
                     <span className="font-ui text-[10px] uppercase tracking-wider text-gold-300 font-semibold">
@@ -268,45 +405,69 @@ export const SkyMenu: React.FC = () => {
                     <CabinPill
                       key={code}
                       code={code}
-                      isSelected={selectedCabin === code}
-                      hasAnySelection={true}
+                      isSelected={selectedCabins.includes(code)}
                       delayIndex={idx}
-                      onToggle={handleSelectCabin}
+                      onToggle={handleToggleCabin}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Reveal CTA */}
-            {validation.isValid &&
-              validation.flightNo.length > 0 &&
-              dateISO &&
-              availableCabins.length > 0 &&
-              !flightNotFoundError &&
-              !isDetectingCabins && (
-                <div className="w-full pt-3 pb-4">
-                  <RevealCTA
-                    label="Fetch Menu"
-                    icon={Sparkles}
-                    summary={flightSummaryLine}
-                    onPress={handleStartFetch}
-                  />
-                </div>
-              )}
+            {/* STEP 5: Reveal CTA (Appears only after cabin class/classes are selected) */}
+            {showFetchButton && (
+              <div className="w-full pt-3 pb-4">
+                <RevealCTA
+                  label="Fetch Menu"
+                  icon={Sparkles}
+                  summary={flightSummaryLine}
+                  onPress={handleStartFetch}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH ROUTE HERO */}
-      {stage === 'result' && menuData && (
+      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH CABIN & SECTOR SWITCHING */}
+      {stage === 'result' && activeMenuData && (
         <div className="flex flex-col h-full overflow-hidden animate-cabin-in text-left">
           {/* STICKY LUXURY HEADER */}
           <div className="shrink-0 sticky top-0 z-20 backdrop-blur-md bg-ink-950/85 pb-3 pt-1 border-b border-gold-dim">
-            {/* Multi-Leg Sector Tabs */}
-            {menuData.legs && menuData.legs.length > 1 && (
+            {/* Row 1: Multi-Cabin Selector Tabs (if multiple cabins were selected) */}
+            {selectedCabins.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 pb-2 overflow-x-auto no-scrollbar">
+                {selectedCabins.map((cabinCode) => {
+                  const label =
+                    cabinCode === 'PREMIUM_ECONOMY'
+                      ? 'Prem Econ'
+                      : cabinCode.charAt(0) + cabinCode.slice(1).toLowerCase();
+                  const isActive = activeCabinView === cabinCode;
+                  return (
+                    <button
+                      key={cabinCode}
+                      type="button"
+                      onClick={() => {
+                        setActiveCabinView(cabinCode);
+                        setActiveLegIndex(0);
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
+                        isActive
+                          ? 'bg-gold-400 text-onyx-900 shadow-sm'
+                          : 'text-mist-300 hover:text-ivory-100 bg-ink-850/60 border border-gold-dim'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Row 2: Multi-Leg Sector Tabs */}
+            {activeMenuData.legs && activeMenuData.legs.length > 1 && (
               <div className="flex items-center justify-center gap-1.5 pb-2.5 overflow-x-auto no-scrollbar">
-                {menuData.legs.map((leg, idx) => (
+                {activeMenuData.legs.map((leg, idx) => (
                   <button
                     key={leg.legId || idx}
                     type="button"
@@ -318,13 +479,15 @@ export const SkyMenu: React.FC = () => {
                     }`}
                   >
                     <Plane className="w-3 h-3 rotate-45" />
-                    <span>{leg.origin} → {leg.destination}</span>
+                    <span>
+                      {leg.origin} → {leg.destination}
+                    </span>
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Category Tabs with Framer Motion Sliding Pill */}
+            {/* Row 3: Category Tabs with Framer Motion Sliding Pill */}
             <div className="flex items-center justify-center gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim max-w-md mx-auto relative select-none">
               {(
                 [
@@ -364,14 +527,13 @@ export const SkyMenu: React.FC = () => {
 
           {/* MAIN SCROLLABLE CONTENT (NO BROWSER SCROLLBAR) */}
           <div className="flex-1 overflow-y-auto no-scrollbar py-6 px-1 sm:px-2 space-y-8">
-            
             {/* ROUTE HERO CARD — CENTERPIECE OF INFLIGHT MENU */}
             {currentLeg && (
               <RouteHero
                 flightNumber={`SQ ${validation.cleanFlightNo}`}
-                flightDate={dateISO}
-                cabinLabel={cabinLabel}
-                cabinShort={cabinShort}
+                flightDate={currentLeg.depDateLocal || dateISO}
+                cabinLabel={activeCabinLabel}
+                cabinShort={activeCabinShort}
                 leg={{
                   from: currentLeg.origin,
                   to: currentLeg.destination,
@@ -385,7 +547,7 @@ export const SkyMenu: React.FC = () => {
                   arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
                   arrDayShift: currentLeg.arrDayShift,
                 }}
-                legCount={menuData.legs?.length || 1}
+                legCount={activeMenuData.legs?.length || 1}
               />
             )}
 
@@ -410,7 +572,7 @@ export const SkyMenu: React.FC = () => {
 
                     return (
                       <div key={service.id} className="space-y-6">
-                        {/* Service Title (Cormorant Garamond, 2rem) */}
+                        {/* Service Title */}
                         <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
                           <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight">
                             {service.name}
@@ -485,7 +647,7 @@ export const SkyMenu: React.FC = () => {
                                         key={item.id}
                                         item={item}
                                         courseCategory={course.name}
-                                        cabin={selectedCabin}
+                                        cabin={activeCabinView}
                                         onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                                       />
                                     ))}
@@ -519,22 +681,18 @@ export const SkyMenu: React.FC = () => {
                 ) : (
                   currentLeg.drinks.map((sec) => (
                     <div key={sec.id} className="space-y-4">
-                      {/* Section Title */}
                       <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                        <h3 className="font-display text-2xl text-ivory-100">
-                          {sec.title}
-                        </h3>
+                        <h3 className="font-display text-2xl text-ivory-100">{sec.title}</h3>
                         <Wine className="w-4 h-4 text-gold-400" />
                       </div>
 
-                      {/* Beverage Cards Grid with Photos, Descriptions & Lightbox */}
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
                         {sec.items.map((it) => (
                           <DishCard
                             key={it.id}
                             item={it}
                             courseCategory={sec.title}
-                            cabin={selectedCabin}
+                            cabin={activeCabinView}
                             onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                           />
                         ))}
@@ -574,7 +732,7 @@ export const SkyMenu: React.FC = () => {
                           key={snk.id}
                           item={snk}
                           courseCategory="Delectables & Snacks"
-                          cabin={selectedCabin}
+                          cabin={activeCabinView}
                           onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                         />
                       ))}
@@ -599,9 +757,7 @@ export const SkyMenu: React.FC = () => {
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                      <h3 className="font-display text-2xl text-ivory-100">
-                        Cabin Amenities
-                      </h3>
+                      <h3 className="font-display text-2xl text-ivory-100">Cabin Amenities</h3>
                       <Gift className="w-4 h-4 text-gold-400" />
                     </div>
 
@@ -616,7 +772,7 @@ export const SkyMenu: React.FC = () => {
                             imageUrl: am.imageUrl,
                           }}
                           courseCategory="Cabin Amenities"
-                          cabin={selectedCabin}
+                          cabin={activeCabinView}
                           onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                         />
                       ))}
