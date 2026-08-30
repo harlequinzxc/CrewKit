@@ -69,7 +69,7 @@ export const SkyMenu: React.FC = () => {
   const [activeCabinView, setActiveCabinView] = useState<CabinCode>('BUSINESS');
   const [menuByCabin, setMenuByCabin] = useState<Record<string, MenuData>>({});
   const [activeLegIndex, setActiveLegIndex] = useState<number>(0);
-  const [activeSegment, setActiveSegment] = useState<'dining' | 'cellar' | 'snacks' | 'amenities'>('dining');
+  const [activeSegment, setActiveSegment] = useState<'dining' | 'drinks' | 'snacks' | 'amenities'>('dining');
 
   // Selection switcher state per meal service
   const [selectedMealOption, setSelectedMealOption] = useState<Record<string, string>>({});
@@ -171,24 +171,24 @@ export const SkyMenu: React.FC = () => {
             setCheckState('not-found');
             setCheckFeedback({
               code: 'NOT_FOUND',
-              heading: result.heading || "We couldn't find that flight for this date.",
-              message: result.message,
-              guidance: result.guidance || 'Check the flight number and date. Menus are generally published up to eight days before departure.',
+              heading: 'No flight found',
+              message: 'No flight found',
+              guidance: 'Check the flight number and date. Menus are generally published up to eight days before departure.',
             });
           } else if (result.code === 'NO_CABINS') {
             setCheckState('not-found');
             setCheckFeedback({
               code: 'NO_CABINS',
-              heading: result.heading || 'No Cabins Available',
-              message: result.message,
-              guidance: result.guidance || 'Menus are generally published up to eight days before departure.',
+              heading: 'No flight found',
+              message: 'No flight found',
+              guidance: 'Menus are generally published up to eight days before departure.',
             });
           } else {
             setCheckState('error');
             setCheckFeedback({
               code: result.code,
-              heading: result.heading || 'Verification Error',
-              message: result.message,
+              heading: 'No flight found',
+              message: result.message || 'No flight found',
             });
           }
         }
@@ -334,6 +334,17 @@ export const SkyMenu: React.FC = () => {
     checkState === 'valid' &&
     availableCabins.length > 0;
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
+
+  // Check availability for dynamic category list
+  const hasSnacks = Boolean(currentLeg?.snacks && currentLeg.snacks.length > 0);
+  const hasAmenities = Boolean(currentLeg?.amenities && currentLeg.amenities.length > 0);
+
+  const availableCategories = [
+    { id: 'dining' as const, label: 'Dining', icon: Utensils },
+    { id: 'drinks' as const, label: 'Drinks', icon: Wine },
+    ...(hasSnacks ? [{ id: 'snacks' as const, label: 'Snacks', icon: Cookie }] : []),
+    ...(hasAmenities ? [{ id: 'amenities' as const, label: 'Amenities', icon: Gift }] : []),
+  ];
 
   return (
     <Layout containerClassName="w-full md:w-[90%] max-w-6xl">
@@ -536,51 +547,86 @@ export const SkyMenu: React.FC = () => {
         </div>
       )}
 
-      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH CABIN & SECTOR SWITCHING */}
+      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH SHIFTED ROUTE HERO AT TOP */}
       {stage === 'result' && activeMenuData && (
-        <div className="flex flex-col h-full overflow-hidden animate-cabin-in text-left">
-          {/* STICKY LUXURY HEADER */}
-          <div className="shrink-0 sticky top-0 z-20 backdrop-blur-md bg-ink-950/85 pb-3 pt-1 border-b border-gold-dim">
-            {/* Row 1: Multi-Cabin Selector Tabs (if multiple cabins were selected) */}
-            {selectedCabins.length > 1 && (
-              <div className="flex items-center justify-center gap-1.5 pb-2 overflow-x-auto no-scrollbar">
-                {selectedCabins.map((cabinCode) => {
-                  const label =
-                    cabinCode === 'PREMIUM_ECONOMY'
-                      ? 'Prem Econ'
-                      : cabinCode.charAt(0) + cabinCode.slice(1).toLowerCase();
-                  const isActive = activeCabinView === cabinCode;
-                  return (
-                    <button
-                      key={cabinCode}
-                      type="button"
-                      onClick={() => {
-                        setActiveCabinView(cabinCode);
-                        setActiveLegIndex(0);
-                      }}
-                      className={`px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
-                        isActive
-                          ? 'bg-gold-400 text-onyx-900 shadow-sm'
-                          : 'text-mist-300 hover:text-ivory-100 bg-ink-850/60 border border-gold-dim'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16">
+          {/* Row 1: Multi-Cabin Selector Tabs (if multiple cabins were selected) */}
+          {selectedCabins.length > 1 && (
+            <div className="shrink-0 flex items-center justify-center gap-1.5 pt-1 pb-3 overflow-x-auto no-scrollbar">
+              {selectedCabins.map((cabinCode) => {
+                const label =
+                  cabinCode === 'PREMIUM_ECONOMY'
+                    ? 'Prem Econ'
+                    : cabinCode.charAt(0) + cabinCode.slice(1).toLowerCase();
+                const isActive = activeCabinView === cabinCode;
+                return (
+                  <button
+                    key={cabinCode}
+                    type="button"
+                    onClick={() => {
+                      setActiveCabinView(cabinCode);
+                      setActiveLegIndex(0);
+                    }}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
+                      isActive
+                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
+                        : 'text-mist-300 hover:text-ivory-100 bg-ink-850/60 border border-gold-dim'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-            {/* Row 2: Multi-Leg Sector Tabs */}
-            {activeMenuData.legs && activeMenuData.legs.length > 1 && (
-              <div className="flex items-center justify-center gap-1.5 pb-2.5 overflow-x-auto no-scrollbar">
-                {activeMenuData.legs.map((leg, idx) => (
+          {/* 1. ROUTE HERO SHIFTED TO THE TOP */}
+          {currentLeg && (
+            <div className="shrink-0 pt-1 pb-3">
+              <RouteHero
+                flightNumber={`SQ ${validation.cleanFlightNo}`}
+                flightDate={currentLeg.depDateLocal || dateISO}
+                cabinLabel={activeCabinLabel}
+                cabinShort={activeCabinShort}
+                leg={{
+                  from: currentLeg.origin,
+                  to: currentLeg.destination,
+                  fromCity: currentLeg.originCity,
+                  toCity: currentLeg.destinationCity,
+                  depTime: currentLeg.depTime,
+                  arrTime: currentLeg.arrTime,
+                  depUtc: currentLeg.depUtc,
+                  arrUtc: currentLeg.arrUtc,
+                  depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
+                  arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
+                  arrDayShift: currentLeg.arrDayShift,
+                }}
+                legCount={activeMenuData.legs?.length || 1}
+              />
+            </div>
+          )}
+
+          {/* 2. BELOW ROUTE HERO: SECTOR PILLS (IF MULTI SECTOR) */}
+          {activeMenuData.legs && activeMenuData.legs.length > 1 && (
+            <div className="shrink-0 flex items-center justify-center gap-2 pb-3 overflow-x-auto no-scrollbar">
+              {activeMenuData.legs.map((leg, idx) => {
+                const isActive = activeLegIndex === idx;
+                return (
                   <button
                     key={leg.legId || idx}
                     type="button"
-                    onClick={() => setActiveLegIndex(idx)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
-                      activeLegIndex === idx
+                    onClick={() => {
+                      setActiveLegIndex(idx);
+                      const targetLeg = activeMenuData.legs[idx];
+                      if (activeSegment === 'snacks' && (!targetLeg?.snacks || targetLeg.snacks.length === 0)) {
+                        setActiveSegment('dining');
+                      }
+                      if (activeSegment === 'amenities' && (!targetLeg?.amenities || targetLeg.amenities.length === 0)) {
+                        setActiveSegment('dining');
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
+                      isActive
                         ? 'bg-gold-400 text-onyx-900 shadow-sm'
                         : 'text-mist-300 hover:text-ivory-100 bg-ink-850/60 border border-gold-dim'
                     }`}
@@ -590,20 +636,15 @@ export const SkyMenu: React.FC = () => {
                       {leg.origin} → {leg.destination}
                     </span>
                   </button>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          )}
 
-            {/* Row 3: Category Tabs with Framer Motion Sliding Pill */}
+          {/* 3. BELOW SECTOR PILLS / ROUTE HERO: STICKY TOP BAR OF CATEGORIES */}
+          <div className="sticky top-0 z-20 backdrop-blur-md bg-ink-950/90 py-2 border-y border-gold-dim/40 mb-6">
             <div className="flex items-center justify-center gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim max-w-md mx-auto relative select-none">
-              {(
-                [
-                  { id: 'dining', label: 'Dining', icon: Utensils },
-                  { id: 'cellar', label: 'Cellar & Tea', icon: Wine },
-                  { id: 'snacks', label: 'Snacks', icon: Cookie },
-                  { id: 'amenities', label: 'Amenities', icon: Gift },
-                ] as const
-              ).map((tab) => {
+              {availableCategories.map((tab) => {
                 const TabIcon = tab.icon;
                 const isActive = activeSegment === tab.id;
                 return (
@@ -632,32 +673,8 @@ export const SkyMenu: React.FC = () => {
             </div>
           </div>
 
-          {/* MAIN SCROLLABLE CONTENT (NO BROWSER SCROLLBAR) */}
-          <div className="flex-1 overflow-y-auto no-scrollbar py-6 px-1 sm:px-2 space-y-8">
-            {/* ROUTE HERO CARD — CENTERPIECE OF INFLIGHT MENU */}
-            {currentLeg && (
-              <RouteHero
-                flightNumber={`SQ ${validation.cleanFlightNo}`}
-                flightDate={currentLeg.depDateLocal || dateISO}
-                cabinLabel={activeCabinLabel}
-                cabinShort={activeCabinShort}
-                leg={{
-                  from: currentLeg.origin,
-                  to: currentLeg.destination,
-                  fromCity: currentLeg.originCity,
-                  toCity: currentLeg.destinationCity,
-                  depTime: currentLeg.depTime,
-                  arrTime: currentLeg.arrTime,
-                  depUtc: currentLeg.depUtc,
-                  arrUtc: currentLeg.arrUtc,
-                  depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
-                  arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
-                  arrDayShift: currentLeg.arrDayShift,
-                }}
-                legCount={activeMenuData.legs?.length || 1}
-              />
-            )}
-
+          {/* MAIN MENU CONTENT SECTIONS */}
+          <div className="px-1 sm:px-2 space-y-8">
             {/* 1. DINING SERVICE & PACED COURSES */}
             {activeSegment === 'dining' && currentLeg && (
               <>
@@ -773,13 +790,13 @@ export const SkyMenu: React.FC = () => {
               </>
             )}
 
-            {/* 2. CELLAR, COFFEE, TEA & BEVERAGES WITH FULL DISH CARDS & PHOTOS */}
-            {activeSegment === 'cellar' && currentLeg && (
+            {/* 2. DRINKS (CELLAR, COFFEE, TEA & BEVERAGES) */}
+            {activeSegment === 'drinks' && currentLeg && (
               <div className="space-y-8">
                 {currentLeg.drinks.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
                     <span className="font-display text-2xl text-ivory-100 mb-2">
-                      No Beverage Listing Available
+                      No Drinks Listing Available
                     </span>
                     <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
                       Beverage, tea, and coffee selections have not been published for this sector yet.
@@ -812,13 +829,13 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* 3. DELECTABLES & SNACKS */}
+            {/* 3. DELECTABLES & SNACKS (RENDERED IF AVAILABLE) */}
             {activeSegment === 'snacks' && currentLeg && (
               <div className="space-y-6">
                 {currentLeg.snacks.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
                     <span className="font-display text-2xl text-ivory-100 mb-2">
-                      Inflight Snack Basket
+                      No Snacks Available
                     </span>
                     <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
                       Complimentary snacks and refreshments are available on board upon request.
@@ -828,7 +845,7 @@ export const SkyMenu: React.FC = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
                       <h3 className="font-display text-2xl text-ivory-100">
-                        Delectables &amp; Light Bites
+                        Delectables &amp; Snacks
                       </h3>
                       <Cookie className="w-4 h-4 text-gold-400" />
                     </div>

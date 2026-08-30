@@ -750,6 +750,126 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
     const snacksList: MenuItem[] = [];
     const amenitiesList: AmenityItem[] = [];
 
+    // Snacks & Delectables
+    const snackEn =
+      extractEnUkBlock(leg, 'drySnack') ||
+      extractEnUkBlock(leg, 'drySnacks') ||
+      extractEnUkBlock(leg, 'snack') ||
+      extractEnUkBlock(leg, 'snacks') ||
+      leg.drySnack ||
+      leg.drySnacks ||
+      leg.snacks ||
+      leg.snack;
+
+    if (snackEn) {
+      const rawCategories = Array.isArray(snackEn.categories)
+        ? snackEn.categories
+        : Array.isArray(snackEn.subcategories)
+        ? snackEn.subcategories
+        : Array.isArray(snackEn.specialities)
+        ? snackEn.specialities
+        : Array.isArray(snackEn.items)
+        ? [{ items: snackEn.items }]
+        : Array.isArray(snackEn)
+        ? [{ items: snackEn }]
+        : [snackEn];
+
+      rawCategories.forEach((cat: any, cIdx: number) => {
+        const catName = cleanText(cat.name || cat.title || 'Delectables');
+        const subcategories = Array.isArray(cat.subcategories)
+          ? cat.subcategories
+          : Array.isArray(cat.specialities)
+          ? cat.specialities
+          : [cat];
+
+        subcategories.forEach((sub: any, sIdx: number) => {
+          const rawSpecialities = Array.isArray(sub.specialities) ? sub.specialities : [sub];
+          rawSpecialities.forEach((spec: any) => {
+            const rawItems = Array.isArray(spec.items)
+              ? spec.items
+              : Array.isArray(spec)
+              ? spec
+              : [];
+
+            rawItems.forEach((it: any, iIdx: number) => {
+              const name = cleanText(it.name || it.title || it.itemName || it.dishName || '');
+              if (name) {
+                const desc = cleanText(it.description || it.desc || '');
+                const footnote = cleanText(it.footnote || '');
+                const tags: string[] = [];
+                if (Array.isArray(it.icons)) {
+                  it.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
+                }
+                if (catName && !tags.includes(catName)) {
+                  tags.push(catName);
+                }
+
+                let imageUrl: string | undefined = undefined;
+                const rawImg =
+                  it.imagePathIfeHigh ||
+                  it.imagePath ||
+                  it.imageUrl ||
+                  it.image ||
+                  spec.imagePath ||
+                  spec.imageUrl ||
+                  sub.imagePath;
+                if (rawImg && typeof rawImg === 'string') {
+                  imageUrl = rawImg.startsWith('http')
+                    ? rawImg
+                    : `${SQ_CONFIG.IMAGE_BASE_URL}${rawImg.replace(/^\/+/, '')}`;
+                }
+
+                snacksList.push({
+                  id: `snack_${lIdx}_${cIdx}_${sIdx}_${iIdx}`,
+                  title: name,
+                  description: desc || undefined,
+                  footnote: footnote || undefined,
+                  tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
+                  imageUrl,
+                });
+              }
+            });
+          });
+        });
+      });
+    }
+
+    // Cabin Amenities
+    const amenEn =
+      extractEnUkBlock(leg, 'amenity') ||
+      extractEnUkBlock(leg, 'amenities') ||
+      leg.amenities ||
+      leg.amenity;
+
+    if (amenEn) {
+      const rawAmenItems = Array.isArray(amenEn.items)
+        ? amenEn.items
+        : Array.isArray(amenEn)
+        ? amenEn
+        : [];
+
+      rawAmenItems.forEach((am: any, aIdx: number) => {
+        const name = cleanText(am.itemName || am.name || am.title || '');
+        if (name) {
+          const desc = cleanText(am.description || am.desc || '');
+          let imageUrl: string | undefined = undefined;
+          const rawImg = am.imagePathIfeHigh || am.imagePath || am.imageUrl || am.image;
+          if (rawImg && typeof rawImg === 'string') {
+            imageUrl = rawImg.startsWith('http')
+              ? rawImg
+              : `${SQ_CONFIG.IMAGE_BASE_URL}${rawImg.replace(/^\/+/, '')}`;
+          }
+
+          amenitiesList.push({
+            id: `amen_${lIdx}_${aIdx}`,
+            name,
+            description: desc || undefined,
+            imageUrl,
+          });
+        }
+      });
+    }
+
     const menuEn = extractEnUkBlock(leg, 'menu');
     if (menuEn && Array.isArray(menuEn.meals)) {
       menuEn.meals.forEach((meal: any, mIdx: number) => {

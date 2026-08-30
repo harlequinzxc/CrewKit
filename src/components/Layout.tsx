@@ -74,10 +74,10 @@ export const Layout: React.FC<LayoutProps> = ({
       >
         {/* Top Header Bar */}
         <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">
-          {/* LEFT: Back button on inner pages + Nav lockup */}
+          {/* LEFT: Back button on inner pages (crewcash, skymenu, inkflight) without logo/text */}
           <div className="flex items-center gap-3">
             {!isHome && <BackButton to="/" />}
-            <Logo to="/" size="sm" />
+            {isHome && <Logo to="/" size="sm" />}
           </div>
 
           {/* RIGHT: Circular Ghost Hamburger Menu */}
