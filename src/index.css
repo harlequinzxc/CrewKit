@@ -205,11 +205,11 @@ body {
 /* Gold Hairline Rule */
 .gold-rule {
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(200, 164, 93, 0.6) 50%, transparent 100%);
+  background: linear-gradient(to right, rgba(201, 168, 76, 0.00) 0%, rgba(201, 168, 76, 0.22) 12%, rgba(201, 168, 76, 0.50) 50%, rgba(201, 168, 76, 0.22) 88%, rgba(201, 168, 76, 0.00) 100%);
 }
 
 [data-theme="light"] .gold-rule {
-  background: linear-gradient(90deg, transparent 0%, rgba(134, 97, 31, 0.6) 50%, transparent 100%);
+  background: linear-gradient(to right, rgba(147, 112, 44, 0.00) 0%, rgba(147, 112, 44, 0.22) 12%, rgba(147, 112, 44, 0.50) 50%, rgba(147, 112, 44, 0.22) 88%, rgba(147, 112, 44, 0.00) 100%);
 }
 
 /* ==========================================================================
@@ -273,8 +273,7 @@ body {
 .gold-hairline {
   height: 1px;
   width: 100%;
-  background: linear-gradient(90deg, transparent 0%, var(--gold-400) 50%, transparent 100%);
-  opacity: 0.35;
+  background: linear-gradient(to right, rgba(201, 168, 76, 0.00) 0%, rgba(201, 168, 76, 0.22) 12%, rgba(201, 168, 76, 0.50) 50%, rgba(201, 168, 76, 0.22) 88%, rgba(201, 168, 76, 0.00) 100%);
 }
 
 /* 3. Champagne Gradient Text */

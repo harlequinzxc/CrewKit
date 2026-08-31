@@ -18,3 +18,4 @@ export {
 export { StickyHeader, type StickyHeaderProps } from './StickyHeader';
 export { Layout, type LayoutProps } from './Layout';
 export { GoldHairline, type GoldHairlineProps } from './GoldHairline';
+export { MenuItemCard, type MenuItemCardProps } from './MenuItemCard';

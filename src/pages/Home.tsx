@@ -1,7 +1,7 @@
 import React from 'react';
 import { Layout } from '../components/ui/Layout';
 import { NavCard } from '../components/NavCard';
-import { Heading, Text } from '../components/ui';
+import { Heading, Text, GoldHairline } from '../components/ui';
 import { Calculator, UtensilsCrossed, Printer } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -37,7 +37,7 @@ export const Home: React.FC = () => {
           </Heading>
 
           {/* Hairline gold accent rule */}
-          <div className="gold-hairline max-w-xs mx-auto my-3" />
+          <GoldHairline className="max-w-xs mx-auto my-3" />
 
           {/* Subcopy */}
           <Text variant="secondary" className="text-[0.88rem] sm:text-[0.95rem] max-w-md leading-relaxed">

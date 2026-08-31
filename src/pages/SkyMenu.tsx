@@ -5,7 +5,6 @@ import { DepartureBlock } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
-import { DishCard } from '../components/DishCard';
 import { RouteHero } from '../components/RouteHero';
 import {
   Heading,
@@ -14,6 +13,7 @@ import {
   SegmentedControl,
   StickyHeader,
   GoldHairline,
+  MenuItemCard,
 } from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
@@ -724,10 +724,10 @@ export const SkyMenu: React.FC = () => {
                         <div className="space-y-10">
                           {currentSelection?.courses.map((course) => (
                             <div key={course.id} className="w-full">
-                              {/* Centered Editorial Course Header framed by gold hairlines */}
-                              <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                                <GoldHairline variant="solid" className="flex-1" />
-                                <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                              {/* Centered Editorial Course Header framed by graduated gold hairlines */}
+                              <div className="flex items-center gap-4 my-8 md:my-10 w-full select-none">
+                                <GoldHairline className="flex-1" />
+                                <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
                                   <Text
                                     variant="overline"
                                     className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
@@ -740,13 +740,13 @@ export const SkyMenu: React.FC = () => {
                                     </Text>
                                   )}
                                 </div>
-                                <GoldHairline variant="solid" className="flex-1" />
+                                <GoldHairline className="flex-1" />
                               </div>
 
                               {/* Dishes Grid */}
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
                                 {course.items.map((item) => (
-                                  <DishCard
+                                  <MenuItemCard
                                     key={item.id}
                                     item={item}
                                     courseCategory={course.name}
@@ -780,9 +780,9 @@ export const SkyMenu: React.FC = () => {
                   currentLeg.drinks.map((sec) => (
                     <div key={sec.id} className="w-full">
                       {/* Centered Editorial Drinks Header */}
-                      <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                        <GoldHairline variant="solid" className="flex-1" />
-                        <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                      <div className="flex items-center gap-4 my-8 md:my-10 w-full select-none">
+                        <GoldHairline className="flex-1" />
+                        <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
                           <Text
                             variant="overline"
                             className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
@@ -790,12 +790,12 @@ export const SkyMenu: React.FC = () => {
                             {sec.title}
                           </Text>
                         </div>
-                        <GoldHairline variant="solid" className="flex-1" />
+                        <GoldHairline className="flex-1" />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
                         {sec.items.map((it) => (
-                          <DishCard
+                          <MenuItemCard
                             key={it.id}
                             item={it}
                             courseCategory={sec.title}
@@ -844,15 +844,15 @@ export const SkyMenu: React.FC = () => {
                             >
                               {group.name}
                             </Text>
-                            <GoldHairline variant="graduated" className="flex-1" />
+                            <GoldHairline className="flex-1" />
                           </div>
 
-                          {/* Quiet Editorial List Items (Single column, no cards, no pills) */}
-                          <div className="mt-4 flex flex-col divide-y divide-gold-dim/15">
+                          {/* Quiet Editorial List Items (Single column, no cards, no pills, no lines between items) */}
+                          <div className="mt-4 flex flex-col">
                             {group.items.map((item, iIdx) => (
                               <div
                                 key={`snk-${gIdx}-${iIdx}`}
-                                className="py-2.5 sm:py-3 flex items-start gap-3 w-full text-left"
+                                className="py-2.5 sm:py-3 flex items-start gap-3 w-full text-left select-none"
                               >
                                 {/* Small gold disc marker (6px) vertically aligned with text */}
                                 <span className="w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0 mt-2 shadow-[0_0_8px_rgba(201,168,76,0.3)]" />
@@ -902,9 +902,9 @@ export const SkyMenu: React.FC = () => {
                 ) : (
                   <div className="w-full">
                     {/* Centered Editorial Amenities Header */}
-                    <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                      <GoldHairline variant="solid" className="flex-1" />
-                      <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                    <div className="flex items-center gap-4 my-8 md:my-10 w-full select-none">
+                      <GoldHairline className="flex-1" />
+                      <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
                         <Text
                           variant="overline"
                           className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
@@ -912,12 +912,12 @@ export const SkyMenu: React.FC = () => {
                           Cabin Amenities
                         </Text>
                       </div>
-                      <GoldHairline variant="solid" className="flex-1" />
+                      <GoldHairline className="flex-1" />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
                       {currentLeg.amenities.map((am) => (
-                        <DishCard
+                        <MenuItemCard
                           key={am.id}
                           item={{
                             id: am.id,
