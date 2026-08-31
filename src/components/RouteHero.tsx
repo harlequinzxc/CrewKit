@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plane } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 export interface RouteData {
   from: string; // e.g. "LAX"
@@ -42,10 +41,10 @@ export interface NormalizedLeg {
 export interface FlightHeroProps {
   flightNumber: string; // "SQ 11"
   flightDate: string; // "2026-08-29"
-  cabinShort: string; // "Business"
-  cabinLabel?: string; // "Business Class"
+  cabinShort?: string;
+  cabinLabel?: string;
   leg: NormalizedLeg;
-  legCount?: number; // total legs of the flight
+  legCount?: number;
   legs?: NormalizedLeg[];
   activeLegIndex?: number;
   onSelectLegIndex?: (index: number) => void;
@@ -54,7 +53,7 @@ export interface FlightHeroProps {
 export type RouteHeroProps = FlightHeroProps;
 
 /**
- * Format long-form date e.g. "Saturday, 29 August 2026" (en-GB, weekday long)
+ * Format long-form date e.g. "Monday, 31 August 2026" (en-GB, weekday long)
  */
 export function prettyDateLong(iso: string): string {
   if (!iso) return '';
@@ -111,7 +110,6 @@ export function formatTimeHHMM(timeStr?: string, utcFallback?: string): string {
 
 /**
  * Compute duration from UTC pair only.
- * Never subtract local times (they cross time zones).
  */
 function duration(depUtc?: string, arrUtc?: string): string {
   if (!depUtc || !arrUtc) return '';
@@ -130,14 +128,13 @@ function duration(depUtc?: string, arrUtc?: string): string {
   }
 }
 
+/**
+ * Light, quiet RouteHero block — sits topmost under global top bar, scrolls away naturally.
+ */
 export const RouteHero: React.FC<FlightHeroProps> = ({
   flightNumber,
   flightDate,
-  cabinShort,
   leg,
-  legs,
-  activeLegIndex,
-  onSelectLegIndex,
 }) => {
   const route: RouteData = leg.route || {
     from: leg.from || (leg as any).origin || '',
@@ -157,123 +154,93 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   const arrTimeFormatted = formatTimeHHMM(route.arrTime, route.arrUtc);
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-gold-500/15 bg-gradient-to-b from-ink-850 to-ink-900/60 px-6 py-7 shadow-cabin sm:px-10 text-left">
-      {/* ambient glows */}
-      <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.35),transparent)] blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.12),transparent)] blur-2xl" />
+    <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-gold-400/[0.08] bg-gradient-to-b from-ink-850/50 to-ink-900/30 px-5 py-5 sm:px-8 sm:py-6 shadow-sm text-left">
+      {/* Subtle ambient glows */}
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.2),transparent)] blur-xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.08),transparent)] blur-xl" />
 
       <div className="relative">
-        {/* ── header line ── */}
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-center">
-          <span className="eyebrow">{flightNumber}</span>
-          <span className="h-px w-6 bg-gold-500/40" />
-          <span className="text-[10px] uppercase tracking-[0.3em] text-mist-400">
+        {/* ── Whisper Meta Overline (Flight · Date, deduplicated whisper) ── */}
+        <div className="mb-4 flex items-center justify-center gap-2.5 text-center select-none">
+          <span className="font-ui text-[10px] tracking-[0.22em] text-gold-400/90 font-medium uppercase">{flightNumber}</span>
+          <span className="h-px w-4 bg-gold-400/25" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-mist-400 font-ui">
             {prettyDateLong(flightDate)}
-          </span>
-          <span className="h-px w-6 bg-gold-500/40" />
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold-400">
-            {cabinShort}
           </span>
         </div>
 
-        {/* ── route arc ── 3-col grid, bottom-aligned ── */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-4">
-          {/* origin column (right aligned) */}
+        {/* ── Route Arc ── 3-col grid, compact refined typography ── */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-3">
+          {/* Origin */}
           <div className="text-right">
             <motion.p
-              initial={{ opacity: 0, x: -14 }}
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="font-display text-[clamp(2.4rem,8vw,4.2rem)] font-medium leading-none text-ivory-100"
+              className="font-display text-3xl sm:text-4xl md:text-[2.6rem] font-medium leading-none text-ivory-100"
             >
               {route.from}
             </motion.p>
-            <p className="mt-1.5 text-[11px] uppercase tracking-[0.22em] text-mist-400">
+            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate">
               {route.fromCity}
             </p>
             {depTimeFormatted && (
-              <p className="mt-1 font-display text-xl text-gold-300">{depTimeFormatted}</p>
+              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-300/90">{depTimeFormatted}</p>
             )}
           </div>
 
-          {/* arc column */}
-          <div className="relative flex w-24 flex-col items-center pb-1 sm:w-40 md:w-56">
-            <svg viewBox="0 0 200 60" className="w-full overflow-visible" aria-hidden="true">
+          {/* Arc & Duration */}
+          <div className="relative flex w-20 sm:w-28 md:w-36 flex-col items-center pb-0.5">
+            <svg viewBox="0 0 160 45" className="w-full overflow-visible" aria-hidden="true">
               <motion.path
-                d="M4 52 C 60 6, 140 6, 196 52"
+                d="M4 38 C 45 6, 115 6, 156 38"
                 fill="none"
-                stroke="rgba(212,175,122,0.45)"
+                stroke="rgba(212,175,122,0.35)"
                 strokeWidth="1"
-                strokeDasharray="4 5"
+                strokeDasharray="3 4"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 1.6, ease: 'easeInOut', delay: 0.35 }}
+                transition={{ duration: 1.2, ease: 'easeInOut', delay: 0.2 }}
               />
             </svg>
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.9, type: 'spring', stiffness: 300, damping: 20 }}
-              className="absolute -top-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-gold-500/40 bg-ink-800"
+              transition={{ delay: 0.6, type: 'spring', stiffness: 300, damping: 20 }}
+              className="absolute -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-gold-400/30 bg-ink-800"
             >
-              <Plane className="h-3.5 w-3.5 rotate-[24deg] text-gold-400" />
+              <Plane className="h-2.5 w-2.5 rotate-[24deg] text-gold-400" />
             </motion.div>
             {dur && (
-              <p className="mt-2 rounded-full border border-ink-600/70 bg-ink-850/80 px-3 py-1 text-[9px] uppercase tracking-[0.26em] text-mist-400">
+              <p className="mt-1.5 rounded-full border border-ink-700/60 bg-ink-850/60 px-2.5 py-0.5 text-[8.5px] uppercase tracking-[0.2em] text-mist-400 select-none">
                 {dur}
               </p>
             )}
           </div>
 
-          {/* destination column (left aligned, mirror of origin) */}
+          {/* Destination */}
           <div className="text-left">
             <motion.p
-              initial={{ opacity: 0, x: 14 }}
+              initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="font-display text-[clamp(2.4rem,8vw,4.2rem)] font-medium leading-none text-ivory-100"
+              className="font-display text-3xl sm:text-4xl md:text-[2.6rem] font-medium leading-none text-ivory-100"
             >
               {route.to}
             </motion.p>
-            <p className="mt-1.5 text-[11px] uppercase tracking-[0.22em] text-mist-400">
+            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate">
               {route.toCity}
             </p>
             {arrTimeFormatted && (
-              <p className="mt-1 font-display text-xl text-gold-300">
+              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-300/90">
                 {arrTimeFormatted}
                 {route.arrDayShift > 0 && (
-                  <sup className="ml-1 text-[11px] text-gold-500">+{route.arrDayShift}d</sup>
+                  <sup className="ml-0.5 text-[10px] text-gold-400">+{route.arrDayShift}d</sup>
                 )}
               </p>
             )}
           </div>
         </div>
-
-        {/* Optional compact sector micro-pills under the hero */}
-        {legs && legs.length > 1 && onSelectLegIndex && (
-          <div className="mt-6 pt-3.5 border-t border-gold-500/15 flex flex-wrap items-center justify-center gap-2">
-            {legs.map((l, idx) => {
-              const from = l.from || l.origin || '';
-              const to = l.to || l.destination || '';
-              const isActive = idx === (activeLegIndex ?? 0);
-              return (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => onSelectLegIndex(idx)}
-                  className={cn(
-                    'px-3 py-1 rounded-full text-xs font-sans font-medium uppercase tracking-wider transition-all select-none',
-                    isActive
-                      ? 'bg-gold-400 text-onyx-900 shadow-[0_0_12px_rgba(201,168,76,0.25)] font-semibold'
-                      : 'bg-ink-800/80 text-mist-400 hover:text-ivory-100 hover:bg-ink-700/80 border border-gold-dim/40'
-                  )}
-                >
-                  {from} → {to}
-                </button>
-              );
-            })}
-          </div>
-        )}
       </div>
     </section>
   );
