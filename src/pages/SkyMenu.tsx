@@ -9,13 +9,14 @@ import { RouteHero } from '../components/RouteHero';
 import {
   Heading,
   Text,
-  Pill,
-  Button,
-  CloseButton,
   SegmentedControl,
   StickyHeader,
   GoldHairline,
   MenuItemCard,
+  InlineDropdownGroup,
+  InlineDropdownDimension,
+  TextTabs,
+  AnimatedContent,
 } from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
@@ -32,11 +33,9 @@ import {
   Wine,
   Gift,
   Cookie,
-  Plane,
   AlertCircle,
   Clock,
   WifiOff,
-  ChevronDown,
 } from 'lucide-react';
 
 const SKYMENU_MESSAGES: InterludeMessage[] = [
@@ -85,8 +84,8 @@ export const SkyMenu: React.FC = () => {
   // Active meal service in view (e.g. for multi-service flights like Dinner vs Breakfast)
   const [activeMealServiceId, setActiveMealServiceId] = useState<string>('');
 
-  // Viewing Sheet modal state
-  const [isViewingSheetOpen, setIsViewingSheetOpen] = useState<boolean>(false);
+  // Controlled state for open inline dropdown (only 1 open at a time)
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
   // Ref to abort ongoing fetch operations when input/date changes
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -387,16 +386,6 @@ export const SkyMenu: React.FC = () => {
 
   const activeMenuData: MenuData | null = menuByCabin[activeCabinView] || Object.values(menuByCabin)[0] || null;
 
-  const activeCabinLabel =
-    activeCabinView === 'PREMIUM_ECONOMY'
-      ? 'Premium Economy'
-      : activeCabinView.charAt(0) + activeCabinView.slice(1).toLowerCase();
-
-  const activeCabinShort =
-    activeCabinView === 'PREMIUM_ECONOMY'
-      ? 'Prem Econ'
-      : activeCabinView.charAt(0) + activeCabinView.slice(1).toLowerCase();
-
   const currentLeg: LegMenuData | null =
     activeMenuData && activeMenuData.legs && activeMenuData.legs.length > 0
       ? activeMenuData.legs[activeLegIndex] || activeMenuData.legs[0]
@@ -448,6 +437,128 @@ export const SkyMenu: React.FC = () => {
     { id: 'drinks' as const, label: 'Drinks', icon: Wine },
     ...(hasSnacks ? [{ id: 'snacks' as const, label: 'Snacks', icon: Cookie }] : []),
     ...(hasAmenities ? [{ id: 'amenities' as const, label: 'Amenities', icon: Gift }] : []),
+  ];
+
+  // Active meal service & active selection for dining
+  const activeMealService =
+    currentLeg?.mealServices.find(
+      (s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id)
+    ) || currentLeg?.mealServices[0];
+
+  const activeSelectionId =
+    activeMealService
+      ? selectedMealOption[activeMealService.id] || activeMealService.selections[0]?.id || ''
+      : '';
+
+  // Dimension 1: Cabin (Biz, Prem, Econ, First, Suites)
+  const cabinOptions = (
+    selectedCabins.length > 0 ? selectedCabins : (Object.keys(menuByCabin) as CabinCode[])
+  ).map((c) => {
+    const shortLabel =
+      c === 'BUSINESS'
+        ? 'Biz'
+        : c === 'PREMIUM_ECONOMY'
+        ? 'Prem'
+        : c === 'ECONOMY'
+        ? 'Econ'
+        : c === 'FIRST'
+        ? 'First'
+        : 'Suites';
+    const fullLabel =
+      c === 'PREMIUM_ECONOMY'
+        ? 'Premium Economy'
+        : c.charAt(0) + c.slice(1).toLowerCase();
+    return {
+      id: c,
+      label: fullLabel,
+      shortLabel,
+    };
+  });
+
+  // Dimension 2: Sector (e.g. SIN → NRT, NRT → LAX)
+  const sectorOptions = (activeMenuData?.legs || []).map((leg, idx) => ({
+    id: String(idx),
+    label: `${leg.originCity || leg.origin} to ${leg.destinationCity || leg.destination}`,
+    shortLabel: `${leg.origin} → ${leg.destination}`,
+    description: `${leg.origin} (${leg.depTime || ''}) → ${leg.destination} (${leg.arrTime || ''})`,
+  }));
+
+  // Dimension 3: Menu Type (Route, Ethnic, Chef name)
+  const menuTypeSelections = activeMealService?.selections || [];
+  const menuTypeOptions = menuTypeSelections.map((sel) => {
+    let shortLabel = 'Route';
+    const nameLower = sel.name.toLowerCase();
+    if (
+      nameLower.includes('japanese') ||
+      nameLower.includes('hanakoireki') ||
+      nameLower.includes('kyo-kaiseki') ||
+      nameLower.includes('ethnic') ||
+      nameLower.includes('korean') ||
+      nameLower.includes('chinese') ||
+      nameLower.includes('indian')
+    ) {
+      shortLabel = 'Ethnic';
+    } else if (
+      nameLower.includes('international') ||
+      nameLower.includes('western') ||
+      nameLower.includes('standard')
+    ) {
+      shortLabel = 'Route';
+    } else {
+      shortLabel = sel.name.split(' ')[0];
+    }
+    return {
+      id: sel.id,
+      label: sel.name,
+      shortLabel,
+    };
+  });
+
+  const dropdownDimensions: InlineDropdownDimension[] = [
+    ...(cabinOptions.length >= 2
+      ? [
+          {
+            id: 'cabin',
+            label: 'Cabin Class',
+            value: activeCabinView,
+            options: cabinOptions,
+            onChange: (val: string) => {
+              setActiveCabinView(val as CabinCode);
+            },
+          },
+        ]
+      : []),
+    ...(sectorOptions.length >= 2
+      ? [
+          {
+            id: 'sector',
+            label: 'Sector Leg',
+            value: String(activeLegIndex),
+            options: sectorOptions,
+            onChange: (val: string) => {
+              handleSelectLegIndex(Number(val));
+            },
+          },
+        ]
+      : []),
+    ...(activeSegment === 'dining' && menuTypeOptions.length >= 2
+      ? [
+          {
+            id: 'menu-type',
+            label: 'Culinary Line',
+            value: activeSelectionId,
+            options: menuTypeOptions,
+            onChange: (val: string) => {
+              if (activeMealService) {
+                setSelectedMealOption((prev) => ({
+                  ...prev,
+                  [activeMealService.id]: val,
+                }));
+              }
+            },
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -642,109 +753,84 @@ export const SkyMenu: React.FC = () => {
         </div>
       )}
 
-      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH ROUTE HERO FIRST + CONGRUENT STICKY BROWSE BAR */}
+      {/* 3. RESULT SCREEN — CONSOLIDATED LAYERED STICKY STACK + ANIMATED CONTENT */}
       {stage === 'result' && activeMenuData && (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16">
-          {/* 1. ROUTE HERO FIRST (Topmost content block under global top bar, scrolls away) */}
-          {currentLeg && (
-            <div className="shrink-0 pt-1 pb-4">
-              <RouteHero
-                flightNumber={`SQ ${validation.cleanFlightNo}`}
-                flightDate={currentLeg.depDateLocal || dateISO}
-                cabinLabel={activeCabinLabel}
-                cabinShort={activeCabinShort}
-                leg={{
-                  from: currentLeg.origin,
-                  to: currentLeg.destination,
-                  fromCity: currentLeg.originCity,
-                  toCity: currentLeg.destinationCity,
-                  depTime: currentLeg.depTime,
-                  arrTime: currentLeg.arrTime,
-                  depUtc: currentLeg.depUtc,
-                  arrUtc: currentLeg.arrUtc,
-                  depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
-                  arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
-                  arrDayShift: currentLeg.arrDayShift,
-                }}
-                legCount={activeMenuData.legs?.length || 1}
-                legs={activeMenuData.legs}
-                activeLegIndex={activeLegIndex}
-                onSelectLegIndex={handleSelectLegIndex}
-              />
-            </div>
-          )}
+          {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM) ── */}
+          <StickyHeader className="mb-2 pb-2">
+            <div className="max-w-md mx-auto flex flex-col gap-2">
+              {/* Layer 1: Compact Route Hero (Information Only) */}
+              {currentLeg && (
+                <RouteHero
+                  flightNumber={`SQ ${validation.cleanFlightNo}`}
+                  flightDate={currentLeg.depDateLocal || dateISO}
+                  leg={{
+                    from: currentLeg.origin,
+                    to: currentLeg.destination,
+                    fromCity: currentLeg.originCity,
+                    toCity: currentLeg.destinationCity,
+                    depTime: currentLeg.depTime,
+                    arrTime: currentLeg.arrTime,
+                    depUtc: currentLeg.depUtc,
+                    arrUtc: currentLeg.arrUtc,
+                    depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
+                    arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
+                    arrDayShift: currentLeg.arrDayShift,
+                  }}
+                />
+              )}
 
-          {/* 2. CONGRUENT STICKY BROWSE BAR (Context chip + Slim Category row only) */}
-          <StickyHeader className="mb-3">
-            <div className="max-w-md mx-auto flex flex-col items-center gap-1.5">
-              {/* Context Summary Chip (Opens Viewing Sheet Modal) */}
-              <button
-                type="button"
-                onClick={() => setIsViewingSheetOpen(true)}
-                className="h-7 px-3 rounded-full bg-ink-850/60 hover:bg-ink-800 text-mist-300 hover:text-ivory-100 border border-gold-400/15 text-[0.7rem] sm:text-xs font-medium flex items-center gap-1.5 transition-all select-none shadow-sm active:scale-95"
-                title="Open viewing options"
-              >
-                <span className="truncate max-w-[280px] sm:max-w-[340px]">
-                  {[
-                    activeCabinLabel,
-                    currentLeg ? `${currentLeg.origin}→${currentLeg.destination}` : '',
-                    activeSegment === 'dining' &&
-                    selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || ''] &&
-                    activeMenuData.legs?.[activeLegIndex]?.mealServices
-                      ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
-                      ?.selections.find(
-                        (sel) =>
-                          sel.id ===
-                          selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
-                      )?.name &&
-                    activeMenuData.legs?.[activeLegIndex]?.mealServices
-                      ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
-                      ?.selections.find(
-                        (sel) =>
-                          sel.id ===
-                          selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
-                      )?.name !== 'Standard Menu' &&
-                    activeMenuData.legs?.[activeLegIndex]?.mealServices
-                      ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
-                      ?.selections.find(
-                        (sel) =>
-                          sel.id ===
-                          selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
-                      )?.name !== 'Default'
-                      ? activeMenuData.legs?.[activeLegIndex]?.mealServices
-                          ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
-                          ?.selections.find(
-                            (sel) =>
-                              sel.id ===
-                              selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
-                          )?.name
-                      : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-                <ChevronDown className="w-3 h-3 text-gold-400/80 shrink-0" />
-              </button>
+              {/* Layer 2: Native Inline Dropdowns (Cabin | Sector | Menu Type) */}
+              {dropdownDimensions.length > 0 && (
+                <InlineDropdownGroup
+                  dimensions={dropdownDimensions}
+                  activeDropdownId={openDropdownId}
+                  onActiveDropdownChange={setOpenDropdownId}
+                />
+              )}
 
-              {/* Category Pills (Food · Drinks · Snacks · Amenities) */}
+              {/* Layer 3: Category Toggles (Food | Drinks | Snacks | Amenities) */}
               <div className="w-full">
                 <SegmentedControl
                   options={availableCategories}
                   value={activeSegment}
-                  onChange={(val) => setActiveSegment(val as any)}
+                  onChange={(val) => {
+                    setOpenDropdownId(null);
+                    setActiveSegment(val as any);
+                  }}
                   layoutId="skymenu-segment-pill"
                   size="sm"
                   className="bg-ink-850/40 border-gold-400/10"
                 />
               </div>
+
+              {/* Layer 4: Meal Service Text Tabs (Conditional: Food + 2+ services) */}
+              {activeSegment === 'dining' && currentLeg && currentLeg.mealServices.length >= 2 && (
+                <TextTabs
+                  options={currentLeg.mealServices.map((service) => ({
+                    id: service.id,
+                    label: service.name,
+                  }))}
+                  value={activeMealServiceId || currentLeg.mealServices[0]?.id || ''}
+                  onChange={(serviceId) => {
+                    setOpenDropdownId(null);
+                    setActiveMealServiceId(serviceId);
+                  }}
+                  layoutId="skymenu-meal-service-tab"
+                  className="pt-0.5"
+                />
+              )}
             </div>
           </StickyHeader>
 
-          {/* MAIN MENU CONTENT SECTIONS */}
-          <div className="px-1 sm:px-2 space-y-8">
+          {/* ── MAIN MENU CONTENT WRAPPED IN ANIMATED CONTENT (CROSS-FADING TRANSITIONS) ── */}
+          <AnimatedContent
+            value={`${activeCabinView}-${activeLegIndex}-${activeSegment}-${activeMealServiceId}-${activeSelectionId}`}
+            className="px-1 sm:px-2 space-y-6"
+          >
             {/* Snack Bag Service Banner */}
             {currentLeg?.isSnackBag && (
-              <div className="mt-4 p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
+              <div className="mt-2 p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-gold-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <Heading variant="subsection" as="h4" className="text-base text-gold-300">
@@ -770,116 +856,86 @@ export const SkyMenu: React.FC = () => {
                     </Text>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {/* Meal Services Option A: Text-style tabs with active gold underline */}
-                    {currentLeg.mealServices.length >= 2 && (
-                      <div className="flex items-center justify-center gap-6 sm:gap-8 border-b border-gold-400/10 pb-1 overflow-x-auto no-scrollbar">
-                        {currentLeg.mealServices.map((service) => {
-                          const isActive =
-                            (activeMealServiceId || currentLeg.mealServices[0]?.id) === service.id;
-                          return (
-                            <button
-                              key={service.id}
-                              type="button"
-                              onClick={() => setActiveMealServiceId(service.id)}
-                              className={cn(
-                                'relative pb-2.5 text-sm sm:text-base font-display transition-colors select-none whitespace-nowrap',
-                                isActive
-                                  ? 'text-gold-300 font-medium'
-                                  : 'text-mist-400 hover:text-ivory-100 font-light'
-                              )}
+                  (() => {
+                    const displayServices =
+                      currentLeg.mealServices.length >= 2
+                        ? currentLeg.mealServices.filter(
+                            (s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id)
+                          )
+                        : currentLeg.mealServices;
+
+                    return displayServices.map((service) => {
+                      const currentSelectionId =
+                        selectedMealOption[service.id] || (service.selections[0]?.id ?? '');
+                      const currentSelection =
+                        service.selections.find((s) => s.id === currentSelectionId) ||
+                        service.selections[0];
+
+                      return (
+                        <div key={service.id} className="pt-2 pb-6">
+                          {/* ── MEAL SERVICE TITLE: Centered, Title text only, NO lines or subtitles ── */}
+                          <div
+                            id="menu-service-title"
+                            className="pt-2 pb-1 text-center scroll-mt-44 sm:scroll-mt-52 select-none"
+                          >
+                            <Heading
+                              variant="hero"
+                              as="h2"
+                              className="text-2xl sm:text-3xl md:text-[2rem] font-normal text-ivory-100 tracking-tight text-center"
                             >
                               {service.name}
-                              {isActive && (
-                                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gold-400 shadow-[0_0_8px_rgba(201,168,76,0.6)] rounded-full" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {(() => {
-                      const displayServices =
-                        currentLeg.mealServices.length >= 2
-                          ? currentLeg.mealServices.filter(
-                              (s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id)
-                            )
-                          : currentLeg.mealServices;
-
-                      return displayServices.map((service) => {
-                        const currentSelectionId =
-                          selectedMealOption[service.id] || (service.selections[0]?.id ?? '');
-                        const currentSelection =
-                          service.selections.find((s) => s.id === currentSelectionId) ||
-                          service.selections[0];
-
-                        return (
-                          <div key={service.id} className="pt-2 pb-6">
-                            {/* ── MEAL SERVICE TITLE: Centered, Title text only, NO lines or subtitles ── */}
-                            <div
-                              id="menu-service-title"
-                              className="pt-2 pb-1 text-center scroll-mt-28 sm:scroll-mt-32 select-none"
-                            >
-                              <Heading
-                                variant="hero"
-                                as="h2"
-                                className="text-2xl sm:text-3xl md:text-[2rem] font-normal text-ivory-100 tracking-tight text-center"
-                              >
-                                {service.name}
-                              </Heading>
-                            </div>
-
-                            {/* ── PACED MEAL COURSES ── */}
-                            <div className="space-y-8 mt-6 md:mt-8">
-                              {currentSelection?.courses.map((course, cIdx) => (
-                                <div key={course.id} className="w-full">
-                                  {/* Centered Editorial Course Header framed by graduated gold hairlines */}
-                                  <div
-                                    {...(cIdx === 0 ? { id: 'menu-first-section' } : {})}
-                                    className={cn(
-                                      'flex items-center gap-4 w-full select-none',
-                                      cIdx === 0
-                                        ? 'my-6 md:my-8 scroll-mt-28 sm:scroll-mt-32'
-                                        : 'my-8 md:my-10'
-                                    )}
-                                  >
-                                    <GoldHairline className="flex-1" />
-                                    <div className="flex flex-col items-center gap-0.5 text-center select-none px-2 shrink-0">
-                                      <Text
-                                        variant="overline"
-                                        className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
-                                      >
-                                        {course.name}
-                                      </Text>
-                                      {course.items.length >= 2 && (
-                                        <Text variant="italic-secondary">
-                                          Choose one of {course.items.length}
-                                        </Text>
-                                      )}
-                                    </div>
-                                    <GoldHairline className="flex-1" />
-                                  </div>
-
-                                  {/* Dishes Grid */}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-                                    {course.items.map((item) => (
-                                      <MenuItemCard
-                                        key={item.id}
-                                        item={item}
-                                        courseCategory={course.name}
-                                        cabin={activeCabinView}
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                            </Heading>
                           </div>
-                        );
-                      });
-                    })()}
-                  </div>
+
+                          {/* ── PACED MEAL COURSES ── */}
+                          <div className="space-y-8 mt-6 md:mt-8">
+                            {currentSelection?.courses.map((course, cIdx) => (
+                              <div key={course.id} className="w-full">
+                                {/* Centered Editorial Course Header framed by graduated gold hairlines */}
+                                <div
+                                  {...(cIdx === 0 ? { id: 'menu-first-section' } : {})}
+                                  className={cn(
+                                    'flex items-center gap-4 w-full select-none',
+                                    cIdx === 0
+                                      ? 'my-6 md:my-8 scroll-mt-44 sm:scroll-mt-52'
+                                      : 'my-8 md:my-10'
+                                  )}
+                                >
+                                  <GoldHairline className="flex-1" />
+                                  <div className="flex flex-col items-center gap-0.5 text-center select-none px-2 shrink-0">
+                                    <Text
+                                      variant="overline"
+                                      className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
+                                    >
+                                      {course.name}
+                                    </Text>
+                                    {course.items.length >= 2 && (
+                                      <Text variant="italic-secondary">
+                                        Choose one of {course.items.length}
+                                      </Text>
+                                    )}
+                                  </div>
+                                  <GoldHairline className="flex-1" />
+                                </div>
+
+                                {/* Dishes Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+                                  {course.items.map((item) => (
+                                    <MenuItemCard
+                                      key={item.id}
+                                      item={item}
+                                      courseCategory={course.name}
+                                      cabin={activeCabinView}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()
                 )}
               </>
             )}
@@ -905,7 +961,7 @@ export const SkyMenu: React.FC = () => {
                         className={cn(
                           'flex items-center gap-4 w-full select-none',
                           idx === 0
-                            ? 'my-6 md:my-8 scroll-mt-28 sm:scroll-mt-32'
+                            ? 'my-6 md:my-8 scroll-mt-44 sm:scroll-mt-52'
                             : 'my-8 md:my-10'
                         )}
                       >
@@ -968,7 +1024,7 @@ export const SkyMenu: React.FC = () => {
                           {...(gIdx === 0 ? { id: 'menu-first-section' } : {})}
                           className={cn(
                             'w-full',
-                            gIdx === 0 ? 'pt-2 scroll-mt-28 sm:scroll-mt-32' : 'mt-8'
+                            gIdx === 0 ? 'pt-2 scroll-mt-44 sm:scroll-mt-52' : 'mt-8'
                           )}
                         >
                           {/* Section Header: Left-aligned label + Flexible Graduated Hairline */}
@@ -1039,7 +1095,7 @@ export const SkyMenu: React.FC = () => {
                     {/* Centered Editorial Amenities Header */}
                     <div
                       id="menu-first-section"
-                      className="flex items-center gap-4 my-6 md:my-8 w-full select-none scroll-mt-28 sm:scroll-mt-32"
+                      className="flex items-center gap-4 my-6 md:my-8 w-full select-none scroll-mt-44 sm:scroll-mt-52"
                     >
                       <GoldHairline className="flex-1" />
                       <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
@@ -1073,140 +1129,7 @@ export const SkyMenu: React.FC = () => {
                 )}
               </div>
             )}
-          </div>
-
-          {/* 4. VIEWING SHEET MODAL / POPOVER */}
-          {isViewingSheetOpen && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
-              onClick={() => setIsViewingSheetOpen(false)}
-            >
-              <div
-                className="relative w-full sm:max-w-md bg-ink-900 border border-gold-400/20 rounded-t-3xl sm:rounded-2xl p-6 shadow-cabin space-y-6 text-left animate-cabin-in max-h-[85vh] overflow-y-auto"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
-                  <div>
-                    <Heading variant="subsection" as="h3" className="text-lg text-ivory-100">
-                      Viewing Options
-                    </Heading>
-                    <Text variant="secondary" className="text-xs text-mist-400">
-                      Switch cabin, sector, or culinary menu line
-                    </Text>
-                  </div>
-                  <CloseButton onClick={() => setIsViewingSheetOpen(false)} />
-                </div>
-
-                {/* CABIN (if multiple cabins available/fetched) */}
-                {(selectedCabins.length > 1 || Object.keys(menuByCabin).length > 1) && (
-                  <div className="space-y-2">
-                    <Text variant="overline" className="text-gold-300">
-                      CABIN CLASS
-                    </Text>
-                    <div className="flex flex-wrap gap-2">
-                      {(selectedCabins.length > 0 ? selectedCabins : (Object.keys(menuByCabin) as CabinCode[])).map(
-                        (c) => {
-                          const label =
-                            c === 'PREMIUM_ECONOMY'
-                              ? 'Premium Economy'
-                              : c.charAt(0) + c.slice(1).toLowerCase();
-                          const isActive = activeCabinView === c;
-                          return (
-                            <Pill
-                              key={c}
-                              active={isActive}
-                              size="sm"
-                              onClick={() => {
-                                setActiveCabinView(c);
-                              }}
-                            >
-                              {label}
-                            </Pill>
-                          );
-                        }
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* SECTOR (if multiple legs exist) */}
-                {activeMenuData && activeMenuData.legs && activeMenuData.legs.length > 1 && (
-                  <div className="space-y-2">
-                    <Text variant="overline" className="text-gold-300">
-                      SECTOR / LEG
-                    </Text>
-                    <div className="flex flex-wrap gap-2">
-                      {activeMenuData.legs.map((leg, idx) => {
-                        const isActive = activeLegIndex === idx;
-                        return (
-                          <Pill
-                            key={leg.legId || idx}
-                            active={isActive}
-                            icon={Plane}
-                            size="sm"
-                            onClick={() => {
-                              handleSelectLegIndex(idx);
-                            }}
-                          >
-                            {leg.origin} → {leg.destination}
-                          </Pill>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* MENU LINE (if active meal service has multiple selections) */}
-                {activeSegment === 'dining' &&
-                  currentLeg &&
-                  currentLeg.mealServices.find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id)) &&
-                  (currentLeg.mealServices.find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id))?.selections.length || 0) > 1 && (
-                    <div className="space-y-2">
-                      <Text variant="overline" className="text-gold-300">
-                        CULINARY MENU LINE ({currentLeg.mealServices.find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id))?.name})
-                      </Text>
-                      <div className="flex flex-wrap gap-2">
-                        {currentLeg.mealServices
-                          .find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id))
-                          ?.selections.map((sel) => {
-                            const activeSrvId = activeMealServiceId || currentLeg.mealServices[0]?.id;
-                            const isSelActive = (selectedMealOption[activeSrvId] || sel.id) === sel.id;
-                            return (
-                              <Pill
-                                key={sel.id}
-                                active={isSelActive}
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedMealOption((prev) => ({
-                                    ...prev,
-                                    [activeSrvId]: sel.id,
-                                  }));
-                                }}
-                              >
-                                {sel.name}
-                              </Pill>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-
-                {/* Action Button */}
-                <div className="pt-2">
-                  <Button
-                    variant="primary"
-                    className="w-full"
-                    onClick={() => setIsViewingSheetOpen(false)}
-                  >
-                    Done
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
+          </AnimatedContent>
         </div>
       )}
     </Layout>

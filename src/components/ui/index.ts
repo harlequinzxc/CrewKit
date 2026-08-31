@@ -19,3 +19,12 @@ export { StickyHeader, type StickyHeaderProps } from './StickyHeader';
 export { Layout, type LayoutProps } from './Layout';
 export { GoldHairline, type GoldHairlineProps } from './GoldHairline';
 export { MenuItemCard, type MenuItemCardProps } from './MenuItemCard';
+export {
+  InlineDropdownGroup,
+  type InlineDropdownDimension,
+  type InlineDropdownOption,
+  type InlineDropdownGroupProps,
+} from './InlineDropdown';
+export { TextTabs, type TextTabOption, type TextTabsProps } from './TextTabs';
+export { AnimatedContent, type AnimatedContentProps } from './AnimatedContent';
+
