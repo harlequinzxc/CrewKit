@@ -90,7 +90,7 @@ export const SkyMenu: React.FC = () => {
   // Ref to abort ongoing fetch operations when input/date changes
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Scroll-on-pill-select tracking refs
+  // Scroll-on-option-change tracking refs
   const isInitialResultRender = useRef<boolean>(true);
   const prevViewKeysRef = useRef({
     activeSegment,
@@ -100,7 +100,7 @@ export const SkyMenu: React.FC = () => {
     selectedMealOptionKey: JSON.stringify(selectedMealOption),
   });
 
-  // Scroll-on-pill-select behavior
+  // Scroll-on-option-change behavior (Anchor priority: Title -> Section Header -> First Item -> Empty State)
   useEffect(() => {
     if (stage !== 'result') {
       isInitialResultRender.current = true;
@@ -132,12 +132,20 @@ export const SkyMenu: React.FC = () => {
 
     if (!hasChanged) return;
 
+    // Close any open overlay dropdown panel
+    setOpenDropdownId(null);
+
     // Use double requestAnimationFrame to ensure layout updates and paint are complete
     const rafId = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const titleEl = document.getElementById('menu-service-title');
-        const firstSectionEl = document.getElementById('menu-first-section');
-        const targetEl = titleEl || firstSectionEl;
+        const sectionHeaderEl =
+          document.querySelector<HTMLElement>('[data-menu-section-header="true"]') ||
+          document.getElementById('menu-first-section');
+        const firstItemEl = document.getElementById('menu-first-item');
+        const emptyStateEl = document.getElementById('menu-category-empty');
+
+        const targetEl = titleEl || sectionHeaderEl || firstItemEl || emptyStateEl;
 
         if (targetEl) {
           const prefersReduced =
@@ -431,11 +439,11 @@ export const SkyMenu: React.FC = () => {
     }
   }, [activeLegIndex, activeCabinView, hasSnacks, hasAmenities, activeSegment]);
 
-  // STICKY BAR: Dining renamed to Food
+  // STICKY BAR: Categories (Snacks permanently available with dedicated empty state if none exist)
   const availableCategories = [
     { id: 'dining' as const, label: 'Food', icon: Utensils },
     { id: 'drinks' as const, label: 'Drinks', icon: Wine },
-    ...(hasSnacks ? [{ id: 'snacks' as const, label: 'Snacks', icon: Cookie }] : []),
+    { id: 'snacks' as const, label: 'Snacks', icon: Cookie },
     ...(hasAmenities ? [{ id: 'amenities' as const, label: 'Amenities', icon: Gift }] : []),
   ];
 
@@ -450,20 +458,34 @@ export const SkyMenu: React.FC = () => {
       ? selectedMealOption[activeMealService.id] || activeMealService.selections[0]?.id || ''
       : '';
 
-  // Dimension 1: Cabin (Biz, Prem, Econ, First, Suites)
-  const cabinOptions = (
+  // Dimension 1: Cabin (Strict Priority: First, Suites, Biz, Prem, Econ)
+  const CABIN_PRIORITY: Record<string, number> = {
+    FIRST: 1,
+    SUITES: 2,
+    BUSINESS: 3,
+    PREMIUM_ECONOMY: 4,
+    ECONOMY: 5,
+  };
+
+  const rawCabinCodes = (
     selectedCabins.length > 0 ? selectedCabins : (Object.keys(menuByCabin) as CabinCode[])
-  ).map((c) => {
+  );
+
+  const sortedCabinCodes = [...rawCabinCodes].sort(
+    (a, b) => (CABIN_PRIORITY[a] || 99) - (CABIN_PRIORITY[b] || 99)
+  );
+
+  const cabinOptions = sortedCabinCodes.map((c) => {
     const shortLabel =
-      c === 'BUSINESS'
+      c === 'FIRST'
+        ? 'First'
+        : c === 'SUITES'
+        ? 'Suites'
+        : c === 'BUSINESS'
         ? 'Biz'
         : c === 'PREMIUM_ECONOMY'
         ? 'Prem'
-        : c === 'ECONOMY'
-        ? 'Econ'
-        : c === 'FIRST'
-        ? 'First'
-        : 'Suites';
+        : 'Econ';
     const fullLabel =
       c === 'PREMIUM_ECONOMY'
         ? 'Premium Economy'
@@ -483,34 +505,40 @@ export const SkyMenu: React.FC = () => {
     description: `${leg.origin} (${leg.depTime || ''}) → ${leg.destination} (${leg.arrTime || ''})`,
   }));
 
-  // Dimension 3: Menu Type (Route, Ethnic, Chef name)
+  // Dimension 3: Menu Type (Strict Priority: 1. Route, 2. Ethnic; Full name in list, "Ethnic"/"Route" on trigger)
   const menuTypeSelections = activeMealService?.selections || [];
-  const menuTypeOptions = menuTypeSelections.map((sel) => {
-    let shortLabel = 'Route';
-    const nameLower = sel.name.toLowerCase();
-    if (
-      nameLower.includes('japanese') ||
-      nameLower.includes('hanakoireki') ||
-      nameLower.includes('kyo-kaiseki') ||
-      nameLower.includes('ethnic') ||
-      nameLower.includes('korean') ||
-      nameLower.includes('chinese') ||
-      nameLower.includes('indian')
-    ) {
-      shortLabel = 'Ethnic';
-    } else if (
-      nameLower.includes('international') ||
-      nameLower.includes('western') ||
-      nameLower.includes('standard')
-    ) {
-      shortLabel = 'Route';
-    } else {
-      shortLabel = sel.name.split(' ')[0];
-    }
+
+  const isEthnicSelection = (name: string) => {
+    const n = name.toLowerCase();
+    return (
+      n.includes('japanese') ||
+      n.includes('hanakoireki') ||
+      n.includes('kyo-kaiseki') ||
+      n.includes('ethnic') ||
+      n.includes('korean') ||
+      n.includes('chinese') ||
+      n.includes('indian') ||
+      n.includes('oriental') ||
+      n.includes('asian') ||
+      n.includes('special')
+    );
+  };
+
+  const sortedMenuSelections = [...menuTypeSelections].sort((a, b) => {
+    const aIsEthnic = isEthnicSelection(a.name);
+    const bIsEthnic = isEthnicSelection(b.name);
+    if (!aIsEthnic && bIsEthnic) return -1;
+    if (aIsEthnic && !bIsEthnic) return 1;
+    return 0;
+  });
+
+  const menuTypeOptions = sortedMenuSelections.map((sel) => {
+    const isEthnic = isEthnicSelection(sel.name);
+    const shortLabel = isEthnic ? 'Ethnic' : 'Route';
     return {
       id: sel.id,
-      label: sel.name,
-      shortLabel,
+      label: sel.name, // Full descriptive name in dropdown list
+      shortLabel,      // "Ethnic" or "Route" on trigger button
     };
   });
 
@@ -756,30 +784,32 @@ export const SkyMenu: React.FC = () => {
       {/* 3. RESULT SCREEN — CONSOLIDATED LAYERED STICKY STACK + ANIMATED CONTENT */}
       {stage === 'result' && activeMenuData && (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16">
+          {/* Layer 1: Route Hero (Editorial Scale, Non-Sticky, sits at top of scrolling content) */}
+          {currentLeg && (
+            <div className="max-w-md mx-auto w-full mb-3 pt-2">
+              <RouteHero
+                flightNumber={`SQ ${validation.cleanFlightNo}`}
+                flightDate={currentLeg.depDateLocal || dateISO}
+                leg={{
+                  from: currentLeg.origin,
+                  to: currentLeg.destination,
+                  fromCity: currentLeg.originCity,
+                  toCity: currentLeg.destinationCity,
+                  depTime: currentLeg.depTime,
+                  arrTime: currentLeg.arrTime,
+                  depUtc: currentLeg.depUtc,
+                  arrUtc: currentLeg.arrUtc,
+                  depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
+                  arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
+                  arrDayShift: currentLeg.arrDayShift,
+                }}
+              />
+            </div>
+          )}
+
           {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM) ── */}
           <StickyHeader className="mb-2 pb-2">
             <div className="max-w-md mx-auto flex flex-col gap-2">
-              {/* Layer 1: Compact Route Hero (Information Only) */}
-              {currentLeg && (
-                <RouteHero
-                  flightNumber={`SQ ${validation.cleanFlightNo}`}
-                  flightDate={currentLeg.depDateLocal || dateISO}
-                  leg={{
-                    from: currentLeg.origin,
-                    to: currentLeg.destination,
-                    fromCity: currentLeg.originCity,
-                    toCity: currentLeg.destinationCity,
-                    depTime: currentLeg.depTime,
-                    arrTime: currentLeg.arrTime,
-                    depUtc: currentLeg.depUtc,
-                    arrUtc: currentLeg.arrUtc,
-                    depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
-                    arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
-                    arrDayShift: currentLeg.arrDayShift,
-                  }}
-                />
-              )}
-
               {/* Layer 2: Native Inline Dropdowns (Cabin | Sector | Menu Type) */}
               {dropdownDimensions.length > 0 && (
                 <InlineDropdownGroup
@@ -847,7 +877,7 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'dining' && currentLeg && (
               <>
                 {currentLeg.mealServices.length === 0 ? (
-                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                  <div id="menu-category-empty" className="py-16 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Dining Services Published
                     </Heading>
@@ -876,7 +906,7 @@ export const SkyMenu: React.FC = () => {
                           {/* ── MEAL SERVICE TITLE: Centered, Title text only, NO lines or subtitles ── */}
                           <div
                             id="menu-service-title"
-                            className="pt-2 pb-1 text-center scroll-mt-44 sm:scroll-mt-52 select-none"
+                            className="pt-2 pb-1 text-center scroll-mt-36 sm:scroll-mt-44 select-none"
                           >
                             <Heading
                               variant="hero"
@@ -893,11 +923,12 @@ export const SkyMenu: React.FC = () => {
                               <div key={course.id} className="w-full">
                                 {/* Centered Editorial Course Header framed by graduated gold hairlines */}
                                 <div
+                                  data-menu-section-header="true"
                                   {...(cIdx === 0 ? { id: 'menu-first-section' } : {})}
                                   className={cn(
                                     'flex items-center gap-4 w-full select-none',
                                     cIdx === 0
-                                      ? 'my-6 md:my-8 scroll-mt-44 sm:scroll-mt-52'
+                                      ? 'my-6 md:my-8 scroll-mt-36 sm:scroll-mt-44'
                                       : 'my-8 md:my-10'
                                   )}
                                 >
@@ -920,13 +951,18 @@ export const SkyMenu: React.FC = () => {
 
                                 {/* Dishes Grid */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-                                  {course.items.map((item) => (
-                                    <MenuItemCard
+                                  {course.items.map((item, iIdx) => (
+                                    <div
                                       key={item.id}
-                                      item={item}
-                                      courseCategory={course.name}
-                                      cabin={activeCabinView}
-                                    />
+                                      {...(cIdx === 0 && iIdx === 0 ? { id: 'menu-first-item' } : {})}
+                                      className="w-full"
+                                    >
+                                      <MenuItemCard
+                                        item={item}
+                                        courseCategory={course.name}
+                                        cabin={activeCabinView}
+                                      />
+                                    </div>
                                   ))}
                                 </div>
                               </div>
@@ -944,7 +980,7 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'drinks' && currentLeg && (
               <div className="pt-2 pb-8 space-y-10">
                 {currentLeg.drinks.length === 0 ? (
-                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
+                  <div id="menu-category-empty" className="py-20 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Drinks Listing Available
                     </Heading>
@@ -957,11 +993,12 @@ export const SkyMenu: React.FC = () => {
                     <div key={sec.id} className="w-full">
                       {/* Centered Editorial Drinks Header */}
                       <div
+                        data-menu-section-header="true"
                         {...(idx === 0 ? { id: 'menu-first-section' } : {})}
                         className={cn(
                           'flex items-center gap-4 w-full select-none',
                           idx === 0
-                            ? 'my-6 md:my-8 scroll-mt-44 sm:scroll-mt-52'
+                            ? 'my-6 md:my-8 scroll-mt-36 sm:scroll-mt-44'
                             : 'my-8 md:my-10'
                         )}
                       >
@@ -978,13 +1015,18 @@ export const SkyMenu: React.FC = () => {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mt-6">
-                        {sec.items.map((it) => (
-                          <MenuItemCard
+                        {sec.items.map((it, iIdx) => (
+                          <div
                             key={it.id}
-                            item={it}
-                            courseCategory={sec.title}
-                            cabin={activeCabinView}
-                          />
+                            {...(idx === 0 && iIdx === 0 ? { id: 'menu-first-item' } : {})}
+                            className="w-full"
+                          >
+                            <MenuItemCard
+                              item={it}
+                              courseCategory={sec.title}
+                              cabin={activeCabinView}
+                            />
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -997,12 +1039,12 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'snacks' && currentLeg && (
               <div className="pt-2 pb-8 space-y-8 max-w-2xl mx-auto w-full">
                 {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
-                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
-                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
-                      No Snacks Available
-                    </Heading>
-                    <Text variant="secondary" className="max-w-sm">
-                      Complimentary snacks and refreshments are available on board upon request.
+                  <div
+                    id="menu-category-empty"
+                    className="py-20 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44"
+                  >
+                    <Text variant="secondary" className="text-sm text-mist-300">
+                      Snacks are not available on this sector.
                     </Text>
                   </div>
                 ) : (
@@ -1021,10 +1063,11 @@ export const SkyMenu: React.FC = () => {
                       {currentLeg.snacks.groups.map((group, gIdx) => (
                         <div
                           key={gIdx}
+                          data-menu-section-header="true"
                           {...(gIdx === 0 ? { id: 'menu-first-section' } : {})}
                           className={cn(
                             'w-full',
-                            gIdx === 0 ? 'pt-2 scroll-mt-44 sm:scroll-mt-52' : 'mt-8'
+                            gIdx === 0 ? 'pt-2 scroll-mt-36 sm:scroll-mt-44' : 'mt-8'
                           )}
                         >
                           {/* Section Header: Left-aligned label + Flexible Graduated Hairline */}
@@ -1043,6 +1086,7 @@ export const SkyMenu: React.FC = () => {
                             {group.items.map((item, iIdx) => (
                               <div
                                 key={`snk-${gIdx}-${iIdx}`}
+                                {...(gIdx === 0 && iIdx === 0 ? { id: 'menu-first-item' } : {})}
                                 className="py-2.5 sm:py-3 flex items-start gap-3 w-full text-left select-none"
                               >
                                 {/* Small gold disc marker (6px) vertically aligned with text */}
@@ -1082,7 +1126,7 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'amenities' && currentLeg && (
               <div className="pt-2 pb-8 space-y-8">
                 {currentLeg.amenities.length === 0 ? (
-                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
+                  <div id="menu-category-empty" className="py-20 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       Cabin Comfort &amp; Amenities
                     </Heading>
@@ -1095,7 +1139,8 @@ export const SkyMenu: React.FC = () => {
                     {/* Centered Editorial Amenities Header */}
                     <div
                       id="menu-first-section"
-                      className="flex items-center gap-4 my-6 md:my-8 w-full select-none scroll-mt-44 sm:scroll-mt-52"
+                      data-menu-section-header="true"
+                      className="flex items-center gap-4 my-6 md:my-8 w-full select-none scroll-mt-36 sm:scroll-mt-44"
                     >
                       <GoldHairline className="flex-1" />
                       <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
@@ -1110,19 +1155,24 @@ export const SkyMenu: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mt-6">
-                      {currentLeg.amenities.map((am) => (
-                        <MenuItemCard
+                      {currentLeg.amenities.map((am, iIdx) => (
+                        <div
                           key={am.id}
-                          item={{
-                            id: am.id,
-                            title: am.name,
-                            description: am.description,
-                            imageUrl: am.imageUrl,
-                          }}
-                          courseCategory="Cabin Amenities"
-                          cabin={activeCabinView}
-                          mediaVariant="amenity"
-                        />
+                          {...(iIdx === 0 ? { id: 'menu-first-item' } : {})}
+                          className="w-full"
+                        >
+                          <MenuItemCard
+                            item={{
+                              id: am.id,
+                              title: am.name,
+                              description: am.description,
+                              imageUrl: am.imageUrl,
+                            }}
+                            courseCategory="Cabin Amenities"
+                            cabin={activeCabinView}
+                            mediaVariant="amenity"
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>

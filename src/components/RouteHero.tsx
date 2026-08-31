@@ -129,8 +129,8 @@ function duration(depUtc?: string, arrUtc?: string): string {
 }
 
 /**
- * Compact, quiet RouteHero block — sits as Layer 1 of the sticky stack.
- * Information-only, capped typography, no controls or heavy borders.
+ * Restored large, elegant RouteHero block — sits at the top of the scrolling content.
+ * Purely informational display with prominent editorial scale.
  */
 export const RouteHero: React.FC<FlightHeroProps> = ({
   flightNumber,
@@ -155,79 +155,81 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   const arrTimeFormatted = formatTimeHHMM(route.arrTime, route.arrUtc);
 
   return (
-    <div className="w-full max-w-md mx-auto px-2 py-1 select-none text-left">
-      {/* ── Whisper Meta Overline (Flight · Date) ── */}
-      <div className="mb-1 flex items-center justify-center gap-2 text-center select-none">
-        <span className="font-ui text-[9px] tracking-[0.2em] text-gold-400/90 font-semibold uppercase">
-          {flightNumber}
-        </span>
-        <span className="h-px w-3 bg-gold-400/25" />
-        <span className="text-[9px] uppercase tracking-[0.18em] text-mist-400 font-ui truncate max-w-[180px] sm:max-w-none">
-          {prettyDateLong(flightDate)}
-        </span>
-      </div>
+    <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-gold-400/[0.08] bg-gradient-to-b from-ink-850/50 to-ink-900/30 px-5 py-5 sm:px-8 sm:py-6 shadow-sm text-left">
+      {/* Subtle ambient glows */}
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.2),transparent)] blur-xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.08),transparent)] blur-xl" />
 
-      {/* ── Compact Route Arc: 3-column grid (Origin, Arc, Destination) ── */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-3">
-        {/* Origin */}
-        <div className="text-right flex flex-col items-end">
-          <div className="flex items-baseline gap-1.5 justify-end">
-            {depTimeFormatted && (
-              <span className="font-display text-xs sm:text-sm text-gold-300/90">
-                {depTimeFormatted}
-              </span>
-            )}
-            <span className="font-display text-xl sm:text-2xl font-medium leading-none text-ivory-100">
-              {route.from}
-            </span>
-          </div>
-          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] text-mist-400 truncate max-w-[100px] sm:max-w-[120px]">
-            {route.fromCity}
+      <div className="relative">
+        {/* ── Whisper Meta Overline (Flight · Date) ── */}
+        <div className="mb-4 flex items-center justify-center gap-2.5 text-center select-none">
+          <span className="font-ui text-[10px] tracking-[0.22em] text-gold-400/90 font-medium uppercase">
+            {flightNumber}
+          </span>
+          <span className="h-px w-4 bg-gold-400/25" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-mist-400 font-ui">
+            {prettyDateLong(flightDate)}
           </span>
         </div>
 
-        {/* Center Arc & Block Duration */}
-        <div className="relative flex w-16 sm:w-20 md:w-24 flex-col items-center pb-0.5">
-          <svg viewBox="0 0 120 30" className="w-full overflow-visible" aria-hidden="true">
-            <path
-              d="M 4 24 C 30 4, 90 4, 116 24"
-              fill="none"
-              stroke="rgba(212,175,122,0.35)"
-              strokeWidth="1"
-              strokeDasharray="2.5 3.5"
-            />
-          </svg>
-          <div className="absolute -top-1 flex h-4.5 w-4.5 items-center justify-center rounded-full border border-gold-400/30 bg-ink-850">
-            <Plane className="h-2 w-2 rotate-[24deg] text-gold-400" />
+        {/* ── Route Arc ── 3-col grid, editorial typography ── */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2 sm:gap-3">
+          {/* Origin */}
+          <div className="text-right">
+            <p className="font-display text-3xl sm:text-4xl md:text-[2.6rem] font-medium leading-none text-ivory-100">
+              {route.from}
+            </p>
+            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate">
+              {route.fromCity}
+            </p>
+            {depTimeFormatted && (
+              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-300/90">
+                {depTimeFormatted}
+              </p>
+            )}
           </div>
-          {dur && (
-            <span className="mt-0.5 rounded-full border border-ink-700/50 bg-ink-850/70 px-1.5 py-0.2 text-[8px] uppercase tracking-[0.16em] text-mist-400">
-              {dur}
-            </span>
-          )}
-        </div>
 
-        {/* Destination */}
-        <div className="text-left flex flex-col items-start">
-          <div className="flex items-baseline gap-1.5 justify-start">
-            <span className="font-display text-xl sm:text-2xl font-medium leading-none text-ivory-100">
+          {/* Arc & Duration */}
+          <div className="relative flex w-20 sm:w-28 md:w-36 flex-col items-center pb-0.5">
+            <svg viewBox="0 0 160 45" className="w-full overflow-visible" aria-hidden="true">
+              <path
+                d="M4 38 C 45 6, 115 6, 156 38"
+                fill="none"
+                stroke="rgba(212,175,122,0.35)"
+                strokeWidth="1"
+                strokeDasharray="3 4"
+              />
+            </svg>
+            <div className="absolute -top-1 flex h-6 w-6 items-center justify-center rounded-full border border-gold-400/30 bg-ink-800">
+              <Plane className="h-2.5 w-2.5 rotate-[24deg] text-gold-400" />
+            </div>
+            {dur && (
+              <p className="mt-1.5 rounded-full border border-ink-700/60 bg-ink-850/60 px-2.5 py-0.5 text-[8.5px] uppercase tracking-[0.2em] text-mist-400 select-none">
+                {dur}
+              </p>
+            )}
+          </div>
+
+          {/* Destination */}
+          <div className="text-left">
+            <p className="font-display text-3xl sm:text-4xl md:text-[2.6rem] font-medium leading-none text-ivory-100">
               {route.to}
-            </span>
+            </p>
+            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate">
+              {route.toCity}
+            </p>
             {arrTimeFormatted && (
-              <span className="font-display text-xs sm:text-sm text-gold-300/90">
+              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-300/90">
                 {arrTimeFormatted}
                 {route.arrDayShift > 0 && (
-                  <sup className="ml-0.5 text-[9px] text-gold-400">+{route.arrDayShift}d</sup>
+                  <sup className="ml-0.5 text-[10px] text-gold-400">+{route.arrDayShift}d</sup>
                 )}
-              </span>
+              </p>
             )}
           </div>
-          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.15em] text-mist-400 truncate max-w-[100px] sm:max-w-[120px]">
-            {route.toCity}
-          </span>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
