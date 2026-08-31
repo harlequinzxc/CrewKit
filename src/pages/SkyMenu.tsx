@@ -10,6 +10,8 @@ import {
   Heading,
   Text,
   Pill,
+  Button,
+  CloseButton,
   SegmentedControl,
   StickyHeader,
   GoldHairline,
@@ -34,6 +36,7 @@ import {
   AlertCircle,
   Clock,
   WifiOff,
+  ChevronDown,
 } from 'lucide-react';
 
 const SKYMENU_MESSAGES: InterludeMessage[] = [
@@ -78,6 +81,12 @@ export const SkyMenu: React.FC = () => {
 
   // Selection switcher state per meal service
   const [selectedMealOption, setSelectedMealOption] = useState<Record<string, string>>({});
+
+  // Active meal service in view (e.g. for multi-service flights like Dinner vs Breakfast)
+  const [activeMealServiceId, setActiveMealServiceId] = useState<string>('');
+
+  // Viewing Sheet modal state
+  const [isViewingSheetOpen, setIsViewingSheetOpen] = useState<boolean>(false);
 
   // Ref to abort ongoing fetch operations when input/date changes
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -260,8 +269,13 @@ export const SkyMenu: React.FC = () => {
 
     const primary = result.mapping[initialCabin];
     const initialSelections: Record<string, string> = {};
+    let initialServiceId = '';
+
     if (primary && primary.legs && primary.legs.length > 0) {
-      primary.legs.forEach((leg) => {
+      primary.legs.forEach((leg, lIdx) => {
+        if (lIdx === 0 && leg.mealServices.length > 0) {
+          initialServiceId = leg.mealServices[0].id;
+        }
         leg.mealServices.forEach((srv) => {
           if (srv.selections && srv.selections.length > 0) {
             const preferred = srv.selections.find(
@@ -275,7 +289,28 @@ export const SkyMenu: React.FC = () => {
       });
     }
     setSelectedMealOption(initialSelections);
+    setActiveMealServiceId(initialServiceId);
     setStage('result');
+  };
+
+  const handleSelectLegIndex = (idx: number) => {
+    setActiveLegIndex(idx);
+    const targetLeg = activeMenuData?.legs?.[idx];
+    if (targetLeg && targetLeg.mealServices.length > 0) {
+      setActiveMealServiceId(targetLeg.mealServices[0].id);
+    }
+    const targetHasSnacks = Boolean(
+      targetLeg?.snacks && targetLeg.snacks.groups && targetLeg.snacks.groups.length > 0
+    );
+    const targetHasAmenities = Boolean(
+      targetLeg?.amenities && targetLeg.amenities.length > 0
+    );
+    if (activeSegment === 'snacks' && !targetHasSnacks) {
+      setActiveSegment('dining');
+    }
+    if (activeSegment === 'amenities' && !targetHasAmenities) {
+      setActiveSegment('dining');
+    }
   };
 
   const activeMenuData: MenuData | null = menuByCabin[activeCabinView] || Object.values(menuByCabin)[0] || null;
@@ -535,38 +570,12 @@ export const SkyMenu: React.FC = () => {
         </div>
       )}
 
-      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH SHIFTED ROUTE HERO AT TOP */}
+      {/* 3. RESULT SCREEN — EDITORIAL LUXURY MENU WITH ROUTE HERO FIRST + CONGRUENT STICKY BROWSE BAR */}
       {stage === 'result' && activeMenuData && (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16">
-          {/* Row 1: Multi-Cabin Selector Tabs (if multiple cabins were selected) */}
-          {selectedCabins.length > 1 && (
-            <div className="shrink-0 flex items-center justify-center gap-1.5 pt-1 pb-3 overflow-x-auto no-scrollbar">
-              {selectedCabins.map((cabinCode) => {
-                const label =
-                  cabinCode === 'PREMIUM_ECONOMY'
-                    ? 'Prem Econ'
-                    : cabinCode.charAt(0) + cabinCode.slice(1).toLowerCase();
-                const isActive = activeCabinView === cabinCode;
-                return (
-                  <Pill
-                    key={cabinCode}
-                    active={isActive}
-                    onClick={() => {
-                      setActiveCabinView(cabinCode);
-                      setActiveLegIndex(0);
-                    }}
-                    size="sm"
-                  >
-                    {label}
-                  </Pill>
-                );
-              })}
-            </div>
-          )}
-
-          {/* 1. ROUTE HERO AT THE TOP */}
+          {/* 1. ROUTE HERO FIRST (Topmost content block under global top bar, scrolls away) */}
           {currentLeg && (
-            <div className="shrink-0 pt-1 pb-3">
+            <div className="shrink-0 pt-1 pb-4">
               <RouteHero
                 flightNumber={`SQ ${validation.cleanFlightNo}`}
                 flightDate={currentLeg.depDateLocal || dateISO}
@@ -586,54 +595,94 @@ export const SkyMenu: React.FC = () => {
                   arrDayShift: currentLeg.arrDayShift,
                 }}
                 legCount={activeMenuData.legs?.length || 1}
+                legs={activeMenuData.legs}
+                activeLegIndex={activeLegIndex}
+                onSelectLegIndex={handleSelectLegIndex}
               />
             </div>
           )}
 
-          {/* 2. SECTOR PILLS (IF MULTI SECTOR) */}
-          {activeMenuData.legs && activeMenuData.legs.length > 1 && (
-            <div className="shrink-0 flex items-center justify-center gap-2 pb-3 overflow-x-auto no-scrollbar">
-              {activeMenuData.legs.map((leg, idx) => {
-                const isActive = activeLegIndex === idx;
-                return (
-                  <Pill
-                    key={leg.legId || idx}
-                    active={isActive}
-                    icon={Plane}
-                    onClick={() => {
-                      setActiveLegIndex(idx);
-                      const targetLeg = activeMenuData.legs[idx];
-                      const targetHasSnacks = Boolean(
-                        targetLeg?.snacks && targetLeg.snacks.groups && targetLeg.snacks.groups.length > 0
-                      );
-                      const targetHasAmenities = Boolean(
-                        targetLeg?.amenities && targetLeg.amenities.length > 0
-                      );
-                      if (activeSegment === 'snacks' && !targetHasSnacks) {
-                        setActiveSegment('dining');
-                      }
-                      if (activeSegment === 'amenities' && !targetHasAmenities) {
-                        setActiveSegment('dining');
-                      }
-                    }}
-                    size="sm"
-                  >
-                    {leg.origin} → {leg.destination}
-                  </Pill>
-                );
-              })}
-            </div>
-          )}
+          {/* 2. CONGRUENT STICKY BROWSE BAR (Context chip + Category + Conditional meal services) */}
+          <StickyHeader className="mb-4">
+            <div className="max-w-md mx-auto flex flex-col items-center gap-2">
+              {/* Context Summary Chip (Opens Viewing Sheet Modal) */}
+              <button
+                type="button"
+                onClick={() => setIsViewingSheetOpen(true)}
+                className="px-3.5 py-1 rounded-full bg-ink-850/80 hover:bg-ink-800 text-mist-300 hover:text-ivory-100 border border-gold-400/20 text-xs font-medium flex items-center gap-1.5 transition-all select-none shadow-sm active:scale-95"
+                title="Open viewing options"
+              >
+                <span className="truncate max-w-[280px] sm:max-w-[340px]">
+                  {[
+                    activeCabinLabel,
+                    currentLeg ? `${currentLeg.origin}→${currentLeg.destination}` : '',
+                    activeSegment === 'dining' &&
+                    selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || ''] &&
+                    activeMenuData.legs?.[activeLegIndex]?.mealServices
+                      ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
+                      ?.selections.find(
+                        (sel) =>
+                          sel.id ===
+                          selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
+                      )?.name &&
+                    activeMenuData.legs?.[activeLegIndex]?.mealServices
+                      ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
+                      ?.selections.find(
+                        (sel) =>
+                          sel.id ===
+                          selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
+                      )?.name !== 'Standard Menu' &&
+                    activeMenuData.legs?.[activeLegIndex]?.mealServices
+                      ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
+                      ?.selections.find(
+                        (sel) =>
+                          sel.id ===
+                          selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
+                      )?.name !== 'Default'
+                      ? activeMenuData.legs?.[activeLegIndex]?.mealServices
+                          ?.find((s) => s.id === (activeMealServiceId || currentLeg?.mealServices[0]?.id))
+                          ?.selections.find(
+                            (sel) =>
+                              sel.id ===
+                              selectedMealOption[activeMealServiceId || currentLeg?.mealServices[0]?.id || '']
+                          )?.name
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-gold-400 shrink-0" />
+              </button>
 
-          {/* 3. STICKY TOP BAR OF CATEGORIES WITH BOTTOM DISSOLVE FADE */}
-          <StickyHeader className="mb-2">
-            <div className="max-w-md mx-auto">
-              <SegmentedControl
-                options={availableCategories}
-                value={activeSegment}
-                onChange={(val) => setActiveSegment(val as any)}
-                layoutId="skymenu-segment-pill"
-              />
+              {/* Category Pills (Food · Drinks · Snacks · Amenities) */}
+              <div className="w-full">
+                <SegmentedControl
+                  options={availableCategories}
+                  value={activeSegment}
+                  onChange={(val) => setActiveSegment(val as any)}
+                  layoutId="skymenu-segment-pill"
+                />
+              </div>
+
+              {/* Conditional Meal Service Pills (Only when Food + 2+ services) */}
+              {activeSegment === 'dining' && currentLeg && currentLeg.mealServices.length >= 2 && (
+                <div className="flex items-center justify-center gap-1.5 pt-0.5 overflow-x-auto no-scrollbar select-none w-full">
+                  {currentLeg.mealServices.map((service) => {
+                    const isActive =
+                      (activeMealServiceId || currentLeg.mealServices[0]?.id) === service.id;
+                    return (
+                      <Pill
+                        key={service.id}
+                        active={isActive}
+                        size="sm"
+                        onClick={() => setActiveMealServiceId(service.id)}
+                      >
+                        {service.name}
+                      </Pill>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </StickyHeader>
 
@@ -667,106 +716,89 @@ export const SkyMenu: React.FC = () => {
                     </Text>
                   </div>
                 ) : (
-                  currentLeg.mealServices.map((service) => {
-                    const currentSelectionId =
-                      selectedMealOption[service.id] || (service.selections[0]?.id ?? '');
-                    const currentSelection =
-                      service.selections.find((s) => s.id === currentSelectionId) || service.selections[0];
+                  (() => {
+                    const displayServices =
+                      currentLeg.mealServices.length >= 2 && activeMealServiceId
+                        ? currentLeg.mealServices.filter((s) => s.id === activeMealServiceId)
+                        : currentLeg.mealServices;
 
-                    return (
-                      <div key={service.id} className="pt-10 md:pt-14 pb-8 space-y-8">
-                        {/* ── SERVICE BLOCK: Shifted down with generous breathing room ── */}
-                        <div className="flex flex-col gap-2 pb-6 border-b border-gold-dim text-left">
-                          {/* Service Name on single line */}
-                          <Heading
-                            variant="hero"
-                            as="h2"
-                            className="text-2xl sm:text-3xl font-normal text-ivory-100 tracking-tight leading-tight"
-                          >
-                            {service.name}
-                          </Heading>
+                    return displayServices.map((service) => {
+                      const currentSelectionId =
+                        selectedMealOption[service.id] || (service.selections[0]?.id ?? '');
+                      const currentSelection =
+                        service.selections.find((s) => s.id === currentSelectionId) ||
+                        service.selections[0];
 
-                          {/* Parallel Menu / Chef subtitle or selection switchers as low-emphasis ghost pills */}
-                          {service.selections.length > 1 ? (
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                              {service.selections.map((sel) => {
-                                const isSelActive = currentSelectionId === sel.id;
-                                return (
-                                  <Pill
-                                    key={sel.id}
-                                    active={isSelActive}
-                                    onClick={() =>
-                                      setSelectedMealOption((prev) => ({
-                                        ...prev,
-                                        [service.id]: sel.id,
-                                      }))
-                                    }
-                                    size="sm"
-                                    className={cn(
-                                      !isSelActive && 'opacity-65 hover:opacity-100'
-                                    )}
-                                  >
-                                    {sel.name}
-                                  </Pill>
-                                );
-                              })}
-                            </div>
-                          ) : currentSelection?.name &&
-                            currentSelection.name !== 'International Selection' &&
-                            currentSelection.name !== 'Western Selection' ? (
-                            <Text variant="secondary" className="text-xs sm:text-sm text-mist-300">
-                              {currentSelection.name}
-                            </Text>
-                          ) : null}
-                        </div>
+                      return (
+                        <div key={service.id} className="pt-6 pb-8 space-y-8">
+                          {/* ── SERVICE BLOCK: Quiet title + subtitle (no duplicate International CTA row) ── */}
+                          <div className="flex flex-col gap-1.5 pb-5 border-b border-gold-dim text-left">
+                            <Heading
+                              variant="hero"
+                              as="h2"
+                              className="text-2xl sm:text-3xl font-normal text-ivory-100 tracking-tight leading-tight"
+                            >
+                              {service.name}
+                            </Heading>
 
-                        {/* ── PACED MEAL COURSES ── */}
-                        <div className="space-y-10">
-                          {currentSelection?.courses.map((course) => (
-                            <div key={course.id} className="w-full">
-                              {/* Centered Editorial Course Header framed by graduated gold hairlines */}
-                              <div className="flex items-center gap-4 my-8 md:my-10 w-full select-none">
-                                <GoldHairline className="flex-1" />
-                                <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
-                                  <Text
-                                    variant="overline"
-                                    className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
-                                  >
-                                    {course.name}
-                                  </Text>
-                                  {course.items.length >= 2 && (
-                                    <Text variant="italic-secondary">
-                                      Choose one of {course.items.length}
+                            {currentSelection?.name &&
+                              currentSelection.name !== 'International Selection' &&
+                              currentSelection.name !== 'Western Selection' &&
+                              currentSelection.name !== 'Standard Menu' && (
+                                <Text variant="secondary" className="text-xs sm:text-sm text-mist-300">
+                                  {currentSelection.name}
+                                </Text>
+                              )}
+                          </div>
+
+                          {/* ── PACED MEAL COURSES ── */}
+                          <div className="space-y-10">
+                            {currentSelection?.courses.map((course) => (
+                              <div key={course.id} className="w-full">
+                                {/* Centered Editorial Course Header framed by graduated gold hairlines */}
+                                <div className="flex items-center gap-4 my-8 md:my-10 w-full select-none">
+                                  <GoldHairline className="flex-1" />
+                                  <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
+                                    <Text
+                                      variant="overline"
+                                      className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
+                                    >
+                                      {course.name}
                                     </Text>
-                                  )}
+                                    {course.items.length >= 2 && (
+                                      <Text variant="italic-secondary">
+                                        Choose one of {course.items.length}
+                                      </Text>
+                                    )}
+                                  </div>
+                                  <GoldHairline className="flex-1" />
                                 </div>
-                                <GoldHairline className="flex-1" />
-                              </div>
 
-                              {/* Dishes Grid */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
-                                {course.items.map((item) => (
-                                  <MenuItemCard
-                                    key={item.id}
-                                    item={item}
-                                    courseCategory={course.name}
-                                    cabin={activeCabinView}
-                                  />
-                                ))}
+                                {/* Dishes Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
+                                  {course.items.map((item) => (
+                                    <MenuItemCard
+                                      key={item.id}
+                                      item={item}
+                                      courseCategory={course.name}
+                                      cabin={activeCabinView}
+                                    />
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    });
+                  })()
                 )}
               </>
             )}
 
             {/* 2. DRINKS (CELLAR, COFFEE, TEA & BEVERAGES) */}
             {activeSegment === 'drinks' && currentLeg && (
-              <div className="pt-10 md:pt-14 pb-8 space-y-10">
+              <div className="pt-6 pb-8 space-y-10">
                 {currentLeg.drinks.length === 0 ? (
                   <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
@@ -811,7 +843,7 @@ export const SkyMenu: React.FC = () => {
 
             {/* 3. DELECTABLES & SNACKS (EDITORIAL LIST + GRADUATED HAIRLINES) */}
             {activeSegment === 'snacks' && currentLeg && (
-              <div className="pt-8 md:pt-10 pb-8 space-y-8 max-w-2xl mx-auto w-full">
+              <div className="pt-6 pb-8 space-y-8 max-w-2xl mx-auto w-full">
                 {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
                   <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
@@ -889,7 +921,7 @@ export const SkyMenu: React.FC = () => {
 
             {/* 4. CABIN AMENITIES */}
             {activeSegment === 'amenities' && currentLeg && (
-              <div className="pt-10 md:pt-14 pb-8 space-y-8">
+              <div className="pt-6 pb-8 space-y-8">
                 {currentLeg.amenities.length === 0 ? (
                   <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
@@ -936,6 +968,139 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* 4. VIEWING SHEET MODAL / POPOVER */}
+          {isViewingSheetOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+              onClick={() => setIsViewingSheetOpen(false)}
+            >
+              <div
+                className="relative w-full sm:max-w-md bg-ink-900 border border-gold-400/20 rounded-t-3xl sm:rounded-2xl p-6 shadow-cabin space-y-6 text-left animate-cabin-in max-h-[85vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
+                  <div>
+                    <Heading variant="subsection" as="h3" className="text-lg text-ivory-100">
+                      Viewing Options
+                    </Heading>
+                    <Text variant="secondary" className="text-xs text-mist-400">
+                      Switch cabin, sector, or culinary menu line
+                    </Text>
+                  </div>
+                  <CloseButton onClick={() => setIsViewingSheetOpen(false)} />
+                </div>
+
+                {/* CABIN (if multiple cabins available/fetched) */}
+                {(selectedCabins.length > 1 || Object.keys(menuByCabin).length > 1) && (
+                  <div className="space-y-2">
+                    <Text variant="overline" className="text-gold-300">
+                      CABIN CLASS
+                    </Text>
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedCabins.length > 0 ? selectedCabins : (Object.keys(menuByCabin) as CabinCode[])).map(
+                        (c) => {
+                          const label =
+                            c === 'PREMIUM_ECONOMY'
+                              ? 'Premium Economy'
+                              : c.charAt(0) + c.slice(1).toLowerCase();
+                          const isActive = activeCabinView === c;
+                          return (
+                            <Pill
+                              key={c}
+                              active={isActive}
+                              size="sm"
+                              onClick={() => {
+                                setActiveCabinView(c);
+                              }}
+                            >
+                              {label}
+                            </Pill>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* SECTOR (if multiple legs exist) */}
+                {activeMenuData && activeMenuData.legs && activeMenuData.legs.length > 1 && (
+                  <div className="space-y-2">
+                    <Text variant="overline" className="text-gold-300">
+                      SECTOR / LEG
+                    </Text>
+                    <div className="flex flex-wrap gap-2">
+                      {activeMenuData.legs.map((leg, idx) => {
+                        const isActive = activeLegIndex === idx;
+                        return (
+                          <Pill
+                            key={leg.legId || idx}
+                            active={isActive}
+                            icon={Plane}
+                            size="sm"
+                            onClick={() => {
+                              handleSelectLegIndex(idx);
+                            }}
+                          >
+                            {leg.origin} → {leg.destination}
+                          </Pill>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* MENU LINE (if active meal service has multiple selections) */}
+                {activeSegment === 'dining' &&
+                  currentLeg &&
+                  currentLeg.mealServices.find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id)) &&
+                  (currentLeg.mealServices.find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id))?.selections.length || 0) > 1 && (
+                    <div className="space-y-2">
+                      <Text variant="overline" className="text-gold-300">
+                        CULINARY MENU LINE ({currentLeg.mealServices.find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id))?.name})
+                      </Text>
+                      <div className="flex flex-wrap gap-2">
+                        {currentLeg.mealServices
+                          .find((s) => s.id === (activeMealServiceId || currentLeg.mealServices[0]?.id))
+                          ?.selections.map((sel) => {
+                            const activeSrvId = activeMealServiceId || currentLeg.mealServices[0]?.id;
+                            const isSelActive = (selectedMealOption[activeSrvId] || sel.id) === sel.id;
+                            return (
+                              <Pill
+                                key={sel.id}
+                                active={isSelActive}
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedMealOption((prev) => ({
+                                    ...prev,
+                                    [activeSrvId]: sel.id,
+                                  }));
+                                }}
+                              >
+                                {sel.name}
+                              </Pill>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Action Button */}
+                <div className="pt-2">
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={() => setIsViewingSheetOpen(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Layout>

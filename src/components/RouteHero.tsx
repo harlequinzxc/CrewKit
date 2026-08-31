@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plane } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export interface RouteData {
   from: string; // e.g. "LAX"
@@ -35,15 +36,19 @@ export interface NormalizedLeg {
   destination?: string;
   originCity?: string;
   destinationCity?: string;
+  legId?: string;
 }
 
 export interface FlightHeroProps {
   flightNumber: string; // "SQ 11"
   flightDate: string; // "2026-08-29"
   cabinShort: string; // "Business"
-  cabinLabel: string; // "Business Class"
+  cabinLabel?: string; // "Business Class"
   leg: NormalizedLeg;
-  legCount: number; // total legs of the flight
+  legCount?: number; // total legs of the flight
+  legs?: NormalizedLeg[];
+  activeLegIndex?: number;
+  onSelectLegIndex?: (index: number) => void;
 }
 
 export type RouteHeroProps = FlightHeroProps;
@@ -130,7 +135,9 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   flightDate,
   cabinShort,
   leg,
-  legCount,
+  legs,
+  activeLegIndex,
+  onSelectLegIndex,
 }) => {
   const route: RouteData = leg.route || {
     from: leg.from || (leg as any).origin || '',
@@ -150,27 +157,23 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   const arrTimeFormatted = formatTimeHHMM(route.arrTime, route.arrUtc);
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-gold-500/15 bg-gradient-to-b from-ink-850 to-ink-900/60 px-6 py-8 shadow-cabin sm:px-10">
-      {/* ambient glows — same fixed RGBA in both themes, decorative */}
+    <section className="relative overflow-hidden rounded-3xl border border-gold-500/15 bg-gradient-to-b from-ink-850 to-ink-900/60 px-6 py-7 shadow-cabin sm:px-10 text-left">
+      {/* ambient glows */}
       <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.35),transparent)] blur-2xl" />
       <div className="pointer-events-none absolute -bottom-28 -left-16 h-72 w-72 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.12),transparent)] blur-2xl" />
 
       <div className="relative">
         {/* ── header line ── */}
-        <div className="mb-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-center">
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 text-center">
           <span className="eyebrow">{flightNumber}</span>
           <span className="h-px w-6 bg-gold-500/40" />
           <span className="text-[10px] uppercase tracking-[0.3em] text-mist-400">
             {prettyDateLong(flightDate)}
           </span>
-          {legCount > 1 && (
-            <>
-              <span className="h-px w-6 bg-gold-500/40" />
-              <span className="text-[10px] uppercase tracking-[0.3em] text-gold-400">
-                {cabinShort}
-              </span>
-            </>
-          )}
+          <span className="h-px w-6 bg-gold-500/40" />
+          <span className="text-[10px] uppercase tracking-[0.3em] text-gold-400">
+            {cabinShort}
+          </span>
         </div>
 
         {/* ── route arc ── 3-col grid, bottom-aligned ── */}
@@ -181,11 +184,11 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
               initial={{ opacity: 0, x: -14 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="font-display text-[clamp(2.6rem,9vw,4.4rem)] font-medium leading-none text-ivory-100"
+              className="font-display text-[clamp(2.4rem,8vw,4.2rem)] font-medium leading-none text-ivory-100"
             >
               {route.from}
             </motion.p>
-            <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-mist-400">
+            <p className="mt-1.5 text-[11px] uppercase tracking-[0.22em] text-mist-400">
               {route.fromCity}
             </p>
             {depTimeFormatted && (
@@ -228,11 +231,11 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
               initial={{ opacity: 0, x: 14 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="font-display text-[clamp(2.6rem,9vw,4.4rem)] font-medium leading-none text-ivory-100"
+              className="font-display text-[clamp(2.4rem,8vw,4.2rem)] font-medium leading-none text-ivory-100"
             >
               {route.to}
             </motion.p>
-            <p className="mt-2 text-[11px] uppercase tracking-[0.22em] text-mist-400">
+            <p className="mt-1.5 text-[11px] uppercase tracking-[0.22em] text-mist-400">
               {route.toCity}
             </p>
             {arrTimeFormatted && (
@@ -245,6 +248,32 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
             )}
           </div>
         </div>
+
+        {/* Optional compact sector micro-pills under the hero */}
+        {legs && legs.length > 1 && onSelectLegIndex && (
+          <div className="mt-6 pt-3.5 border-t border-gold-500/15 flex flex-wrap items-center justify-center gap-2">
+            {legs.map((l, idx) => {
+              const from = l.from || l.origin || '';
+              const to = l.to || l.destination || '';
+              const isActive = idx === (activeLegIndex ?? 0);
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onSelectLegIndex(idx)}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-xs font-sans font-medium uppercase tracking-wider transition-all select-none',
+                    isActive
+                      ? 'bg-gold-400 text-onyx-900 shadow-[0_0_12px_rgba(201,168,76,0.25)] font-semibold'
+                      : 'bg-ink-800/80 text-mist-400 hover:text-ivory-100 hover:bg-ink-700/80 border border-gold-dim/40'
+                  )}
+                >
+                  {from} → {to}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
