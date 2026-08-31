@@ -13,6 +13,7 @@ import {
   Pill,
   SegmentedControl,
   StickyHeader,
+  GoldHairline,
 } from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
@@ -725,7 +726,7 @@ export const SkyMenu: React.FC = () => {
                             <div key={course.id} className="w-full">
                               {/* Centered Editorial Course Header framed by gold hairlines */}
                               <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                                <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                                <GoldHairline variant="solid" className="flex-1" />
                                 <div className="flex flex-col items-center gap-1 text-center select-none px-2">
                                   <Text
                                     variant="overline"
@@ -739,7 +740,7 @@ export const SkyMenu: React.FC = () => {
                                     </Text>
                                   )}
                                 </div>
-                                <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                                <GoldHairline variant="solid" className="flex-1" />
                               </div>
 
                               {/* Dishes Grid */}
@@ -780,7 +781,7 @@ export const SkyMenu: React.FC = () => {
                     <div key={sec.id} className="w-full">
                       {/* Centered Editorial Drinks Header */}
                       <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                        <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                        <GoldHairline variant="solid" className="flex-1" />
                         <div className="flex flex-col items-center gap-1 text-center select-none px-2">
                           <Text
                             variant="overline"
@@ -789,7 +790,7 @@ export const SkyMenu: React.FC = () => {
                             {sec.title}
                           </Text>
                         </div>
-                        <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                        <GoldHairline variant="solid" className="flex-1" />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
@@ -808,9 +809,9 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* 3. DELECTABLES & SNACKS */}
+            {/* 3. DELECTABLES & SNACKS (EDITORIAL LIST + GRADUATED HAIRLINES) */}
             {activeSegment === 'snacks' && currentLeg && (
-              <div className="pt-10 md:pt-14 pb-8 space-y-8">
+              <div className="pt-8 md:pt-10 pb-8 space-y-8 max-w-2xl mx-auto w-full">
                 {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
                   <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
@@ -822,10 +823,10 @@ export const SkyMenu: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {/* Service Header Note */}
+                    {/* Intro / Helper Copy */}
                     {currentLeg.snacks.header && (
-                      <div className="text-center max-w-2xl mx-auto pb-2">
-                        <Text variant="eyebrow" className="text-sm sm:text-base leading-relaxed not-italic text-gold-300/90 font-display">
+                      <div className="mb-8 text-left">
+                        <Text variant="secondary" className="text-xs sm:text-[0.8rem] text-mist-300 leading-relaxed max-w-xl">
                           {currentLeg.snacks.header}
                         </Text>
                       </div>
@@ -834,35 +835,48 @@ export const SkyMenu: React.FC = () => {
                     {/* Groups */}
                     <div className="space-y-10">
                       {currentLeg.snacks.groups.map((group, gIdx) => (
-                        <div key={gIdx} className="w-full">
-                          {/* Centered Editorial Snack Group Header */}
-                          <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                            <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
-                            <div className="flex flex-col items-center gap-1 text-center select-none px-2">
-                              <Text
-                                variant="overline"
-                                className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
-                              >
-                                {group.name}
-                              </Text>
-                            </div>
-                            <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                        <div key={gIdx} className={cn('w-full', gIdx === 0 ? 'pt-2' : 'mt-10')}>
+                          {/* Section Header: Left-aligned label + Flexible Graduated Hairline */}
+                          <div className="flex items-center gap-3 w-full select-none">
+                            <Text
+                              variant="overline"
+                              className="text-gold-300 tracking-[0.22em] text-[0.65rem] sm:text-[0.7rem] font-medium uppercase shrink-0"
+                            >
+                              {group.name}
+                            </Text>
+                            <GoldHairline variant="graduated" className="flex-1" />
                           </div>
 
-                          {/* Items Grid */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
+                          {/* Quiet Editorial List Items (Single column, no cards, no pills) */}
+                          <div className="mt-4 flex flex-col divide-y divide-gold-dim/15">
                             {group.items.map((item, iIdx) => (
-                              <DishCard
+                              <div
                                 key={`snk-${gIdx}-${iIdx}`}
-                                item={{
-                                  id: `snack-${gIdx}-${iIdx}`,
-                                  title: item.name,
-                                  description: item.description,
-                                  imageUrl: item.imageUrl,
-                                }}
-                                courseCategory={group.name}
-                                cabin={activeCabinView}
-                              />
+                                className="py-2.5 sm:py-3 flex items-start gap-3 w-full text-left"
+                              >
+                                {/* Small gold disc marker (6px) vertically aligned with text */}
+                                <span className="w-1.5 h-1.5 rounded-full bg-gold-400 shrink-0 mt-2 shadow-[0_0_8px_rgba(201,168,76,0.3)]" />
+
+                                {/* Text block: Title + optional Description */}
+                                <div className="flex-1 flex flex-col min-w-0">
+                                  <Heading
+                                    variant="subsection"
+                                    as="h4"
+                                    className="text-base sm:text-[0.95rem] font-medium font-sans text-ivory-100 leading-snug tracking-normal"
+                                  >
+                                    {item.name}
+                                  </Heading>
+
+                                  {item.description && (
+                                    <Text
+                                      variant="secondary"
+                                      className="text-xs sm:text-[0.8rem] text-mist-300 mt-0.5 leading-relaxed"
+                                    >
+                                      {item.description}
+                                    </Text>
+                                  )}
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -889,7 +903,7 @@ export const SkyMenu: React.FC = () => {
                   <div className="w-full">
                     {/* Centered Editorial Amenities Header */}
                     <div className="flex items-center gap-4 my-8 md:my-10 w-full">
-                      <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                      <GoldHairline variant="solid" className="flex-1" />
                       <div className="flex flex-col items-center gap-1 text-center select-none px-2">
                         <Text
                           variant="overline"
@@ -898,7 +912,7 @@ export const SkyMenu: React.FC = () => {
                           Cabin Amenities
                         </Text>
                       </div>
-                      <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                      <GoldHairline variant="solid" className="flex-1" />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">

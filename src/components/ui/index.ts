@@ -17,3 +17,4 @@ export {
 } from './SegmentedControl';
 export { StickyHeader, type StickyHeaderProps } from './StickyHeader';
 export { Layout, type LayoutProps } from './Layout';
+export { GoldHairline, type GoldHairlineProps } from './GoldHairline';
