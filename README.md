@@ -88,22 +88,6 @@ npm run preview
 
 ---
 
-## Google Programmable Search Engine Setup (Optional Dish Image Fallback)
-
-To enable automatic Google image lookups when Singapore Airlines menu items don't include high-resolution photography:
-1. Create a Search Engine at [Google Programmable Search Engine](https://programmablesearchengine.google.com/).
-2. In the Search Engine settings, turn **"Search the entire web"** ON and enable **"Image search"**.
-3. Copy your Search Engine ID (`CX`).
-4. In the [Google Cloud Console](https://console.cloud.google.com/), enable the **Custom Search API** and generate an API key.
-5. Add the environment variables to your `.env` or Vercel dashboard:
-   ```env
-   VITE_GOOGLE_CSE_API_KEY=your_google_api_key
-   VITE_GOOGLE_CSE_CX=your_search_engine_cx
-   ```
-*If keys are not provided, CrewKit gracefully falls back to editorial luxury placeholders without network calls or errors.*
-
----
-
 ## How to Install as a PWA
 
 ### iOS (Safari)

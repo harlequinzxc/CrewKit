@@ -343,7 +343,7 @@ export const SkyMenu: React.FC = () => {
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
   // Check availability for dynamic category list strictly per active sector/leg
-  const hasSnacks = Boolean(currentLeg?.snacks && currentLeg.snacks.length > 0);
+  const hasSnacks = Boolean(currentLeg?.snacks && currentLeg.snacks.groups && currentLeg.snacks.groups.length > 0);
   const hasAmenities = Boolean(currentLeg?.amenities && currentLeg.amenities.length > 0);
 
   // Dynamic automatic fallback if active tab is no longer available on active leg
@@ -635,8 +635,12 @@ export const SkyMenu: React.FC = () => {
                     onClick={() => {
                       setActiveLegIndex(idx);
                       const targetLeg = activeMenuData.legs[idx];
-                      const targetHasSnacks = Boolean(targetLeg?.snacks && targetLeg.snacks.length > 0);
-                      const targetHasAmenities = Boolean(targetLeg?.amenities && targetLeg.amenities.length > 0);
+                      const targetHasSnacks = Boolean(
+                        targetLeg?.snacks && targetLeg.snacks.groups && targetLeg.snacks.groups.length > 0
+                      );
+                      const targetHasAmenities = Boolean(
+                        targetLeg?.amenities && targetLeg.amenities.length > 0
+                      );
                       if (activeSegment === 'snacks' && !targetHasSnacks) {
                         setActiveSegment('dining');
                       }
@@ -694,6 +698,19 @@ export const SkyMenu: React.FC = () => {
 
           {/* MAIN MENU CONTENT SECTIONS */}
           <div className="px-1 sm:px-2 space-y-8">
+            {/* Snack Bag Service Banner */}
+            {currentLeg?.isSnackBag && (
+              <div className="p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-gold-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="font-display text-base text-gold-300">Snack Bag Service</h4>
+                  <p className="font-sans text-xs text-mist-300 leading-relaxed">
+                    This sector operates a snack bag service instead of a full meal service.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* 1. DINING SERVICE & PACED COURSES */}
             {activeSegment === 'dining' && currentLeg && (
               <>
@@ -851,7 +868,7 @@ export const SkyMenu: React.FC = () => {
             {/* 3. DELECTABLES & SNACKS (RENDERED IF AVAILABLE) */}
             {activeSegment === 'snacks' && currentLeg && (
               <div className="space-y-6">
-                {currentLeg.snacks.length === 0 ? (
+                {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
                     <span className="font-display text-2xl text-ivory-100 mb-2">
                       No Snacks Available
@@ -861,7 +878,7 @@ export const SkyMenu: React.FC = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
                       <h3 className="font-display text-2xl text-ivory-100">
                         Delectables &amp; Snacks
@@ -869,15 +886,44 @@ export const SkyMenu: React.FC = () => {
                       <Cookie className="w-4 h-4 text-gold-400" />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
-                      {currentLeg.snacks.map((snk) => (
-                        <DishCard
-                          key={snk.id}
-                          item={snk}
-                          courseCategory="Delectables & Snacks"
-                          cabin={activeCabinView}
-                          onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
-                        />
+                    {/* Service Header Note */}
+                    {currentLeg.snacks.header && (
+                      <p className="font-display italic text-sm sm:text-base text-gold-300/90 leading-relaxed max-w-3xl">
+                        {currentLeg.snacks.header}
+                      </p>
+                    )}
+
+                    {/* Groups */}
+                    <div className="space-y-8 pt-2">
+                      {currentLeg.snacks.groups.map((group, gIdx) => (
+                        <div key={gIdx} className="space-y-4">
+                          {/* — Group Name — Hairline Separator */}
+                          <div className="flex items-center justify-center gap-3 py-1">
+                            <div className="h-px bg-gold-400/25 flex-1 max-w-[80px] sm:max-w-[120px]" />
+                            <h4 className="font-display text-lg sm:text-xl font-normal text-gold-300 tracking-wide text-center">
+                              {group.name}
+                            </h4>
+                            <div className="h-px bg-gold-400/25 flex-1 max-w-[80px] sm:max-w-[120px]" />
+                          </div>
+
+                          {/* Items Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {group.items.map((item, iIdx) => (
+                              <DishCard
+                                key={`snk-${gIdx}-${iIdx}`}
+                                item={{
+                                  id: `snack-${gIdx}-${iIdx}`,
+                                  title: item.name,
+                                  description: item.description,
+                                  imageUrl: item.imageUrl,
+                                }}
+                                courseCategory={group.name}
+                                cabin={activeCabinView}
+                                onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
+                              />
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

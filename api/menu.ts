@@ -201,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else {
       baseLegs = [
         {
-          hasSnacks: num !== 830 && num !== 833,
+          hasSnacks: num === 21 || num === 22 || num === 23 || num === 24,
           hasAmenities: num !== 830 && num !== 833,
           flightDetails: {
             departureAirportCode: 'SIN',
@@ -220,22 +220,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const menuLegs = baseLegs.map((leg) => {
       const drySnack = leg.hasSnacks
         ? {
-            subcategories: [
-              {
-                items: [
-                  {
-                    name: 'Artisanal Mixed Truffle Nuts',
-                    description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
-                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
-                  },
-                  {
-                    name: 'Gourmet Light Bites & Cookies',
-                    description: 'Warm chocolate chip cookies and butter shortbreads.',
-                    imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
-                  },
-                ],
-              },
-            ],
+            header:
+              'We have a variety of snacks available on request throughout the flight. Approach our cabin crew and they will be glad to assist you.',
+            category: {
+              name: 'Snacks',
+              subcategories: [
+                {
+                  name: 'Assorted Treats',
+                  items: [
+                    {
+                      name: 'Artisanal Mixed Truffle Nuts',
+                      description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
+                      imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
+                    },
+                    {
+                      name: 'Gourmet Light Bites & Cookies',
+                      description: 'Warm chocolate chip cookies and butter shortbreads.',
+                      imagePathIfeHigh: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
+                    },
+                  ],
+                },
+                {
+                  name: 'Noodles',
+                  items: [
+                    {
+                      name: 'Chicken Flavoured Instant Noodles',
+                      description: 'Garnished with spring onions and oriental condiments.',
+                    },
+                    {
+                      name: 'Tom Yum Flavoured Instant Noodles',
+                      description: 'Spicy and tangy broth with dried vegetables.',
+                    },
+                  ],
+                },
+              ],
+            },
           }
         : null;
 

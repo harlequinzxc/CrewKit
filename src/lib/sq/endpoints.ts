@@ -12,6 +12,8 @@ import {
   MealSelection,
   MealCourse,
   AmenityItem,
+  LegSnacksData,
+  SnackGroup,
 } from './types';
 import { SQ_CONFIG } from './config';
 import { sqCache } from './cache';
@@ -418,98 +420,78 @@ function extractEnUkBlock(obj: any, keyPrefix: string): any {
 }
 
 /**
- * Parse snacks strictly for a given leg
+ * STAGE 3 — SNACKS PARSING ALGORITHM (Strictly adheres to reversed-engineered spec)
+ * Path:
+ *   legs[i].drySnack.header
+ *   legs[i].drySnack.category.name / subcategories[]
+ *       ├── .name (e.g. "Assorted Treats", "Noodles")
+ *       └── .items[] -> { name, description }
  */
-function parseSnacksFromLeg(leg: any, lIdx: number): MenuItem[] {
-  if (!leg || typeof leg !== 'object') return [];
+export function parseLegSnacks(drySnack: any): LegSnacksData | null {
+  if (!drySnack || typeof drySnack !== 'object') {
+    return null;
+  }
 
-  const snackRoot =
-    extractEnUkBlock(leg, 'drySnack') ||
-    extractEnUkBlock(leg, 'drySnacks') ||
-    extractEnUkBlock(leg, 'snack') ||
-    extractEnUkBlock(leg, 'snacks') ||
-    extractEnUkBlock(leg, 'delectables') ||
-    extractEnUkBlock(leg, 'delectable') ||
-    leg.drySnack ||
-    leg.drySnacks ||
-    leg.snacks ||
-    leg.snack ||
-    leg.delectables ||
-    leg.delectable;
+  const header = cleanText(drySnack.header || '');
 
-  if (!snackRoot || typeof snackRoot !== 'object') return [];
+  // Extract subcategories from category.subcategories, subcategories, or categories
+  const rawSubcategories: any[] = Array.isArray(drySnack.category?.subcategories)
+    ? drySnack.category.subcategories
+    : Array.isArray(drySnack.subcategories)
+    ? drySnack.subcategories
+    : Array.isArray(drySnack.categories)
+    ? drySnack.categories
+    : Array.isArray(drySnack.category)
+    ? drySnack.category
+    : [];
 
-  const snacksList: MenuItem[] = [];
-  const rawCategories = Array.isArray(snackRoot.categories)
-    ? snackRoot.categories
-    : Array.isArray(snackRoot.subcategories)
-    ? snackRoot.subcategories
-    : Array.isArray(snackRoot.specialities)
-    ? snackRoot.specialities
-    : Array.isArray(snackRoot.items)
-    ? [{ items: snackRoot.items }]
-    : Array.isArray(snackRoot)
-    ? [{ items: snackRoot }]
-    : [snackRoot];
+  const groups: SnackGroup[] = [];
 
-  rawCategories.forEach((cat: any, cIdx: number) => {
-    if (!cat || typeof cat !== 'object') return;
-    const catName = cleanText(cat.name || cat.title || 'Delectables');
-    const subcategories = Array.isArray(cat.subcategories)
-      ? cat.subcategories
-      : Array.isArray(cat.specialities)
-      ? cat.specialities
-      : Array.isArray(cat.items)
-      ? [cat]
+  rawSubcategories.forEach((sub: any) => {
+    if (!sub || typeof sub !== 'object') return;
+    const groupName = cleanText(sub.name || sub.title || 'Snacks') || 'Snacks';
+    const rawItems: any[] = Array.isArray(sub.items)
+      ? sub.items
+      : Array.isArray(sub.specialities)
+      ? sub.specialities.flatMap((s: any) => (Array.isArray(s.items) ? s.items : []))
       : [];
 
-    subcategories.forEach((sub: any, sIdx: number) => {
-      if (!sub || typeof sub !== 'object') return;
-      const rawSpecialities = Array.isArray(sub.specialities)
-        ? sub.specialities
-        : Array.isArray(sub.items)
-        ? [sub]
-        : [];
+    const items: Array<{ name: string; description?: string; imageUrl?: string }> = [];
 
-      rawSpecialities.forEach((spec: any) => {
-        if (!spec || typeof spec !== 'object') return;
-        const rawItems = Array.isArray(spec.items)
-          ? spec.items
-          : Array.isArray(spec)
-          ? spec
-          : [];
-
-        rawItems.forEach((it: any, iIdx: number) => {
-          if (!it || typeof it !== 'object') return;
-          const name = cleanText(it.name || it.title || it.itemName || it.dishName || '');
-          if (name) {
-            const desc = cleanText(it.description || it.desc || '');
-            const footnote = cleanText(it.footnote || '');
-            const tags: string[] = [];
-            if (Array.isArray(it.icons)) {
-              it.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
-            }
-            if (catName && !tags.includes(catName)) {
-              tags.push(catName);
-            }
-
-            const imageUrl = extractSqImageUrl(it, spec, sub, cat);
-
-            snacksList.push({
-              id: `snack_${lIdx}_${cIdx}_${sIdx}_${iIdx}`,
-              title: name,
-              description: desc || undefined,
-              footnote: footnote || undefined,
-              tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
-              imageUrl,
-            });
-          }
+    rawItems.forEach((it: any) => {
+      if (!it || typeof it !== 'object') return;
+      const name = cleanText(it.name || it.title || it.itemName || it.dishName || '');
+      if (name) {
+        const description = cleanText(it.description || it.desc || '');
+        const imageUrl = extractSqImageUrl(it, sub, drySnack);
+        items.push({
+          name,
+          description: description || undefined,
+          imageUrl,
         });
-      });
+      }
     });
+
+    // Drop group entirely if it has zero valid items
+    if (items.length > 0) {
+      groups.push({
+        name: groupName,
+        items,
+      });
+    }
   });
 
-  return snacksList;
+  if (groups.length === 0) {
+    if (header) {
+      return { header, groups: [] };
+    }
+    return null;
+  }
+
+  return {
+    header: header || undefined,
+    groups,
+  };
 }
 
 /**
@@ -671,14 +653,14 @@ function resolveSqFlightProfile(num: string): FlightProfile {
     return {
       aircraftType: 'Airbus A380-800',
       cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n === 322 || n === 308 ? 'SIN' : 'LHR', destination: n === 322 || n === 308 ? 'LHR' : 'SIN', depTime: n === 322 ? '23:30' : n === 308 ? '09:00' : '11:25', arrTime: n === 322 ? '05:55' : n === 308 ? '15:40' : '07:30', dayShift: n === 322 ? 1 : 0, durationMinutes: 805, hasSnacks: true, hasAmenities: true }],
+      legs: [{ origin: n === 322 || n === 308 ? 'SIN' : 'LHR', destination: n === 322 || n === 308 ? 'LHR' : 'SIN', depTime: n === 322 ? '23:30' : n === 308 ? '09:00' : '11:25', arrTime: n === 322 ? '05:55' : n === 308 ? '15:40' : '07:30', dayShift: n === 322 ? 1 : 0, durationMinutes: 805, hasSnacks: false, hasAmenities: true }],
     };
   }
   if (n === 221 || n === 222) {
     return {
       aircraftType: 'Airbus A380-800',
       cabins: ['SUITES', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n === 221 ? 'SIN' : 'SYD', destination: n === 221 ? 'SYD' : 'SIN', depTime: n === 221 ? '20:40' : '16:10', arrTime: n === 221 ? '06:30' : '22:20', dayShift: n === 221 ? 1 : 0, durationMinutes: 470, hasSnacks: true, hasAmenities: true }],
+      legs: [{ origin: n === 221 ? 'SIN' : 'SYD', destination: n === 221 ? 'SYD' : 'SIN', depTime: n === 221 ? '20:40' : '16:10', arrTime: n === 221 ? '06:30' : '22:20', dayShift: n === 221 ? 1 : 0, durationMinutes: 470, hasSnacks: false, hasAmenities: true }],
     };
   }
   if (n === 830 || n === 833) {
@@ -699,21 +681,21 @@ function resolveSqFlightProfile(num: string): FlightProfile {
     return {
       aircraftType: 'Airbus A350-900',
       cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'MEL', destination: n % 2 === 0 ? 'MEL' : 'SIN', depTime: '00:30', arrTime: '10:10', dayShift: 0, durationMinutes: 440, hasSnacks: true, hasAmenities: true }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'MEL', destination: n % 2 === 0 ? 'MEL' : 'SIN', depTime: '00:30', arrTime: '10:10', dayShift: 0, durationMinutes: 440, hasSnacks: false, hasAmenities: true }],
     };
   }
   if (n >= 300 && n <= 399) {
     return {
       aircraftType: 'Airbus A350-900',
       cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'FRA', destination: n % 2 === 0 ? 'FRA' : 'SIN', depTime: '23:55', arrTime: '06:40', dayShift: 1, durationMinutes: 765, hasSnacks: true, hasAmenities: true }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'FRA', destination: n % 2 === 0 ? 'FRA' : 'SIN', depTime: '23:55', arrTime: '06:40', dayShift: 1, durationMinutes: 765, hasSnacks: false, hasAmenities: true }],
     };
   }
   if (n >= 600 && n <= 699) {
     return {
       aircraftType: 'Boeing 787-10',
       cabins: ['BUSINESS', 'ECONOMY'],
-      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'NRT', destination: n % 2 === 0 ? 'NRT' : 'SIN', depTime: '23:55', arrTime: '08:00', dayShift: 1, durationMinutes: 425, hasSnacks: true, hasAmenities: true }],
+      legs: [{ origin: n % 2 === 0 ? 'SIN' : 'NRT', destination: n % 2 === 0 ? 'NRT' : 'SIN', depTime: '23:55', arrTime: '08:00', dayShift: 1, durationMinutes: 425, hasSnacks: false, hasAmenities: true }],
     };
   }
   if (n >= 700 && n <= 799) {
@@ -734,7 +716,7 @@ function resolveSqFlightProfile(num: string): FlightProfile {
   return {
     aircraftType: 'Airbus A350-900',
     cabins: ['BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'],
-    legs: [{ origin: 'SIN', destination: 'LHR', depTime: '09:00', arrTime: '15:40', dayShift: 0, durationMinutes: 820, hasSnacks: true, hasAmenities: true }],
+    legs: [{ origin: 'SIN', destination: 'LHR', depTime: '09:00', arrTime: '15:40', dayShift: 0, durationMinutes: 820, hasSnacks: false, hasAmenities: true }],
   };
 }
 
@@ -861,7 +843,6 @@ export async function getMenu(flightNo: string, dateISO: string, cabin: CabinCod
   const cacheKey = `sq_menu_${num}_${dateISO}_${cabin}`;
   const cached = sqCache.get<MenuData>(cacheKey);
   if (cached) {
-    // Return fresh clone of cached data so downstream leg filtering does not mutate cache
     return {
       ...cached,
       legs: cached.legs ? cached.legs.map((l) => ({ ...l })) : [],
@@ -941,6 +922,7 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       }
     }
 
+    const isSnackBag = Boolean(leg.isSnackBag || leg.snackBag || leg.flags?.isSnackBag);
     const mealServices: MealService[] = [];
     const drinksSections: MenuSection[] = [];
 
@@ -1110,8 +1092,9 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       });
     }
 
-    // 3. Robust Per-Sector Snacks & Delectables Check
-    const snacksList: MenuItem[] = parseSnacksFromLeg(leg, lIdx);
+    // 3. STAGE 3 Normalized Snacks Extraction
+    const rawDrySnack = leg.drySnack ?? leg.drySnacks ?? null;
+    const snacksData = parseLegSnacks(rawDrySnack);
 
     // 4. Cabin Amenities Check
     const amenitiesList: AmenityItem[] = parseAmenitiesFromLeg(leg, lIdx);
@@ -1129,9 +1112,10 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
       depDateLocal,
       arrDateLocal,
       arrDayShift,
+      isSnackBag,
       mealServices,
       drinks: drinksSections,
-      snacks: snacksList,
+      snacks: snacksData,
       amenities: amenitiesList,
     });
   });
@@ -1353,29 +1337,44 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       },
     ];
 
-    const hasSnacksForLeg = Boolean(leg.hasSnacks);
-    const hasAmenitiesForLeg = Boolean(leg.hasAmenities);
+    const snacksData: LegSnacksData | null = leg.hasSnacks
+      ? {
+          header:
+            'We have a variety of snacks available on request throughout the flight. Approach our cabin crew and they will be glad to assist you.',
+          groups: [
+            {
+              name: 'Assorted Treats',
+              items: [
+                {
+                  name: 'Artisanal Mixed Truffle Nuts',
+                  description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
+                  imageUrl: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
+                },
+                {
+                  name: 'Gourmet Light Bites & Cookies',
+                  description: 'Warm chocolate chip cookies, butter shortbreads, and dried orchard fruits.',
+                  imageUrl: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
+                },
+              ],
+            },
+            {
+              name: 'Noodles',
+              items: [
+                {
+                  name: 'Chicken Flavoured Instant Noodles',
+                  description: 'Garnished with spring onions and oriental condiments.',
+                },
+                {
+                  name: 'Tom Yum Flavoured Instant Noodles',
+                  description: 'Spicy and tangy broth with dried vegetables.',
+                },
+              ],
+            },
+          ],
+        }
+      : null;
 
-    const snacksList: MenuItem[] = hasSnacksForLeg
-      ? [
-          {
-            id: `snk_${lIdx}_0`,
-            title: 'Artisanal Mixed Truffle Nuts',
-            description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
-            tags: ['Delectables'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
-          },
-          {
-            id: `snk_${lIdx}_1`,
-            title: 'Gourmet Light Bites & Cookies',
-            description: 'Warm chocolate chip cookies, butter shortbreads, and dried orchard fruits.',
-            tags: ['Delectables'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
-          },
-        ]
-      : [];
-
-    const amenitiesList: AmenityItem[] = hasAmenitiesForLeg
+    const amenitiesList: AmenityItem[] = leg.hasAmenities
       ? [
           {
             id: `am_${lIdx}_0`,
@@ -1423,9 +1422,10 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
       depDateLocal: dateISO,
       arrDateLocal: arrDate,
       arrDayShift: leg.dayShift,
+      isSnackBag: false,
       mealServices,
       drinks: drinksSections,
-      snacks: snacksList,
+      snacks: snacksData,
       amenities: amenitiesList,
     });
   });

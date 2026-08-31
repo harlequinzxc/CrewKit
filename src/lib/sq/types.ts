@@ -7,23 +7,6 @@ export interface CabinOption {
   short: string;
 }
 
-export type Gate2Result =
-  | {
-      ok: true;
-      data: {
-        flight: string;
-        flightDate: string;
-        aircraftType?: string;
-        cabins: CabinOption[];
-        legs?: any[];
-      };
-    }
-  | {
-      ok: false;
-      code: 'BAD_INPUT' | 'NOT_FOUND' | 'UPSTREAM_ERROR';
-      message: string;
-    };
-
 export type CabinConfig = {
   flightNo: string;
   date: string;
@@ -95,6 +78,22 @@ export type AmenityItem = {
   imageUrl?: string;
 };
 
+export interface SnackItem {
+  name: string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface SnackGroup {
+  name: string;
+  items: SnackItem[];
+}
+
+export interface LegSnacksData {
+  header?: string;
+  groups: SnackGroup[];
+}
+
 export type LegMenuData = {
   legId: string;
   origin: string;
@@ -110,10 +109,10 @@ export type LegMenuData = {
   departureLocalDate?: string;
   arrivalLocalDate?: string;
   arrDayShift?: number;
-  status?: string;
+  isSnackBag?: boolean;
   mealServices: MealService[];
   drinks: MenuSection[];
-  snacks: MenuItem[];
+  snacks: LegSnacksData | null;
   amenities: AmenityItem[];
 };
 
@@ -123,7 +122,6 @@ export type MenuData = {
   cabin: CabinCode;
   aircraftType?: string;
   legs: LegMenuData[];
-  // Backwards compatible flat views for export tools
   sections: MenuSection[];
   drinks: MenuSection[];
 };
