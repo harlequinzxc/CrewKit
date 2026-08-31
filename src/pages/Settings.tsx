@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Layout } from '../components/Layout';
+import { Layout } from '../components/ui/Layout';
 import { LogoMark } from '../components/Logo';
 import { APP_VERSION, APP_NAME } from '../config/version';
 import { useTheme } from '../hooks/useTheme';
-import { motion } from 'framer-motion';
+import { Heading, Text, SegmentedControl } from '../components/ui';
 import {
   DollarSign,
   Palette,
@@ -15,6 +15,7 @@ import {
   Moon,
   Sun,
   Sparkles,
+  LucideIcon,
 } from 'lucide-react';
 
 type SettingsTab = 'theme' | 'rates' | 'data' | 'about';
@@ -24,7 +25,7 @@ export const Settings: React.FC = () => {
   const [feedback, setFeedback] = useState<string | null>(null);
   const { setTheme, toggleTheme, isNight } = useTheme();
 
-  const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
+  const tabs: { id: SettingsTab; label: string; icon: LucideIcon }[] = [
     { id: 'theme', label: 'Theme', icon: Palette },
     { id: 'rates', label: 'Rates', icon: DollarSign },
     { id: 'data', label: 'Data', icon: Database },
@@ -46,43 +47,24 @@ export const Settings: React.FC = () => {
 
         {/* Editorial Hero Block */}
         <div className="w-full max-w-md mx-auto flex flex-col items-center text-center">
-          {/* Eyebrow (Jost uppercase) */}
-          <span className="font-ui text-xs uppercase tracking-eyebrow-wide text-gold-300 font-semibold mb-1">
+          {/* Eyebrow */}
+          <Text variant="eyebrow" className="mb-1 text-sm sm:text-base">
             Customise,
-          </span>
+          </Text>
 
-          {/* Headline (Cormorant Garamond) */}
-          <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+          {/* Headline */}
+          <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
             Toolkit Preferences
-          </h2>
+          </Heading>
 
-          {/* Single Segmented Pill Tab Bar with Framer Motion Sliding Indicator */}
-          <div className="grid grid-cols-4 gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim w-full mt-5 select-none relative">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all z-10 ${
-                    isActive ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
-                  }`}
-                >
-                  {isActive && (
-                    <motion.div
-                      layoutId="settings-tab-pill"
-                      className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10 flex items-center gap-1.5">
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{tab.label}</span>
-                  </span>
-                </button>
-              );
-            })}
+          {/* Segmented Pill Tab Bar */}
+          <div className="w-full mt-5">
+            <SegmentedControl
+              options={tabs}
+              value={activeTab}
+              onChange={(val) => setActiveTab(val as SettingsTab)}
+              layoutId="settings-tab-pill"
+            />
           </div>
 
           {/* Single Elevated Card Container for Tab Content */}
@@ -95,14 +77,14 @@ export const Settings: React.FC = () => {
                   className="p-5 rounded-card cabin-glass flex items-center justify-between cursor-pointer hover:border-gold-400/50 transition-all"
                 >
                   <div className="flex flex-col pr-3">
-                    <span className="font-display text-xl font-light text-ivory-100">
+                    <Heading variant="subsection" as="h3" className="font-display text-xl font-light">
                       {isNight ? 'Night Cabin Mood' : 'Day Cabin Mood'}
-                    </span>
-                    <span className="font-ui text-xs text-mist-300 mt-1">
+                    </Heading>
+                    <Text variant="secondary" className="text-xs mt-1">
                       {isNight
                         ? 'Quiet luxury midnight navy & champagne gold'
                         : 'Luminous cream paper & antique brass gold'}
-                    </span>
+                    </Text>
                   </div>
 
                   {/* Segmented Dark/Light Pill Switch */}
@@ -141,9 +123,9 @@ export const Settings: React.FC = () => {
 
                 <div className="p-4 rounded-card bg-ink-850/60 border border-gold-dim text-left flex items-start gap-3">
                   <Sparkles className="w-4 h-4 text-gold-400 shrink-0 mt-0.5" />
-                  <p className="text-xs font-ui text-mist-300 leading-relaxed">
+                  <Text variant="secondary" className="text-xs leading-relaxed">
                     Theme switch glides smoothly with a 0.5s transition and synchronizes across all browser sessions without flash of unstyled content (zero-FOUC).
-                  </p>
+                  </Text>
                 </div>
               </div>
             )}
@@ -152,9 +134,9 @@ export const Settings: React.FC = () => {
             {activeTab === 'rates' && (
               <div className="p-5 rounded-card cabin-glass space-y-3.5 animate-cabin-in">
                 <div>
-                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block mb-1">
+                  <Text variant="overline" className="mb-1">
                     Meal Rates by Country
-                  </span>
+                  </Text>
                   <input
                     type="text"
                     disabled
@@ -164,9 +146,9 @@ export const Settings: React.FC = () => {
                 </div>
 
                 <div>
-                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block mb-1">
+                  <Text variant="overline" className="mb-1">
                     Rank Seniority Rates
-                  </span>
+                  </Text>
                   <input
                     type="text"
                     disabled
@@ -176,9 +158,9 @@ export const Settings: React.FC = () => {
                 </div>
 
                 <div>
-                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block mb-1">
+                  <Text variant="overline" className="mb-1">
                     Sector Multipliers
-                  </span>
+                  </Text>
                   <input
                     type="text"
                     disabled
@@ -243,13 +225,15 @@ export const Settings: React.FC = () => {
                 <div className="flex items-center justify-between border-b border-gold-dim pb-3">
                   <div className="flex items-center gap-2.5">
                     <LogoMark size={24} />
-                    <span className="font-display text-lg font-light text-ivory-100">{APP_NAME}</span>
+                    <Heading variant="subsection" as="span" className="font-display text-lg font-light text-ivory-100">
+                      {APP_NAME}
+                    </Heading>
                   </div>
                   <span className="font-mono text-gold-300 text-xs font-semibold">v{APP_VERSION}</span>
                 </div>
-                <p className="text-xs font-sans leading-relaxed text-mist-300">
+                <Text variant="secondary" className="text-xs leading-relaxed">
                   An editorial luxury companion web app crafted exclusively for Singapore Airlines cabin crew.
-                </p>
+                </Text>
                 <div className="pt-2 text-[10px] font-ui uppercase tracking-wider text-mist-400 flex justify-between border-t border-gold-dim">
                   <span>PWA &bull; Offline Ready</span>
                   <span>Zero-Scroll Lock</span>

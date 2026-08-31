@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout } from '../components/Layout';
+import { Layout } from '../components/ui/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
 import { DepartureBlock } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { CabinPill } from '../components/CabinPill';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { DishCard } from '../components/DishCard';
-import { ImageLightbox } from '../components/ImageLightbox';
 import { RouteHero } from '../components/RouteHero';
+import {
+  Heading,
+  Text,
+  Pill,
+  SegmentedControl,
+  StickyHeader,
+} from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
   getMenu,
@@ -17,7 +23,6 @@ import {
   LiveCheckResult,
 } from '../lib/sq/endpoints';
 import { CabinCode, MenuData, LegMenuData } from '../lib/sq/types';
-import { motion } from 'framer-motion';
 import {
   ChevronDown,
   ChevronUp,
@@ -74,21 +79,6 @@ export const SkyMenu: React.FC = () => {
   // Selection switcher state per meal service
   const [selectedMealOption, setSelectedMealOption] = useState<Record<string, string>>({});
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-
-  // Lightbox State
-  const [lightboxData, setLightboxData] = useState<{
-    open: boolean;
-    src: string | null;
-    title: string;
-    description?: string;
-    meta?: string;
-    credit?: string;
-    isAmenity?: boolean;
-  }>({
-    open: false,
-    src: null,
-    title: '',
-  });
 
   // Ref to abort ongoing fetch operations when input/date changes
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -239,13 +229,11 @@ export const SkyMenu: React.FC = () => {
     const mapping: Record<string, MenuData> = {};
     cabinsToFetch.forEach((c, idx) => {
       const rawMenu = menus[idx];
-      // Deep clone menu so sector filtering does not mutate cache or other references
       const menu: MenuData = {
         ...rawMenu,
         legs: rawMenu.legs ? rawMenu.legs.map((l) => ({ ...l })) : [],
       };
 
-      // If specific sectors were chosen in the form, filter legs to only those sectors
       if (selectedSectorIds.length > 0 && menu.legs.length > 0) {
         const filtered = menu.legs.filter((leg) => {
           const legKey = `${leg.origin}-${leg.destination}`;
@@ -271,7 +259,6 @@ export const SkyMenu: React.FC = () => {
     setActiveLegIndex(0);
     setActiveSegment('dining');
 
-    // Default selection to International/Western menu if multiple selections exist
     const primary = result.mapping[initialCabin];
     const initialSelections: Record<string, string> = {};
     if (primary && primary.legs && primary.legs.length > 0) {
@@ -356,8 +343,9 @@ export const SkyMenu: React.FC = () => {
     }
   }, [activeLegIndex, activeCabinView, hasSnacks, hasAmenities, activeSegment]);
 
+  // STICKY BAR: Dining renamed to Food
   const availableCategories = [
-    { id: 'dining' as const, label: 'Dining', icon: Utensils },
+    { id: 'dining' as const, label: 'Food', icon: Utensils },
     { id: 'drinks' as const, label: 'Drinks', icon: Wine },
     ...(hasSnacks ? [{ id: 'snacks' as const, label: 'Snacks', icon: Cookie }] : []),
     ...(hasAmenities ? [{ id: 'amenities' as const, label: 'Amenities', icon: Gift }] : []),
@@ -381,13 +369,10 @@ export const SkyMenu: React.FC = () => {
           <div className="w-full max-w-md mx-auto flex flex-col items-center text-center space-y-8">
             {/* Editorial Hero */}
             <div className="space-y-1">
-              <span className="font-display italic text-gold-300 text-base sm:text-lg tracking-wide block">
-                Menu of the day,
-              </span>
-
-              <h2 className="font-display text-3xl sm:text-4xl font-normal text-ivory-100 tracking-tight leading-snug">
+              <Text variant="eyebrow">Menu of the day,</Text>
+              <Heading variant="hero" as="h2">
                 What are we serving?
-              </h2>
+              </Heading>
             </div>
 
             {/* STEP 1: Flight Number Input */}
@@ -420,9 +405,7 @@ export const SkyMenu: React.FC = () => {
             {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
             {showSectorStep && multiSectors && (
               <div className="w-full text-left animate-cabin-in space-y-2">
-                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
-                  SECTOR
-                </label>
+                <Text variant="overline">SECTOR</Text>
 
                 <div className="grid grid-cols-1 gap-2">
                   {multiSectors.map((sec) => {
@@ -469,9 +452,7 @@ export const SkyMenu: React.FC = () => {
             {/* Stage: CHECKING — Progress indicator & spinner */}
             {checkState === 'checking' && Boolean(dateISO) && (
               <div className="w-full text-left animate-fade-in space-y-2">
-                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 select-none">
-                  CABIN
-                </label>
+                <Text variant="overline">CABIN</Text>
                 <div className="flex items-center gap-2.5 p-3 rounded-well bg-ink-850/80 border border-gold-dim">
                   <div className="w-4 h-4 border-2 border-gold-400 border-t-transparent rounded-full animate-spin shrink-0" />
                   <span className="font-ui text-xs text-mist-300">Checking the flight…</span>
@@ -526,9 +507,7 @@ export const SkyMenu: React.FC = () => {
             {showCabinStep && (
               <div className="w-full text-left animate-cabin-in">
                 <div className="flex items-center justify-between mb-2 select-none">
-                  <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 select-none">
-                    CABIN
-                  </label>
+                  <Text variant="overline">CABIN</Text>
                   {aircraftType && (
                     <span className="font-ui text-[10px] uppercase tracking-wider text-gold-300 font-semibold">
                       {aircraftType}
@@ -577,21 +556,17 @@ export const SkyMenu: React.FC = () => {
                     : cabinCode.charAt(0) + cabinCode.slice(1).toLowerCase();
                 const isActive = activeCabinView === cabinCode;
                 return (
-                  <button
+                  <Pill
                     key={cabinCode}
-                    type="button"
+                    active={isActive}
                     onClick={() => {
                       setActiveCabinView(cabinCode);
                       setActiveLegIndex(0);
                     }}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
-                      isActive
-                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
-                        : 'text-mist-300 hover:text-ivory-100 bg-ink-850/60 border border-gold-dim'
-                    }`}
+                    size="sm"
                   >
                     {label}
-                  </button>
+                  </Pill>
                 );
               })}
             </div>
@@ -629,9 +604,10 @@ export const SkyMenu: React.FC = () => {
               {activeMenuData.legs.map((leg, idx) => {
                 const isActive = activeLegIndex === idx;
                 return (
-                  <button
+                  <Pill
                     key={leg.legId || idx}
-                    type="button"
+                    active={isActive}
+                    icon={Plane}
                     onClick={() => {
                       setActiveLegIndex(idx);
                       const targetLeg = activeMenuData.legs[idx];
@@ -648,53 +624,26 @@ export const SkyMenu: React.FC = () => {
                         setActiveSegment('dining');
                       }
                     }}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all shrink-0 ${
-                      isActive
-                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
-                        : 'text-mist-300 hover:text-ivory-100 bg-ink-850/60 border border-gold-dim'
-                    }`}
+                    size="sm"
                   >
-                    <Plane className="w-3 h-3 rotate-45" />
-                    <span>
-                      {leg.origin} → {leg.destination}
-                    </span>
-                  </button>
+                    {leg.origin} → {leg.destination}
+                  </Pill>
                 );
               })}
             </div>
           )}
 
-          {/* 3. BELOW SECTOR PILLS / ROUTE HERO: STICKY TOP BAR OF CATEGORIES */}
-          <div className="sticky top-0 z-20 backdrop-blur-md bg-ink-950/90 py-2 border-y border-gold-dim/40 mb-6">
-            <div className="flex items-center justify-center gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim max-w-md mx-auto relative select-none">
-              {availableCategories.map((tab) => {
-                const TabIcon = tab.icon;
-                const isActive = activeSegment === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveSegment(tab.id)}
-                    className={`relative flex items-center justify-center gap-1.5 flex-1 py-1.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-colors duration-200 z-10 ${
-                      isActive ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="skymenu-segment-pill"
-                        className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
-                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-1.5">
-                      <TabIcon className="w-3.5 h-3.5" />
-                      <span>{tab.label}</span>
-                    </span>
-                  </button>
-                );
-              })}
+          {/* 3. STICKY TOP BAR OF CATEGORIES WITH BOTTOM DISSOLVE FADE */}
+          <StickyHeader className="mb-6">
+            <div className="max-w-md mx-auto">
+              <SegmentedControl
+                options={availableCategories}
+                value={activeSegment}
+                onChange={(val) => setActiveSegment(val as any)}
+                layoutId="skymenu-segment-pill"
+              />
             </div>
-          </div>
+          </StickyHeader>
 
           {/* MAIN MENU CONTENT SECTIONS */}
           <div className="px-1 sm:px-2 space-y-8">
@@ -703,25 +652,27 @@ export const SkyMenu: React.FC = () => {
               <div className="p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-gold-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <h4 className="font-display text-base text-gold-300">Snack Bag Service</h4>
-                  <p className="font-sans text-xs text-mist-300 leading-relaxed">
+                  <Heading variant="subsection" as="h4" className="text-base text-gold-300">
+                    Snack Bag Service
+                  </Heading>
+                  <Text variant="secondary" className="text-xs">
                     This sector operates a snack bag service instead of a full meal service.
-                  </p>
+                  </Text>
                 </div>
               </div>
             )}
 
-            {/* 1. DINING SERVICE & PACED COURSES */}
+            {/* 1. FOOD / DINING SERVICE & PACED COURSES */}
             {activeSegment === 'dining' && currentLeg && (
               <>
                 {currentLeg.mealServices.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-display text-2xl text-ivory-100 mb-2">
+                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Dining Services Published
-                    </span>
-                    <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
+                    </Heading>
+                    <Text variant="secondary" className="max-w-sm">
                       Dining menus for SQ{validation.cleanFlightNo} ({currentLeg.origin} → {currentLeg.destination}) are not available yet.
-                    </p>
+                    </Text>
                   </div>
                 ) : (
                   currentLeg.mealServices.map((service) => {
@@ -734,9 +685,9 @@ export const SkyMenu: React.FC = () => {
                       <div key={service.id} className="space-y-6">
                         {/* Service Title */}
                         <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
-                          <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight">
+                          <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
                             {service.name}
-                          </h2>
+                          </Heading>
 
                           {/* Parallel Menu Toggles */}
                           {service.selections.length > 1 && (
@@ -776,9 +727,13 @@ export const SkyMenu: React.FC = () => {
                                   className="flex items-center justify-between cursor-pointer py-1 group select-none"
                                 >
                                   <div className="flex items-baseline">
-                                    <h3 className="font-display text-2xl text-ivory-100 group-hover:text-gold-300 transition-colors">
+                                    <Heading
+                                      variant="section"
+                                      as="h3"
+                                      className="text-2xl font-display font-normal group-hover:text-gold-300 transition-colors"
+                                    >
                                       {course.name}
-                                    </h3>
+                                    </Heading>
                                     {course.maxSequence && (
                                       <span className="font-ui text-xs uppercase tracking-wider text-mist-400 ml-3">
                                         (Choice of {course.maxSequence})
@@ -808,7 +763,6 @@ export const SkyMenu: React.FC = () => {
                                         item={item}
                                         courseCategory={course.name}
                                         cabin={activeCabinView}
-                                        onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                                       />
                                     ))}
                                   </div>
@@ -831,18 +785,20 @@ export const SkyMenu: React.FC = () => {
               <div className="space-y-8">
                 {currentLeg.drinks.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-display text-2xl text-ivory-100 mb-2">
+                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Drinks Listing Available
-                    </span>
-                    <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
+                    </Heading>
+                    <Text variant="secondary" className="max-w-sm">
                       Beverage, tea, and coffee selections have not been published for this sector yet.
-                    </p>
+                    </Text>
                   </div>
                 ) : (
                   currentLeg.drinks.map((sec) => (
                     <div key={sec.id} className="space-y-4">
                       <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                        <h3 className="font-display text-2xl text-ivory-100">{sec.title}</h3>
+                        <Heading variant="section" as="h3" className="text-2xl font-display font-light">
+                          {sec.title}
+                        </Heading>
                         <Wine className="w-4 h-4 text-gold-400" />
                       </div>
 
@@ -853,7 +809,6 @@ export const SkyMenu: React.FC = () => {
                             item={it}
                             courseCategory={sec.title}
                             cabin={activeCabinView}
-                            onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                           />
                         ))}
                       </div>
@@ -870,27 +825,27 @@ export const SkyMenu: React.FC = () => {
               <div className="space-y-6">
                 {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-display text-2xl text-ivory-100 mb-2">
+                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Snacks Available
-                    </span>
-                    <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
+                    </Heading>
+                    <Text variant="secondary" className="max-w-sm">
                       Complimentary snacks and refreshments are available on board upon request.
-                    </p>
+                    </Text>
                   </div>
                 ) : (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                      <h3 className="font-display text-2xl text-ivory-100">
+                      <Heading variant="section" as="h3" className="text-2xl font-display font-light">
                         Delectables &amp; Snacks
-                      </h3>
+                      </Heading>
                       <Cookie className="w-4 h-4 text-gold-400" />
                     </div>
 
                     {/* Service Header Note */}
                     {currentLeg.snacks.header && (
-                      <p className="font-display italic text-sm sm:text-base text-gold-300/90 leading-relaxed max-w-3xl">
+                      <Text variant="eyebrow" className="text-sm sm:text-base leading-relaxed max-w-3xl">
                         {currentLeg.snacks.header}
-                      </p>
+                      </Text>
                     )}
 
                     {/* Groups */}
@@ -900,9 +855,9 @@ export const SkyMenu: React.FC = () => {
                           {/* — Group Name — Hairline Separator */}
                           <div className="flex items-center justify-center gap-3 py-1">
                             <div className="h-px bg-gold-400/25 flex-1 max-w-[80px] sm:max-w-[120px]" />
-                            <h4 className="font-display text-lg sm:text-xl font-normal text-gold-300 tracking-wide text-center">
+                            <Heading variant="subsection" as="h4" className="text-lg sm:text-xl font-normal text-gold-300 tracking-wide text-center uppercase font-display">
                               {group.name}
-                            </h4>
+                            </Heading>
                             <div className="h-px bg-gold-400/25 flex-1 max-w-[80px] sm:max-w-[120px]" />
                           </div>
 
@@ -919,7 +874,6 @@ export const SkyMenu: React.FC = () => {
                                 }}
                                 courseCategory={group.name}
                                 cabin={activeCabinView}
-                                onOpenLightbox={(data) => setLightboxData({ ...data, open: true })}
                               />
                             ))}
                           </div>
@@ -936,17 +890,19 @@ export const SkyMenu: React.FC = () => {
               <div className="space-y-6">
                 {currentLeg.amenities.length === 0 ? (
                   <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
-                    <span className="font-display text-2xl text-ivory-100 mb-2">
+                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       Cabin Comfort &amp; Amenities
-                    </span>
-                    <p className="font-sans text-sm text-mist-300 max-w-sm leading-relaxed">
+                    </Heading>
+                    <Text variant="secondary" className="max-w-sm">
                       Amenity kits, slippers, and premium bedding provided on long-haul flights.
-                    </p>
+                    </Text>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                      <h3 className="font-display text-2xl text-ivory-100">Cabin Amenities</h3>
+                      <Heading variant="section" as="h3" className="text-2xl font-display font-light">
+                        Cabin Amenities
+                      </Heading>
                       <Gift className="w-4 h-4 text-gold-400" />
                     </div>
 
@@ -964,7 +920,6 @@ export const SkyMenu: React.FC = () => {
                           cabin={activeCabinView}
                           imageFit="contain"
                           imageBg="white"
-                          onOpenLightbox={(data) => setLightboxData({ ...data, open: true, isAmenity: true })}
                         />
                       ))}
                     </div>
@@ -973,18 +928,6 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* LIGHTBOX MODAL */}
-          <ImageLightbox
-            open={lightboxData.open}
-            onClose={() => setLightboxData((prev) => ({ ...prev, open: false }))}
-            src={lightboxData.src}
-            title={lightboxData.title}
-            description={lightboxData.description}
-            meta={lightboxData.meta}
-            credit={lightboxData.credit}
-            isAmenity={lightboxData.isAmenity}
-          />
         </div>
       )}
     </Layout>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Crown, Star, Martini, Wine, Leaf, LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { CabinCode } from '../lib/sq/types';
+import { Pill } from './ui';
 
 interface CabinPillProps {
   code: CabinCode;
@@ -26,24 +27,22 @@ export const CabinPill: React.FC<CabinPillProps> = ({
   delayIndex = 0,
 }) => {
   const info = CABIN_INFO[code] || { label: code, icon: Star };
-  const Icon = info.icon;
 
   return (
-    <motion.button
-      type="button"
-      onClick={() => onToggle(code)}
+    <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: delayIndex * 0.05, ease: [0.22, 1, 0.36, 1] }}
-      whileTap={{ scale: 0.96 }}
-      className={`relative inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all select-none ${
-        isSelected
-          ? 'bg-gold-400 text-onyx-900 shadow-gold-glow ring-2 ring-gold-400/30'
-          : 'bg-ink-850 text-mist-300 border border-gold-dim hover:border-gold-400 hover:text-ivory-100'
-      }`}
+      className="inline-block"
     >
-      <Icon className="w-3.5 h-3.5" strokeWidth={1.8} />
-      <span>{info.label}</span>
-    </motion.button>
+      <Pill
+        active={isSelected}
+        icon={info.icon}
+        onClick={() => onToggle(code)}
+        className="px-4 py-2.5"
+      >
+        {info.label}
+      </Pill>
+    </motion.div>
   );
 };

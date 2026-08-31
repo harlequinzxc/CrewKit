@@ -3,6 +3,7 @@ import { MenuItem } from '../lib/sq/types';
 import { resolveDishImage, ResolvedDishImageResult } from '../lib/images/resolveDishImage';
 import { Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Heading, Text } from './ui';
 
 export interface DishCardProps {
   item: MenuItem;
@@ -10,13 +11,6 @@ export interface DishCardProps {
   cabin?: string;
   imageFit?: 'cover' | 'contain';
   imageBg?: 'dark' | 'white';
-  onOpenLightbox: (data: {
-    src: string;
-    title: string;
-    description?: string;
-    meta?: string;
-    isAmenity?: boolean;
-  }) => void;
 }
 
 export const DishCard: React.FC<DishCardProps> = ({
@@ -25,7 +19,6 @@ export const DishCard: React.FC<DishCardProps> = ({
   cabin,
   imageFit,
   imageBg,
-  onOpenLightbox,
 }) => {
   const isAmenity =
     imageBg === 'white' ||
@@ -54,18 +47,6 @@ export const DishCard: React.FC<DishCardProps> = ({
     imageState && imageState.thumbUrl && imageState.source === 'sq'
   );
 
-  const handleImageClick = () => {
-    if (imageState && imageState.fullUrl && imageState.source === 'sq') {
-      onOpenLightbox({
-        src: imageState.fullUrl,
-        title: item.title,
-        description: item.description,
-        meta: courseCategory,
-        isAmenity,
-      });
-    }
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -78,10 +59,7 @@ export const DishCard: React.FC<DishCardProps> = ({
         {hasPhoto ? (
           isAmenity ? (
             /* Amenity Frame: Fitted (contain) with clean solid white background */
-            <div
-              onClick={handleImageClick}
-              className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer bg-white flex items-center justify-center p-3.5 border border-white/20 group-hover:border-gold-400/60 shadow-sm transition-all"
-            >
+            <div className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 bg-white flex items-center justify-center p-3.5 border border-white/20 group-hover:border-gold-400/60 shadow-sm transition-all">
               <img
                 src={imageState.thumbUrl!}
                 alt={item.title}
@@ -94,10 +72,7 @@ export const DishCard: React.FC<DishCardProps> = ({
             </div>
           ) : (
             /* Food/Beverage Frame: Luxury Cover with Bottom Dark Fade */
-            <div
-              onClick={handleImageClick}
-              className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 cursor-pointer border border-gold-dim group-hover:border-gold-400/50 transition-colors bg-ink-950"
-            >
+            <div className="w-full aspect-[16/10] rounded-xl relative overflow-hidden mb-3.5 border border-gold-dim group-hover:border-gold-400/50 transition-colors bg-ink-950">
               <img
                 src={imageState.thumbUrl!}
                 alt={item.title}
@@ -112,27 +87,31 @@ export const DishCard: React.FC<DishCardProps> = ({
           )
         ) : null}
 
-        {/* 2. Title (Cormorant Garamond) */}
-        <h4 className="font-display text-xl sm:text-2xl font-light text-ivory-100 leading-snug group-hover:text-gold-300 transition-colors">
+        {/* 2. Title */}
+        <Heading
+          variant="subsection"
+          as="h4"
+          className="text-xl sm:text-2xl font-light font-display text-ivory-100 leading-snug group-hover:text-gold-300 transition-colors"
+        >
           {item.title}
-        </h4>
+        </Heading>
 
         {/* 3. Description */}
         {item.description && (
-          <p className="font-sans text-[0.85rem] text-mist-300 mt-1.5 leading-relaxed">
+          <Text variant="secondary" className="mt-1.5 leading-relaxed">
             {item.description}
-          </p>
+          </Text>
         )}
 
         {/* 4. Footnote */}
         {item.footnote && (
-          <p className="font-display italic text-[0.8rem] text-mist-400 mt-1.5">
+          <Text variant="eyebrow" className="text-[0.8rem] text-mist-400 mt-1.5 not-italic">
             {item.footnote}
-          </p>
+          </Text>
         )}
       </div>
 
-      {/* 5. Uppercase Icon Chips for Dietary & Tags */}
+      {/* 5. Dietary & Tag Chips */}
       {item.tags && item.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3.5 pt-2 border-t border-gold-dim">
           {item.tags.map((tag, tIdx) => {

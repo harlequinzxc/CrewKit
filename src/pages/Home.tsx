@@ -1,6 +1,7 @@
 import React from 'react';
-import { Layout } from '../components/Layout';
+import { Layout } from '../components/ui/Layout';
 import { NavCard } from '../components/NavCard';
+import { Heading, Text } from '../components/ui';
 import { Calculator, UtensilsCrossed, Printer } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -16,31 +17,38 @@ export const Home: React.FC = () => {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col items-center text-center px-2 max-w-xl mx-auto"
+          className="flex flex-col items-center text-center px-2 max-w-xl mx-auto space-y-3"
         >
-          {/* Eyebrow Label (Jost uppercase) */}
-          <span className="font-ui text-xs sm:text-[0.8rem] uppercase tracking-eyebrow-wide text-gold-300 font-medium mb-3">
+          {/* Eyebrow Label */}
+          <Text
+            variant="overline"
+            className="text-gold-300 text-xs sm:text-[0.75rem] tracking-eyebrow-wide font-medium"
+          >
             Singapore Airlines &bull; Cabin Crew Toolkit
-          </span>
+          </Text>
 
-          {/* Editorial Display Headline (Cormorant Garamond) */}
-          <h1 className="font-display text-[clamp(2.4rem,7vw,3.6rem)] font-light text-ivory-100 tracking-tight leading-[1.02]">
-            Your cabin crew <span className="italic gold-gradient-text font-normal">companion.</span>
-          </h1>
+          {/* Editorial Display Headline */}
+          <Heading
+            variant="hero"
+            as="h1"
+            className="text-[clamp(2.4rem,7vw,3.6rem)] font-light text-ivory-100 tracking-tight leading-[1.02]"
+          >
+            Your cabin crew <Heading.Highlight>companion.</Heading.Highlight>
+          </Heading>
 
           {/* Hairline gold accent rule */}
-          <div className="gold-hairline max-w-xs mx-auto my-4" />
+          <div className="gold-hairline max-w-xs mx-auto my-3" />
 
-          {/* Subcopy (Inter/Jost) */}
-          <p className="font-sans text-[0.88rem] sm:text-[0.95rem] text-mist-300 max-w-md leading-relaxed">
+          {/* Subcopy */}
+          <Text variant="secondary" className="text-[0.88rem] sm:text-[0.95rem] max-w-md leading-relaxed">
             Refined instruments for flight allowances, inflight dining, and thermal homework prep.
-          </p>
+          </Text>
         </motion.div>
 
         {/* Controlled Middle Spacer */}
         <div className="flex-1 max-h-10 sm:max-h-14" />
 
-        {/* 3-Card Nav Grid (Staggered animation) */}
+        {/* 3-Card Nav Grid */}
         <motion.div
           initial="hidden"
           animate="visible"

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layout } from '../components/Layout';
+import { Layout } from '../components/ui/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock, getTodayISO, formatDateDisplay } from '../components/DepartureBlock';
+import { DepartureBlock, formatDateDisplay } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
 import { FlightChip } from '../components/FlightChip';
 import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import { getFlightSchedule } from '../lib/sq/endpoints';
 import { Sector } from '../lib/sq/types';
-import { motion } from 'framer-motion';
+import { Heading, Text, Button, SegmentedControl } from '../components/ui';
 import {
   ArrowRight,
   Plane,
@@ -59,32 +59,30 @@ function calculateStationLayover(
 
 export const CrewCash: React.FC = () => {
   const navigate = useNavigate();
-  const initialTodayISO = getTodayISO();
-  const initialTodayDisplay = formatDateDisplay(initialTodayISO);
 
   // Wizard Stages: 'sector1' -> 'sector2' -> 'sector3' -> 'sector4' -> 'loading' -> 'result'
   const [stage, setStage] = useState<'sector1' | 'sector2' | 'sector3' | 'sector4' | 'loading' | 'result'>('sector1');
   const [activeSectorCount, setActiveSectorCount] = useState<2 | 4>(4);
 
-  // Sector 1
+  // Sector 1: not selected by default (matches SkyMenu and InkFlight)
   const sector1Validation = useFlightValidation('');
-  const [sector1DateISO, setSector1DateISO] = useState<string>(initialTodayISO);
-  const [sector1DateDisplay, setSector1DateDisplay] = useState<string>(initialTodayDisplay);
+  const [sector1DateISO, setSector1DateISO] = useState<string>('');
+  const [sector1DateDisplay, setSector1DateDisplay] = useState<string>('');
 
   // Sector 2
   const sector2Validation = useFlightValidation('');
-  const [sector2DateISO, setSector2DateISO] = useState<string>(initialTodayISO);
-  const [sector2DateDisplay, setSector2DateDisplay] = useState<string>(initialTodayDisplay);
+  const [sector2DateISO, setSector2DateISO] = useState<string>('');
+  const [sector2DateDisplay, setSector2DateDisplay] = useState<string>('');
 
   // Sector 3
   const sector3Validation = useFlightValidation('');
-  const [sector3DateISO, setSector3DateISO] = useState<string>(initialTodayISO);
-  const [sector3DateDisplay, setSector3DateDisplay] = useState<string>(initialTodayDisplay);
+  const [sector3DateISO, setSector3DateISO] = useState<string>('');
+  const [sector3DateDisplay, setSector3DateDisplay] = useState<string>('');
 
   // Sector 4
   const sector4Validation = useFlightValidation('');
-  const [sector4DateISO, setSector4DateISO] = useState<string>(initialTodayISO);
-  const [sector4DateDisplay, setSector4DateDisplay] = useState<string>(initialTodayDisplay);
+  const [sector4DateISO, setSector4DateISO] = useState<string>('');
+  const [sector4DateDisplay, setSector4DateDisplay] = useState<string>('');
 
   // Results State
   const [allSectors, setAllSectors] = useState<Sector[]>([]);
@@ -127,15 +125,15 @@ export const CrewCash: React.FC = () => {
     if (activeSectorCount === 2) {
       const [s1, s2] = await Promise.all([
         getFlightSchedule(sector1Validation.flightNo, sector1DateISO),
-        getFlightSchedule(sector2Validation.flightNo, sector2DateISO),
+        getFlightSchedule(sector2Validation.flightNo, sector2DateISO || sector1DateISO),
       ]);
       return { schedules: [s1, s2], count: 2 };
     } else {
       const [s1, s2, s3, s4] = await Promise.all([
         getFlightSchedule(sector1Validation.flightNo, sector1DateISO),
-        getFlightSchedule(sector2Validation.flightNo, sector2DateISO),
-        getFlightSchedule(sector3Validation.flightNo, sector3DateISO),
-        getFlightSchedule(sector4Validation.flightNo, sector4DateISO),
+        getFlightSchedule(sector2Validation.flightNo, sector2DateISO || sector1DateISO),
+        getFlightSchedule(sector3Validation.flightNo, sector3DateISO || sector1DateISO),
+        getFlightSchedule(sector4Validation.flightNo, sector4DateISO || sector1DateISO),
       ]);
       return { schedules: [s1, s2, s3, s4], count: 4 };
     }
@@ -169,9 +167,17 @@ export const CrewCash: React.FC = () => {
 
   const handleReset = () => {
     sector1Validation.setFlightNo('');
+    sector1DateISO && setSector1DateISO('');
+    sector1DateDisplay && setSector1DateDisplay('');
     sector2Validation.setFlightNo('');
+    sector2DateISO && setSector2DateISO('');
+    sector2DateDisplay && setSector2DateDisplay('');
     sector3Validation.setFlightNo('');
+    sector3DateISO && setSector3DateISO('');
+    sector3DateDisplay && setSector3DateDisplay('');
     sector4Validation.setFlightNo('');
+    sector4DateISO && setSector4DateISO('');
+    sector4DateDisplay && setSector4DateDisplay('');
     setAllSectors([]);
     setStage('sector1');
   };
@@ -198,7 +204,14 @@ export const CrewCash: React.FC = () => {
   const flightChipSummary =
     activeSectorCount === 4 && sector3Validation.cleanFlightNo
       ? `SQ${sector1Validation.cleanFlightNo} · SQ${sector2Validation.cleanFlightNo} · SQ${sector3Validation.cleanFlightNo} · SQ${sector4Validation.cleanFlightNo}`
-      : `SQ${sector1Validation.cleanFlightNo} → SQ${sector2Validation.cleanFlightNo} · ${sector1DateDisplay} → ${sector2DateDisplay}`;
+      : `SQ${sector1Validation.cleanFlightNo} → SQ${sector2Validation.cleanFlightNo} · ${sector1DateDisplay} → ${sector2DateDisplay || sector1DateDisplay}`;
+
+  const rankOptions = [
+    { id: 'FS/EY' as const, label: 'FS/EY' },
+    { id: 'LS/LSS' as const, label: 'LS/LSS' },
+    { id: 'CS/CSS' as const, label: 'CS/CSS' },
+    { id: 'IFS' as const, label: 'IFS' },
+  ];
 
   return (
     <Layout>
@@ -223,13 +236,10 @@ export const CrewCash: React.FC = () => {
 
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
             <div>
-              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
-                Departing,
-              </span>
-
-              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+              <Text variant="eyebrow" className="mb-1 text-xl">Departing,</Text>
+              <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
                 First sector flight &amp; date.
-              </h2>
+              </Heading>
             </div>
 
             <div className="w-full text-left">
@@ -283,13 +293,10 @@ export const CrewCash: React.FC = () => {
 
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
             <div>
-              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
-                Returning / Next,
-              </span>
-
-              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+              <Text variant="eyebrow" className="mb-1 text-xl">Returning / Next,</Text>
+              <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
                 Second sector flight &amp; date.
-              </h2>
+              </Heading>
             </div>
 
             <div className="w-full text-left">
@@ -348,13 +355,10 @@ export const CrewCash: React.FC = () => {
 
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
             <div>
-              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
-                Third Duty,
-              </span>
-
-              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+              <Text variant="eyebrow" className="mb-1 text-xl">Third Duty,</Text>
+              <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
                 Third sector flight &amp; date.
-              </h2>
+              </Heading>
             </div>
 
             <div className="w-full text-left">
@@ -407,13 +411,10 @@ export const CrewCash: React.FC = () => {
 
           <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center space-y-5">
             <div>
-              <span className="font-display italic text-gold-300 text-xl tracking-wide block mb-1">
-                Final Sector,
-              </span>
-
-              <h2 className="font-display text-3xl sm:text-4xl font-light text-ivory-100 tracking-tight leading-snug">
+              <Text variant="eyebrow" className="mb-1 text-xl">Final Sector,</Text>
+              <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
                 Fourth sector flight &amp; date.
-              </h2>
+              </Heading>
             </div>
 
             <div className="w-full text-left">
@@ -479,24 +480,24 @@ export const CrewCash: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
-                    <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                    <Text variant="overline" className="text-mist-300 block">
                       Local Arrival &bull; {stationName}
-                    </span>
-                    <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
+                    </Text>
+                    <Heading variant="subsection" as="span" className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                       {stationArrTime}
-                    </span>
+                    </Heading>
                     <span className="text-xs font-ui text-mist-400 block mt-0.5">
                       {formatDateDisplay(stationArrDate)}
                     </span>
                   </div>
 
                   <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
-                    <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                    <Text variant="overline" className="text-mist-300 block">
                       Local Departure &bull; {stationName}
-                    </span>
-                    <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
+                    </Text>
+                    <Heading variant="subsection" as="span" className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                       {stationDepTime}
-                    </span>
+                    </Heading>
                     <span className="text-xs font-ui text-mist-400 block mt-0.5">
                       {formatDateDisplay(stationDepDate)}
                     </span>
@@ -515,15 +516,15 @@ export const CrewCash: React.FC = () => {
               </div>
             )}
 
-            {/* Individual Sectors Breakdown with GIANT IATA CODES (4rem+) */}
+            {/* Individual Sectors Breakdown with GIANT IATA CODES */}
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                <h3 className="font-display text-2xl font-light text-ivory-100">
+                <Heading variant="section" as="h3" className="text-2xl font-light">
                   Sector Timings Breakdown
-                </h3>
-                <span className="text-xs font-ui uppercase tracking-eyebrow text-mist-400">
+                </Heading>
+                <Text variant="overline" className="text-mist-400">
                   {allSectors.length} Sectors Scheduled
-                </span>
+                </Text>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -592,35 +593,21 @@ export const CrewCash: React.FC = () => {
                   <span>Allowance &amp; Flying Pay Estimate</span>
                 </span>
 
-                {/* Rank Selector using sliding pill */}
-                <div className="flex items-center gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim">
-                  {(['FS/EY', 'LS/LSS', 'CS/CSS', 'IFS'] as const).map((rk) => (
-                    <button
-                      key={rk}
-                      type="button"
-                      onClick={() => setRankSelection(rk)}
-                      className={`relative px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
-                        rankSelection === rk ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
-                      }`}
-                    >
-                      {rankSelection === rk && (
-                        <motion.div
-                          layoutId="crew-rank-pill"
-                          className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
-                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                        />
-                      )}
-                      <span className="relative z-10">{rk}</span>
-                    </button>
-                  ))}
-                </div>
+                {/* Rank Selector */}
+                <SegmentedControl
+                  options={rankOptions}
+                  value={rankSelection}
+                  onChange={(val) => setRankSelection(val as any)}
+                  layoutId="crew-rank-pill"
+                  size="sm"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
                 <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
-                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                  <Text variant="overline" className="text-mist-300 block">
                     Flying Pay
-                  </span>
+                  </Text>
                   <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                     S${estimatedFlyingPay}
                   </span>
@@ -630,9 +617,9 @@ export const CrewCash: React.FC = () => {
                 </div>
 
                 <div className="p-4 rounded-card bg-ink-850/70 border border-gold-dim">
-                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-mist-300 block">
+                  <Text variant="overline" className="text-mist-300 block">
                     Meal Allowance
-                  </span>
+                  </Text>
                   <span className="font-display text-2xl sm:text-3xl font-light text-ivory-100 block mt-1">
                     S${estimatedMealAllowance}
                   </span>
@@ -642,9 +629,9 @@ export const CrewCash: React.FC = () => {
                 </div>
 
                 <div className="p-4 rounded-card bg-gold-400/15 border border-gold-400/40">
-                  <span className="text-[0.72rem] font-ui uppercase tracking-eyebrow text-gold-300 font-semibold block">
+                  <Text variant="overline" className="text-gold-300 font-semibold block">
                     Estimated Total
-                  </span>
+                  </Text>
                   <span className="font-display text-2xl sm:text-3xl font-normal gold-gradient-text block mt-1">
                     S${estimatedTotalEarnings}
                   </span>
@@ -658,22 +645,22 @@ export const CrewCash: React.FC = () => {
 
           {/* Bottom Clean Action */}
           <div className="shrink-0 flex items-center justify-between gap-3 pt-3 pb-1 border-t border-gold-dim">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate('/')}
-              className="px-5 py-2.5 rounded-full border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-mist-300 hover:text-ivory-100 transition-all active:scale-95"
             >
               Back to Home
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={RotateCcw}
               onClick={handleReset}
-              className="gold-pill-button flex items-center gap-2 px-6 py-2.5 text-xs"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>New Calculation</span>
-            </button>
+              New Calculation
+            </Button>
           </div>
         </div>
       )}

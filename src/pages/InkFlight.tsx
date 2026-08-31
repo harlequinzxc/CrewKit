@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Layout } from '../components/Layout';
+import { Layout } from '../components/ui/Layout';
 import { FlightNumberInput } from '../components/FlightNumberInput';
 import { DepartureBlock } from '../components/DepartureBlock';
 import { RevealCTA } from '../components/RevealCTA';
@@ -19,7 +19,7 @@ import { CabinCode, MenuData, MenuSection } from '../lib/sq/types';
 import { exportToPNG } from '../lib/export/png';
 import { exportToPDF } from '../lib/export/pdf';
 import { exportToDOCX } from '../lib/export/docx';
-import { motion } from 'framer-motion';
+import { Heading, Text, Button, SegmentedControl } from '../components/ui';
 import {
   Printer,
   Download,
@@ -235,7 +235,6 @@ export const InkFlight: React.FC = () => {
       cabinsToFetch.map((c) => getMenu(validation.flightNo, dateISO, c))
     );
 
-    // Merge sections & drinks across selected cabins
     const allSections: MenuSection[] = [];
     const allDrinks: MenuSection[] = [];
 
@@ -243,7 +242,6 @@ export const InkFlight: React.FC = () => {
       const cabinTag = cabinsToFetch[cIdx];
       const prefix = cabinsToFetch.length > 1 ? `[${cabinTag}] ` : '';
 
-      // Filter legs if specific sectors were chosen
       let legsToUse = m.legs;
       if (selectedSectorIds.length > 0 && legsToUse && legsToUse.length > 0) {
         legsToUse = legsToUse.filter((leg) => {
@@ -462,6 +460,11 @@ export const InkFlight: React.FC = () => {
     availableCabins.length > 0;
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
+  const mobileTabOptions = [
+    { id: 'editor' as const, label: 'Customise', icon: Sliders },
+    { id: 'preview' as const, label: 'Receipt Preview', icon: Printer },
+  ];
+
   return (
     <Layout>
       {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
@@ -480,13 +483,10 @@ export const InkFlight: React.FC = () => {
           <div className="w-full max-w-md mx-auto flex flex-col items-center text-center space-y-8">
             {/* Editorial Hero */}
             <div className="space-y-1">
-              <span className="font-display italic text-gold-300 text-base sm:text-lg tracking-wide block">
-                Prep,
-              </span>
-
-              <h2 className="font-display text-3xl sm:text-4xl font-normal text-ivory-100 tracking-tight leading-snug">
+              <Text variant="eyebrow">Prep,</Text>
+              <Heading variant="hero" as="h2">
                 Let's ready your homework.
-              </h2>
+              </Heading>
             </div>
 
             {/* STEP 1: Flight Number */}
@@ -509,7 +509,6 @@ export const InkFlight: React.FC = () => {
                   onDateSelect={(iso, display) => {
                     setDateISO(iso);
                     setDateDisplay(display);
-                    // Reset downstream selections on date change
                     setSelectedSectorIds([]);
                     setSelectedCabins([]);
                   }}
@@ -520,9 +519,7 @@ export const InkFlight: React.FC = () => {
             {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
             {showSectorStep && multiSectors && (
               <div className="w-full text-left animate-cabin-in space-y-2">
-                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
-                  SECTOR
-                </label>
+                <Text variant="overline">SECTOR</Text>
 
                 <div className="grid grid-cols-1 gap-2">
                   {multiSectors.map((sec) => {
@@ -569,9 +566,7 @@ export const InkFlight: React.FC = () => {
             {/* Stage: CHECKING — Progress indicator & spinner */}
             {checkState === 'checking' && Boolean(dateISO) && (
               <div className="w-full text-left animate-fade-in space-y-2">
-                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 select-none">
-                  CABIN
-                </label>
+                <Text variant="overline">CABIN</Text>
                 <div className="flex items-center gap-2.5 p-3 rounded-well bg-ink-850/80 border border-gold-dim">
                   <div className="w-4 h-4 border-2 border-gold-400 border-t-transparent rounded-full animate-spin shrink-0" />
                   <span className="font-ui text-xs text-mist-300">Checking the flight…</span>
@@ -625,9 +620,9 @@ export const InkFlight: React.FC = () => {
             {/* STEP 4: Cabin Classes Multi-Select (Appears when flight check is valid) */}
             {showCabinStep && (
               <div className="w-full text-left animate-cabin-in">
-                <label className="block text-[0.65rem] font-sans font-medium uppercase tracking-[0.2em] text-mist-400 mb-2 select-none">
+                <Text variant="overline" className="mb-2">
                   CABIN
-                </label>
+                </Text>
                 <div className="flex flex-wrap gap-2">
                   {availableCabins.map((code, idx) => (
                     <CabinPill
@@ -663,47 +658,15 @@ export const InkFlight: React.FC = () => {
           <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-gold-dim">
             <FlightChip label={flightSummaryLine} />
 
-            {/* Mobile Tab Switcher with sliding pill */}
-            <div className="flex sm:hidden items-center p-0.5 mt-2 rounded-full bg-ink-850 border border-gold-dim relative">
-              <button
-                type="button"
-                onClick={() => setMobileTab('editor')}
-                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
-                  mobileTab === 'editor' ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
-                }`}
-              >
-                {mobileTab === 'editor' && (
-                  <motion.div
-                    layoutId="mobile-inkflight-tab"
-                    className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span>Customise</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMobileTab('preview')}
-                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
-                  mobileTab === 'preview' ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100'
-                }`}
-              >
-                {mobileTab === 'preview' && (
-                  <motion.div
-                    layoutId="mobile-inkflight-tab"
-                    className="absolute inset-0 bg-gold-400 rounded-full shadow-sm"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10 flex items-center gap-1.5">
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Receipt Preview</span>
-                </span>
-              </button>
+            {/* Mobile Tab Switcher */}
+            <div className="sm:hidden mt-2">
+              <SegmentedControl
+                options={mobileTabOptions}
+                value={mobileTab}
+                onChange={(val) => setMobileTab(val as any)}
+                layoutId="mobile-inkflight-tab"
+                size="sm"
+              />
             </div>
           </div>
 
@@ -821,9 +784,9 @@ export const InkFlight: React.FC = () => {
                       }`}
                     >
                       <div className="p-2.5 bg-ink-800/80 flex items-center justify-between border-b border-gold-dim">
-                        <span className="font-display text-base font-light text-ivory-100">
+                        <Heading variant="subsection" as="span" className="text-base font-light font-display text-ivory-100">
                           {sec.title}
-                        </span>
+                        </Heading>
                         <button
                           type="button"
                           onClick={() => toggleSectionVisibility(sec.id)}
@@ -986,48 +949,48 @@ export const InkFlight: React.FC = () => {
 
           {/* Sticky Bottom Export Bar */}
           <div className="shrink-0 flex items-center justify-between gap-2 pt-3 pb-1 border-t border-gold-dim">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={RotateCcw}
               onClick={() => setStage('form')}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-mist-300 hover:text-ivory-100 transition-all active:scale-95"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
+              Reset
+            </Button>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
                 disabled={isExporting}
+                leftIcon={<Download className="w-3.5 h-3.5 text-gold-400" />}
                 onClick={handleExportPng}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-ink-850 border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-ivory-100 transition-all active:scale-95"
                 title="Download PNG image"
               >
-                <Download className="w-3.5 h-3.5 text-gold-400" />
-                <span>PNG</span>
-              </button>
+                PNG
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
                 disabled={isExporting}
+                leftIcon={<FileText className="w-3.5 h-3.5 text-gold-400" />}
                 onClick={handleExportPdf}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-ink-850 border border-gold-dim hover:border-gold-400 text-xs font-ui uppercase tracking-wider font-semibold text-ivory-100 transition-all active:scale-95"
                 title={`Download ${paperWidth} PDF document`}
               >
-                <FileText className="w-3.5 h-3.5 text-gold-400" />
-                <span>PDF</span>
-              </button>
+                PDF
+              </Button>
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
+                size="sm"
                 disabled={isExporting}
+                leftIcon={<FileCode className="w-3.5 h-3.5 text-onyx-900" />}
                 onClick={handleExportDocx}
-                className="gold-pill-button flex items-center gap-1.5 px-4 py-2 text-xs"
                 title="Download Microsoft Word document"
               >
-                <FileCode className="w-3.5 h-3.5 text-onyx-900" />
-                <span>DOCX</span>
-              </button>
+                DOCX
+              </Button>
             </div>
           </div>
         </div>

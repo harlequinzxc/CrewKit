@@ -82,10 +82,10 @@ export default {
         'success': 'var(--success)',
       },
       fontFamily: {
-        display: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
-        ui: ['Jost', 'Inter', 'sans-serif'],
-        sans: ['Jost', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['"Playfair Display"', '"Cormorant Garamond"', 'Georgia', 'serif'],
+        serif: ['"Playfair Display"', '"Cormorant Garamond"', 'Georgia', 'serif'],
+        ui: ['Inter', 'Jost', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'Jost', 'system-ui', 'sans-serif'],
       },
       letterSpacing: {
         eyebrow: '0.22em',
