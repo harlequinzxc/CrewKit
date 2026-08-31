@@ -27,4 +27,6 @@ export {
 } from './InlineDropdown';
 export { TextTabs, type TextTabOption, type TextTabsProps } from './TextTabs';
 export { AnimatedContent, type AnimatedContentProps } from './AnimatedContent';
+export { EmptyState, type EmptyStateProps } from './EmptyState';
+
 

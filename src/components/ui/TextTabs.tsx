@@ -48,10 +48,10 @@ export const TextTabs: React.FC<TextTabsProps> = ({
             aria-selected={isActive}
             onClick={() => onChange(option.id)}
             className={cn(
-              'relative py-1 text-[0.75rem] font-sans tracking-wide transition-colors whitespace-nowrap outline-none',
+              'relative py-1 text-[0.7rem] sm:text-[0.72rem] font-sans tracking-wide transition-colors whitespace-nowrap outline-none',
               isActive
                 ? 'text-gold-300 font-medium'
-                : 'text-mist-400 hover:text-ivory-100 font-normal'
+                : 'text-mist-400 hover:text-ivory-100 font-medium'
             )}
           >
             <span>{option.label}</span>

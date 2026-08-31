@@ -28,8 +28,8 @@ export function SegmentedControl<T extends string = string>({
   size = 'md',
 }: SegmentedControlProps<T>) {
   const sizeStyles = {
-    sm: 'py-1 px-2.5 text-[11px] gap-1.5',
-    md: 'py-1.5 px-3.5 text-xs gap-1.5',
+    sm: 'py-1 px-2.5 text-[0.7rem] sm:text-[0.72rem] font-medium gap-1.5',
+    md: 'py-1.5 px-3.5 text-xs font-medium gap-1.5',
   }[size];
 
   return (

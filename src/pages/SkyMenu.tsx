@@ -17,6 +17,7 @@ import {
   InlineDropdownDimension,
   TextTabs,
   AnimatedContent,
+  EmptyState,
 } from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
@@ -90,6 +91,10 @@ export const SkyMenu: React.FC = () => {
   // Ref to abort ongoing fetch operations when input/date changes
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Refs for scroll container and sticky header
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const stickyHeaderRef = useRef<HTMLDivElement | null>(null);
+
   // Scroll-on-option-change tracking refs
   const isInitialResultRender = useRef<boolean>(true);
   const prevViewKeysRef = useRef({
@@ -132,11 +137,15 @@ export const SkyMenu: React.FC = () => {
 
     if (!hasChanged) return;
 
-    // Close any open overlay dropdown panel
-    setOpenDropdownId(null);
+    // If dropdown is open, close it first and wait for collapse animation
+    const wasDropdownOpen = Boolean(openDropdownId);
+    if (wasDropdownOpen) {
+      setOpenDropdownId(null);
+    }
 
-    // Use double requestAnimationFrame to ensure layout updates and paint are complete
-    const rafId = requestAnimationFrame(() => {
+    const delay = wasDropdownOpen ? 220 : 50;
+
+    const timeoutId = setTimeout(() => {
       requestAnimationFrame(() => {
         const titleEl = document.getElementById('menu-service-title');
         const sectionHeaderEl =
@@ -147,20 +156,27 @@ export const SkyMenu: React.FC = () => {
 
         const targetEl = titleEl || sectionHeaderEl || firstItemEl || emptyStateEl;
 
-        if (targetEl) {
+        if (targetEl && scrollContainerRef.current) {
+          const container = scrollContainerRef.current;
+          const stickyHeight = stickyHeaderRef.current?.offsetHeight || 280;
+          const targetRect = targetEl.getBoundingClientRect();
+          const containerRect = container.getBoundingClientRect();
+          const relativeTop = targetRect.top - containerRect.top + container.scrollTop;
+          const scrollPosition = Math.max(0, relativeTop - stickyHeight - 16);
+
           const prefersReduced =
             typeof window !== 'undefined' &&
             window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-          targetEl.scrollIntoView({
+          container.scrollTo({
+            top: scrollPosition,
             behavior: prefersReduced ? 'auto' : 'smooth',
-            block: 'start',
           });
         }
       });
-    });
+    }, delay);
 
-    return () => cancelAnimationFrame(rafId);
+    return () => clearTimeout(timeoutId);
   }, [
     stage,
     activeSegment,
@@ -168,6 +184,7 @@ export const SkyMenu: React.FC = () => {
     activeLegIndex,
     activeCabinView,
     selectedMealOption,
+    openDropdownId,
   ]);
 
   // 1. Live change: when flight number changes, reset state and downstream selections immediately
@@ -590,7 +607,7 @@ export const SkyMenu: React.FC = () => {
   ];
 
   return (
-    <Layout containerClassName="w-full md:w-[90%] max-w-6xl">
+    <Layout containerClassName="w-full md:w-[85%] max-w-6xl">
       {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
       {stage === 'loading' && (
         <FetchInterlude
@@ -783,44 +800,47 @@ export const SkyMenu: React.FC = () => {
 
       {/* 3. RESULT SCREEN — CONSOLIDATED LAYERED STICKY STACK + ANIMATED CONTENT */}
       {stage === 'result' && activeMenuData && (
-        <div className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16">
-          {/* Layer 1: Route Hero (Editorial Scale, Non-Sticky, sits at top of scrolling content) */}
-          {currentLeg && (
-            <div className="max-w-md mx-auto w-full mb-3 pt-2">
-              <RouteHero
-                flightNumber={`SQ ${validation.cleanFlightNo}`}
-                flightDate={currentLeg.depDateLocal || dateISO}
-                leg={{
-                  from: currentLeg.origin,
-                  to: currentLeg.destination,
-                  fromCity: currentLeg.originCity,
-                  toCity: currentLeg.destinationCity,
-                  depTime: currentLeg.depTime,
-                  arrTime: currentLeg.arrTime,
-                  depUtc: currentLeg.depUtc,
-                  arrUtc: currentLeg.arrUtc,
-                  depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
-                  arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
-                  arrDayShift: currentLeg.arrDayShift,
-                }}
-              />
-            </div>
-          )}
-
+        <div
+          ref={scrollContainerRef}
+          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16"
+        >
           {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM) ── */}
-          <StickyHeader className="mb-2 pb-2">
-            <div className="max-w-md mx-auto flex flex-col gap-2">
-              {/* Layer 2: Native Inline Dropdowns (Cabin | Sector | Menu Type) */}
-              {dropdownDimensions.length > 0 && (
-                <InlineDropdownGroup
-                  dimensions={dropdownDimensions}
-                  activeDropdownId={openDropdownId}
-                  onActiveDropdownChange={setOpenDropdownId}
+          <StickyHeader ref={stickyHeaderRef} className="mb-4 pb-2">
+            <div className="w-full flex flex-col gap-2.5 sm:gap-3">
+              {/* Layer 2: Route Hero Card (Info-only, fully sticky) */}
+              {currentLeg && (
+                <RouteHero
+                  flightNumber={`SQ ${validation.cleanFlightNo}`}
+                  flightDate={currentLeg.depDateLocal || dateISO}
+                  leg={{
+                    from: currentLeg.origin,
+                    to: currentLeg.destination,
+                    fromCity: currentLeg.originCity,
+                    toCity: currentLeg.destinationCity,
+                    depTime: currentLeg.depTime,
+                    arrTime: currentLeg.arrTime,
+                    depUtc: currentLeg.depUtc,
+                    arrUtc: currentLeg.arrUtc,
+                    depDateLocal: currentLeg.depDateLocal || currentLeg.departureLocalDate,
+                    arrDateLocal: currentLeg.arrDateLocal || currentLeg.arrivalLocalDate,
+                    arrDayShift: currentLeg.arrDayShift,
+                  }}
                 />
               )}
 
-              {/* Layer 3: Category Toggles (Food | Drinks | Snacks | Amenities) */}
-              <div className="w-full">
+              {/* Layer 3: Dropdown Row (Cabin / Sector / Culinary Line) */}
+              {dropdownDimensions.length > 0 && (
+                <div className="w-full max-w-xl mx-auto">
+                  <InlineDropdownGroup
+                    dimensions={dropdownDimensions}
+                    activeDropdownId={openDropdownId}
+                    onActiveDropdownChange={setOpenDropdownId}
+                  />
+                </div>
+              )}
+
+              {/* Layer 4: Category Pills (Food / Drinks / Snacks / Amenities) */}
+              <div className="w-full max-w-xl mx-auto">
                 <SegmentedControl
                   options={availableCategories}
                   value={activeSegment}
@@ -830,25 +850,26 @@ export const SkyMenu: React.FC = () => {
                   }}
                   layoutId="skymenu-segment-pill"
                   size="sm"
-                  className="bg-ink-850/40 border-gold-400/10"
+                  className="bg-ink-850/60 border-gold-400/15"
                 />
               </div>
 
-              {/* Layer 4: Meal Service Text Tabs (Conditional: Food + 2+ services) */}
+              {/* Layer 5: Meal Service Text Tabs (Conditional: Food + 2+ services) */}
               {activeSegment === 'dining' && currentLeg && currentLeg.mealServices.length >= 2 && (
-                <TextTabs
-                  options={currentLeg.mealServices.map((service) => ({
-                    id: service.id,
-                    label: service.name,
-                  }))}
-                  value={activeMealServiceId || currentLeg.mealServices[0]?.id || ''}
-                  onChange={(serviceId) => {
-                    setOpenDropdownId(null);
-                    setActiveMealServiceId(serviceId);
-                  }}
-                  layoutId="skymenu-meal-service-tab"
-                  className="pt-0.5"
-                />
+                <div className="w-full max-w-xl mx-auto pt-0.5">
+                  <TextTabs
+                    options={currentLeg.mealServices.map((service) => ({
+                      id: service.id,
+                      label: service.name,
+                    }))}
+                    value={activeMealServiceId || currentLeg.mealServices[0]?.id || ''}
+                    onChange={(serviceId) => {
+                      setOpenDropdownId(null);
+                      setActiveMealServiceId(serviceId);
+                    }}
+                    layoutId="skymenu-meal-service-tab"
+                  />
+                </div>
               )}
             </div>
           </StickyHeader>
@@ -877,14 +898,11 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'dining' && currentLeg && (
               <>
                 {currentLeg.mealServices.length === 0 ? (
-                  <div id="menu-category-empty" className="py-16 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44">
-                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
-                      No Dining Services Published
-                    </Heading>
-                    <Text variant="secondary" className="max-w-sm">
-                      Dining menus for SQ{validation.cleanFlightNo} ({currentLeg.origin} → {currentLeg.destination}) are not available yet.
-                    </Text>
-                  </div>
+                  <EmptyState
+                    id="menu-category-empty"
+                    heading="No Dining Services Published"
+                    message={`Dining menus for SQ${validation.cleanFlightNo} (${currentLeg.origin} → ${currentLeg.destination}) are not available yet.`}
+                  />
                 ) : (
                   (() => {
                     const displayServices =
@@ -906,7 +924,7 @@ export const SkyMenu: React.FC = () => {
                           {/* ── MEAL SERVICE TITLE: Centered, Title text only, NO lines or subtitles ── */}
                           <div
                             id="menu-service-title"
-                            className="pt-2 pb-1 text-center scroll-mt-36 sm:scroll-mt-44 select-none"
+                            className="pt-2 pb-1 text-center select-none"
                           >
                             <Heading
                               variant="hero"
@@ -928,7 +946,7 @@ export const SkyMenu: React.FC = () => {
                                   className={cn(
                                     'flex items-center gap-4 w-full select-none',
                                     cIdx === 0
-                                      ? 'my-6 md:my-8 scroll-mt-36 sm:scroll-mt-44'
+                                      ? 'my-6 md:my-8'
                                       : 'my-8 md:my-10'
                                   )}
                                 >
@@ -980,14 +998,11 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'drinks' && currentLeg && (
               <div className="pt-2 pb-8 space-y-10">
                 {currentLeg.drinks.length === 0 ? (
-                  <div id="menu-category-empty" className="py-20 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44">
-                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
-                      No Drinks Listing Available
-                    </Heading>
-                    <Text variant="secondary" className="max-w-sm">
-                      Beverage, tea, and coffee selections have not been published for this sector yet.
-                    </Text>
-                  </div>
+                  <EmptyState
+                    id="menu-category-empty"
+                    heading="No Drinks Listing Available"
+                    message="Beverage, tea, and coffee selections have not been published for this sector yet."
+                  />
                 ) : (
                   currentLeg.drinks.map((sec, idx) => (
                     <div key={sec.id} className="w-full">
@@ -998,7 +1013,7 @@ export const SkyMenu: React.FC = () => {
                         className={cn(
                           'flex items-center gap-4 w-full select-none',
                           idx === 0
-                            ? 'my-6 md:my-8 scroll-mt-36 sm:scroll-mt-44'
+                            ? 'my-6 md:my-8'
                             : 'my-8 md:my-10'
                         )}
                       >
@@ -1039,14 +1054,10 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'snacks' && currentLeg && (
               <div className="pt-2 pb-8 space-y-8 max-w-2xl mx-auto w-full">
                 {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
-                  <div
+                  <EmptyState
                     id="menu-category-empty"
-                    className="py-20 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44"
-                  >
-                    <Text variant="secondary" className="text-sm text-mist-300">
-                      Snacks are not available on this sector.
-                    </Text>
-                  </div>
+                    message="Snacks are not available on this sector."
+                  />
                 ) : (
                   <div className="space-y-8">
                     {/* Intro / Helper Copy */}
@@ -1067,7 +1078,7 @@ export const SkyMenu: React.FC = () => {
                           {...(gIdx === 0 ? { id: 'menu-first-section' } : {})}
                           className={cn(
                             'w-full',
-                            gIdx === 0 ? 'pt-2 scroll-mt-36 sm:scroll-mt-44' : 'mt-8'
+                            gIdx === 0 ? 'pt-2' : 'mt-8'
                           )}
                         >
                           {/* Section Header: Left-aligned label + Flexible Graduated Hairline */}
@@ -1126,21 +1137,18 @@ export const SkyMenu: React.FC = () => {
             {activeSegment === 'amenities' && currentLeg && (
               <div className="pt-2 pb-8 space-y-8">
                 {currentLeg.amenities.length === 0 ? (
-                  <div id="menu-category-empty" className="py-20 text-center my-auto flex flex-col items-center justify-center scroll-mt-36 sm:scroll-mt-44">
-                    <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
-                      Cabin Comfort &amp; Amenities
-                    </Heading>
-                    <Text variant="secondary" className="max-w-sm">
-                      Amenity kits, slippers, and premium bedding provided on long-haul flights.
-                    </Text>
-                  </div>
+                  <EmptyState
+                    id="menu-category-empty"
+                    heading="Cabin Comfort &amp; Amenities"
+                    message="Amenity kits, slippers, and premium bedding provided on long-haul flights."
+                  />
                 ) : (
                   <div className="w-full">
                     {/* Centered Editorial Amenities Header */}
                     <div
                       id="menu-first-section"
                       data-menu-section-header="true"
-                      className="flex items-center gap-4 my-6 md:my-8 w-full select-none scroll-mt-36 sm:scroll-mt-44"
+                      className="flex items-center gap-4 my-6 md:my-8 w-full select-none"
                     >
                       <GoldHairline className="flex-1" />
                       <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
