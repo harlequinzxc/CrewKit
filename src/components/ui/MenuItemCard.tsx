@@ -10,6 +10,7 @@ export interface MenuItemCardProps {
   item: MenuItem;
   courseCategory?: string;
   cabin?: string;
+  mediaVariant?: 'photo' | 'amenity';
   imageFit?: 'cover' | 'contain';
   imageBg?: 'dark' | 'white';
   className?: string;
@@ -17,21 +18,25 @@ export interface MenuItemCardProps {
 
 /**
  * Unified CrewKit menu item card for Food dishes, Drinks entries, and Amenities tiles.
- * - Soft 1px gold/subtle border (no heavy frame)
- * - Image full-width with bottom fade into card surface
- * - Inset graduated GoldHairline separator in the fade zone
- * - Clean Inter Medium subsection heading and secondary text
+ * - Soft card radius (16–20px / rounded-card), quiet subtle border (no heavy frame)
+ * - Media stage:
+ *     - 'photo' (Food/Drinks): object-cover photography with bottom fade into card footing
+ *     - 'amenity': warm paper / white stage (#F5F2EB), object-contain with ~56-68% max bounds, bottom fade into navy footing
+ * - Inset graduated GoldHairline separator in the fade zone between media and text
+ * - Bottom navy footing with Inter Medium subsection heading and quiet secondary text
  * - Completely static container with no hover lift or press flash
  */
 export const MenuItemCard: React.FC<MenuItemCardProps> = ({
   item,
   courseCategory,
   cabin,
+  mediaVariant = 'photo',
   imageFit,
   imageBg,
   className,
 }) => {
   const isAmenity =
+    mediaVariant === 'amenity' ||
     imageBg === 'white' ||
     imageFit === 'contain' ||
     Boolean(courseCategory && courseCategory.toLowerCase().includes('amenit'));
@@ -66,31 +71,61 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
       )}
     >
       <div>
-        {/* 1. Media (Image) Region with Soft Bottom Dissolve */}
+        {/* 1. Media Stage with Aspect Ratio and Bottom Dissolve */}
         {hasPhoto && (
-          <div className="relative w-full aspect-[16/10] overflow-hidden bg-ink-950">
-            <img
-              src={imageState.thumbUrl!}
-              alt={item.title}
-              className={cn(
-                'w-full h-full',
-                isAmenity ? 'object-contain p-2' : 'object-cover'
-              )}
-              loading="lazy"
-              onError={() => {
-                setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-              }}
-            />
+          <>
+            {isAmenity ? (
+              /* Amenity Light Stage: Warm paper/white ground with centered ink artwork */
+              <div
+                className="relative w-full aspect-[16/10] overflow-hidden flex items-center justify-center p-6"
+                style={{
+                  background:
+                    'radial-gradient(ellipse at 50% 40%, #FFFFFF 0%, #F0ECE4 70%, #E7E2D8 100%)',
+                }}
+              >
+                <img
+                  src={imageState.thumbUrl!}
+                  alt={item.title}
+                  className="w-full h-full max-w-[64%] max-h-[64%] object-contain select-none"
+                  loading="lazy"
+                  onError={() => {
+                    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+                  }}
+                />
 
-            {/* Bottom Gradient Overlay: photo dissolves into card navy surface */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  'linear-gradient(to bottom, transparent 55%, rgb(var(--ink-900-rgb) / 0.65) 78%, rgb(var(--ink-900-rgb) / 1) 100%)',
-              }}
-            />
-          </div>
+                {/* Soft bottom dissolve into navy text footing */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background:
+                      'linear-gradient(to bottom, transparent 50%, rgba(7, 11, 20, 0.35) 72%, rgb(var(--ink-900-rgb) / 1) 100%)',
+                  }}
+                />
+              </div>
+            ) : (
+              /* Food / Drinks Photo Stage: Luxury cover with dark dissolve */
+              <div className="relative w-full aspect-[16/10] overflow-hidden bg-ink-950">
+                <img
+                  src={imageState.thumbUrl!}
+                  alt={item.title}
+                  className="w-full h-full object-cover select-none"
+                  loading="lazy"
+                  onError={() => {
+                    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+                  }}
+                />
+
+                {/* Photo bottom dissolve into card navy footing */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background:
+                      'linear-gradient(to bottom, transparent 55%, rgb(var(--ink-900-rgb) / 0.65) 78%, rgb(var(--ink-900-rgb) / 1) 100%)',
+                  }}
+                />
+              </div>
+            )}
+          </>
         )}
 
         {/* 2. Media → Text Separator: Inset Graduated GoldHairline */}
@@ -100,7 +135,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
           </div>
         )}
 
-        {/* 3. Text Region */}
+        {/* 3. Text Region (Navy Footing) */}
         <div
           className={cn(
             'px-4 sm:px-5 flex flex-col',

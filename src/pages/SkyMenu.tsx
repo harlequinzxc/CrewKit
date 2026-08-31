@@ -927,8 +927,7 @@ export const SkyMenu: React.FC = () => {
                           }}
                           courseCategory="Cabin Amenities"
                           cabin={activeCabinView}
-                          imageFit="contain"
-                          imageBg="white"
+                          mediaVariant="amenity"
                         />
                       ))}
                     </div>
