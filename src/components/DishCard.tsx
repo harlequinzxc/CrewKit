@@ -87,11 +87,11 @@ export const DishCard: React.FC<DishCardProps> = ({
           )
         ) : null}
 
-        {/* 2. Title */}
+        {/* 2. Dish Title (Inter Medium, ~1rem, No serif) */}
         <Heading
           variant="subsection"
           as="h4"
-          className="text-xl sm:text-2xl font-light font-display text-ivory-100 leading-snug group-hover:text-gold-300 transition-colors"
+          className="text-base sm:text-[1.05rem] font-medium font-sans text-ivory-100 leading-snug group-hover:text-gold-300 transition-colors"
         >
           {item.title}
         </Heading>
@@ -105,7 +105,7 @@ export const DishCard: React.FC<DishCardProps> = ({
 
         {/* 4. Footnote */}
         {item.footnote && (
-          <Text variant="eyebrow" className="text-[0.8rem] text-mist-400 mt-1.5 not-italic">
+          <Text variant="secondary" className="text-[0.8rem] text-mist-400 mt-1.5 italic">
             {item.footnote}
           </Text>
         )}

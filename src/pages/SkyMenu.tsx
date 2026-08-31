@@ -23,9 +23,8 @@ import {
   LiveCheckResult,
 } from '../lib/sq/endpoints';
 import { CabinCode, MenuData, LegMenuData } from '../lib/sq/types';
+import { cn } from '../lib/utils';
 import {
-  ChevronDown,
-  ChevronUp,
   Utensils,
   Wine,
   Gift,
@@ -78,7 +77,6 @@ export const SkyMenu: React.FC = () => {
 
   // Selection switcher state per meal service
   const [selectedMealOption, setSelectedMealOption] = useState<Record<string, string>>({});
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   // Ref to abort ongoing fetch operations when input/date changes
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -277,13 +275,6 @@ export const SkyMenu: React.FC = () => {
     }
     setSelectedMealOption(initialSelections);
     setStage('result');
-  };
-
-  const toggleSectionCollapse = (secId: string) => {
-    setCollapsedSections((prev) => ({
-      ...prev,
-      [secId]: !prev[secId],
-    }));
   };
 
   const activeMenuData: MenuData | null = menuByCabin[activeCabinView] || Object.values(menuByCabin)[0] || null;
@@ -572,7 +563,7 @@ export const SkyMenu: React.FC = () => {
             </div>
           )}
 
-          {/* 1. ROUTE HERO SHIFTED TO THE TOP */}
+          {/* 1. ROUTE HERO AT THE TOP */}
           {currentLeg && (
             <div className="shrink-0 pt-1 pb-3">
               <RouteHero
@@ -598,7 +589,7 @@ export const SkyMenu: React.FC = () => {
             </div>
           )}
 
-          {/* 2. BELOW ROUTE HERO: SECTOR PILLS (IF MULTI SECTOR) */}
+          {/* 2. SECTOR PILLS (IF MULTI SECTOR) */}
           {activeMenuData.legs && activeMenuData.legs.length > 1 && (
             <div className="shrink-0 flex items-center justify-center gap-2 pb-3 overflow-x-auto no-scrollbar">
               {activeMenuData.legs.map((leg, idx) => {
@@ -634,7 +625,7 @@ export const SkyMenu: React.FC = () => {
           )}
 
           {/* 3. STICKY TOP BAR OF CATEGORIES WITH BOTTOM DISSOLVE FADE */}
-          <StickyHeader className="mb-6">
+          <StickyHeader className="mb-2">
             <div className="max-w-md mx-auto">
               <SegmentedControl
                 options={availableCategories}
@@ -649,7 +640,7 @@ export const SkyMenu: React.FC = () => {
           <div className="px-1 sm:px-2 space-y-8">
             {/* Snack Bag Service Banner */}
             {currentLeg?.isSnackBag && (
-              <div className="p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
+              <div className="mt-4 p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-gold-400 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <Heading variant="subsection" as="h4" className="text-base text-gold-300">
@@ -662,11 +653,11 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* 1. FOOD / DINING SERVICE & PACED COURSES */}
+            {/* 1. FOOD SERVICE & PACED COURSES */}
             {activeSegment === 'dining' && currentLeg && (
               <>
                 {currentLeg.mealServices.length === 0 ? (
-                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Dining Services Published
                     </Heading>
@@ -682,96 +673,88 @@ export const SkyMenu: React.FC = () => {
                       service.selections.find((s) => s.id === currentSelectionId) || service.selections[0];
 
                     return (
-                      <div key={service.id} className="space-y-6">
-                        {/* Service Title */}
-                        <div className="flex items-center justify-between pb-3 border-b border-gold-dim">
-                          <Heading variant="hero" as="h2" className="text-3xl sm:text-4xl font-light">
+                      <div key={service.id} className="pt-10 md:pt-14 pb-8 space-y-8">
+                        {/* ── SERVICE BLOCK: Shifted down with generous breathing room ── */}
+                        <div className="flex flex-col gap-2 pb-6 border-b border-gold-dim text-left">
+                          {/* Service Name on single line */}
+                          <Heading
+                            variant="hero"
+                            as="h2"
+                            className="text-2xl sm:text-3xl font-normal text-ivory-100 tracking-tight leading-tight"
+                          >
                             {service.name}
                           </Heading>
 
-                          {/* Parallel Menu Toggles */}
-                          {service.selections.length > 1 && (
-                            <div className="flex items-center gap-1 p-1 rounded-full bg-ink-850 border border-gold-dim">
-                              {service.selections.map((sel) => (
-                                <button
-                                  key={sel.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedMealOption((prev) => ({
-                                      ...prev,
-                                      [service.id]: sel.id,
-                                    }))
-                                  }
-                                  className={`px-3 py-1 rounded-full text-xs font-ui uppercase tracking-wider font-semibold transition-all ${
-                                    currentSelectionId === sel.id
-                                      ? 'bg-gold-400 text-onyx-900 shadow-sm'
-                                      : 'text-mist-300 hover:text-ivory-100'
-                                  }`}
-                                >
-                                  {sel.name}
-                                </button>
-                              ))}
+                          {/* Parallel Menu / Chef subtitle or selection switchers as low-emphasis ghost pills */}
+                          {service.selections.length > 1 ? (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              {service.selections.map((sel) => {
+                                const isSelActive = currentSelectionId === sel.id;
+                                return (
+                                  <Pill
+                                    key={sel.id}
+                                    active={isSelActive}
+                                    onClick={() =>
+                                      setSelectedMealOption((prev) => ({
+                                        ...prev,
+                                        [service.id]: sel.id,
+                                      }))
+                                    }
+                                    size="sm"
+                                    className={cn(
+                                      !isSelActive && 'opacity-65 hover:opacity-100'
+                                    )}
+                                  >
+                                    {sel.name}
+                                  </Pill>
+                                );
+                              })}
                             </div>
-                          )}
+                          ) : currentSelection?.name &&
+                            currentSelection.name !== 'International Selection' &&
+                            currentSelection.name !== 'Western Selection' ? (
+                            <Text variant="secondary" className="text-xs sm:text-sm text-mist-300">
+                              {currentSelection.name}
+                            </Text>
+                          ) : null}
                         </div>
 
-                        {/* Paced Meal Courses */}
-                        <div className="space-y-8">
-                          {currentSelection?.courses.map((course) => {
-                            const isCollapsed = collapsedSections[course.id];
-                            return (
-                              <div key={course.id} className="space-y-4">
-                                {/* Section Title */}
-                                <div
-                                  onClick={() => toggleSectionCollapse(course.id)}
-                                  className="flex items-center justify-between cursor-pointer py-1 group select-none"
-                                >
-                                  <div className="flex items-baseline">
-                                    <Heading
-                                      variant="section"
-                                      as="h3"
-                                      className="text-2xl font-display font-normal group-hover:text-gold-300 transition-colors"
-                                    >
-                                      {course.name}
-                                    </Heading>
-                                    {course.maxSequence && (
-                                      <span className="font-ui text-xs uppercase tracking-wider text-mist-400 ml-3">
-                                        (Choice of {course.maxSequence})
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    className="p-1 text-mist-400 group-hover:text-gold-300 transition-colors"
-                                    aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+                        {/* ── PACED MEAL COURSES ── */}
+                        <div className="space-y-10">
+                          {currentSelection?.courses.map((course) => (
+                            <div key={course.id} className="w-full">
+                              {/* Centered Editorial Course Header framed by gold hairlines */}
+                              <div className="flex items-center gap-4 my-8 md:my-10 w-full">
+                                <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                                <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                                  <Text
+                                    variant="overline"
+                                    className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
                                   >
-                                    {isCollapsed ? (
-                                      <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronUp className="w-4 h-4" />
-                                    )}
-                                  </button>
+                                    {course.name}
+                                  </Text>
+                                  {course.items.length >= 2 && (
+                                    <Text variant="italic-secondary">
+                                      Choose one of {course.items.length}
+                                    </Text>
+                                  )}
                                 </div>
-
-                                {/* Dishes Grid */}
-                                {!isCollapsed && (
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
-                                    {course.items.map((item) => (
-                                      <DishCard
-                                        key={item.id}
-                                        item={item}
-                                        courseCategory={course.name}
-                                        cabin={activeCabinView}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-
-                                <div className="gold-hairline mt-6" />
+                                <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
                               </div>
-                            );
-                          })}
+
+                              {/* Dishes Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
+                                {course.items.map((item) => (
+                                  <DishCard
+                                    key={item.id}
+                                    item={item}
+                                    courseCategory={course.name}
+                                    cabin={activeCabinView}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     );
@@ -782,9 +765,9 @@ export const SkyMenu: React.FC = () => {
 
             {/* 2. DRINKS (CELLAR, COFFEE, TEA & BEVERAGES) */}
             {activeSegment === 'drinks' && currentLeg && (
-              <div className="space-y-8">
+              <div className="pt-10 md:pt-14 pb-8 space-y-10">
                 {currentLeg.drinks.length === 0 ? (
-                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Drinks Listing Available
                     </Heading>
@@ -794,15 +777,22 @@ export const SkyMenu: React.FC = () => {
                   </div>
                 ) : (
                   currentLeg.drinks.map((sec) => (
-                    <div key={sec.id} className="space-y-4">
-                      <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                        <Heading variant="section" as="h3" className="text-2xl font-display font-light">
-                          {sec.title}
-                        </Heading>
-                        <Wine className="w-4 h-4 text-gold-400" />
+                    <div key={sec.id} className="w-full">
+                      {/* Centered Editorial Drinks Header */}
+                      <div className="flex items-center gap-4 my-8 md:my-10 w-full">
+                        <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                        <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                          <Text
+                            variant="overline"
+                            className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
+                          >
+                            {sec.title}
+                          </Text>
+                        </div>
+                        <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
                         {sec.items.map((it) => (
                           <DishCard
                             key={it.id}
@@ -812,19 +802,17 @@ export const SkyMenu: React.FC = () => {
                           />
                         ))}
                       </div>
-
-                      <div className="gold-hairline mt-6" />
                     </div>
                   ))
                 )}
               </div>
             )}
 
-            {/* 3. DELECTABLES & SNACKS (RENDERED IF AVAILABLE) */}
+            {/* 3. DELECTABLES & SNACKS */}
             {activeSegment === 'snacks' && currentLeg && (
-              <div className="space-y-6">
+              <div className="pt-10 md:pt-14 pb-8 space-y-8">
                 {!currentLeg.snacks || currentLeg.snacks.groups.length === 0 ? (
-                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       No Snacks Available
                     </Heading>
@@ -833,36 +821,36 @@ export const SkyMenu: React.FC = () => {
                     </Text>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                      <Heading variant="section" as="h3" className="text-2xl font-display font-light">
-                        Delectables &amp; Snacks
-                      </Heading>
-                      <Cookie className="w-4 h-4 text-gold-400" />
-                    </div>
-
+                  <div className="space-y-8">
                     {/* Service Header Note */}
                     {currentLeg.snacks.header && (
-                      <Text variant="eyebrow" className="text-sm sm:text-base leading-relaxed max-w-3xl">
-                        {currentLeg.snacks.header}
-                      </Text>
+                      <div className="text-center max-w-2xl mx-auto pb-2">
+                        <Text variant="eyebrow" className="text-sm sm:text-base leading-relaxed not-italic text-gold-300/90 font-display">
+                          {currentLeg.snacks.header}
+                        </Text>
+                      </div>
                     )}
 
                     {/* Groups */}
-                    <div className="space-y-8 pt-2">
+                    <div className="space-y-10">
                       {currentLeg.snacks.groups.map((group, gIdx) => (
-                        <div key={gIdx} className="space-y-4">
-                          {/* — Group Name — Hairline Separator */}
-                          <div className="flex items-center justify-center gap-3 py-1">
-                            <div className="h-px bg-gold-400/25 flex-1 max-w-[80px] sm:max-w-[120px]" />
-                            <Heading variant="subsection" as="h4" className="text-lg sm:text-xl font-normal text-gold-300 tracking-wide text-center uppercase font-display">
-                              {group.name}
-                            </Heading>
-                            <div className="h-px bg-gold-400/25 flex-1 max-w-[80px] sm:max-w-[120px]" />
+                        <div key={gIdx} className="w-full">
+                          {/* Centered Editorial Snack Group Header */}
+                          <div className="flex items-center gap-4 my-8 md:my-10 w-full">
+                            <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                            <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                              <Text
+                                variant="overline"
+                                className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
+                              >
+                                {group.name}
+                              </Text>
+                            </div>
+                            <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
                           </div>
 
                           {/* Items Grid */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
                             {group.items.map((item, iIdx) => (
                               <DishCard
                                 key={`snk-${gIdx}-${iIdx}`}
@@ -885,11 +873,11 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
 
-            {/* 4. CABIN AMENITIES (FITTED TO FRAME & WHITE BACKGROUND) */}
+            {/* 4. CABIN AMENITIES */}
             {activeSegment === 'amenities' && currentLeg && (
-              <div className="space-y-6">
+              <div className="pt-10 md:pt-14 pb-8 space-y-8">
                 {currentLeg.amenities.length === 0 ? (
-                  <div className="py-16 text-center my-auto flex flex-col items-center justify-center">
+                  <div className="py-20 text-center my-auto flex flex-col items-center justify-center">
                     <Heading variant="section" as="h3" className="text-2xl mb-2 font-display font-light">
                       Cabin Comfort &amp; Amenities
                     </Heading>
@@ -898,15 +886,22 @@ export const SkyMenu: React.FC = () => {
                     </Text>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-gold-dim">
-                      <Heading variant="section" as="h3" className="text-2xl font-display font-light">
-                        Cabin Amenities
-                      </Heading>
-                      <Gift className="w-4 h-4 text-gold-400" />
+                  <div className="w-full">
+                    {/* Centered Editorial Amenities Header */}
+                    <div className="flex items-center gap-4 my-8 md:my-10 w-full">
+                      <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
+                      <div className="flex flex-col items-center gap-1 text-center select-none px-2">
+                        <Text
+                          variant="overline"
+                          className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
+                        >
+                          Cabin Amenities
+                        </Text>
+                      </div>
+                      <div className="flex-1 h-px bg-[rgba(201,168,76,0.35)]" />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 mt-6">
                       {currentLeg.amenities.map((am) => (
                         <DishCard
                           key={am.id}
