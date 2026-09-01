@@ -1,25 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useFlow } from '../context/FlowContext';
 import { Layout } from '../components/ui/Layout';
-import { FlightNumberInput } from '../components/FlightNumberInput';
-import { DepartureBlock } from '../components/DepartureBlock';
-import { RevealCTA } from '../components/RevealCTA';
-import { CabinPill } from '../components/CabinPill';
 import { FlightChip } from '../components/FlightChip';
-import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
-import { useFlightValidation } from '../hooks/useFlightValidation';
-import {
-  getMenu,
-  getKnownFlightSectors,
-  SectorLegOption,
-  checkFlightExistence,
-  LiveCheckResult,
-} from '../lib/sq/endpoints';
-import { CabinCode, MenuData, MenuSection } from '../lib/sq/types';
+import { getMenu } from '../lib/sq/endpoints';
+import { MenuData, MenuSection } from '../lib/sq/types';
 import { exportToPNG } from '../lib/export/png';
 import { exportToPDF } from '../lib/export/pdf';
 import { exportToDOCX } from '../lib/export/docx';
-import { Heading, Text, Button, SegmentedControl } from '../components/ui';
+import { Heading, Button, SegmentedControl } from '../components/ui';
 import {
   Printer,
   Download,
@@ -31,53 +20,14 @@ import {
   Sliders,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
-  Clock,
-  WifiOff,
 } from 'lucide-react';
 
-const INKFLIGHT_MESSAGES: InterludeMessage[] = [
-  { text: 'Retrieving menu from seat pocket…', durationMs: 3000 },
-  { text: 'Formatting thermal receipt…', durationMs: 2000 },
-];
-
 export const InkFlight: React.FC = () => {
-  const location = useLocation();
-  const navState = location.state as {
-    flightNo?: string;
-    dateISO?: string;
-    dateDisplay?: string;
-    cabin?: CabinCode;
-  } | null;
+  const navigate = useNavigate();
+  const { state: flowState, isFlowConfigured, goToPage, resetFlow } = useFlow();
 
-  // Screen Stages: 'form' | 'loading' | 'editor'
-  const [stage, setStage] = useState<'form' | 'loading' | 'editor'>('form');
-
-  // Flight validation
-  const validation = useFlightValidation(navState?.flightNo || '');
-
-  // Step 2: Departure Date (not selected by default unless passed in navState)
-  const [dateISO, setDateISO] = useState<string>(navState?.dateISO || '');
-  const [dateDisplay, setDateDisplay] = useState<string>(navState?.dateDisplay || '');
-
-  // Client UX State: 'idle' | 'checking' | 'valid' | 'not-found' | 'error'
-  const [checkState, setCheckState] = useState<'idle' | 'checking' | 'valid' | 'not-found' | 'error'>('idle');
-  const [checkFeedback, setCheckFeedback] = useState<{
-    code?: string;
-    heading?: string;
-    message?: string;
-    guidance?: string;
-  } | null>(null);
-
-  // Special multi-sector flight detection (e.g. SQ12, SQ11, SQ26, SQ25)
-  const [multiSectors, setMultiSectors] = useState<SectorLegOption[] | null>(null);
-  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
-
-  // Step 4: Cabin detection & Multi-selection (not selected by default)
-  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
-  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
-    navState?.cabin ? [navState.cabin] : []
-  );
+  // Navigation menu open state (controlled on Layout)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // InkFlight Editor State
   const [editableMenu, setEditableMenu] = useState<MenuData | null>(null);
@@ -93,223 +43,100 @@ export const InkFlight: React.FC = () => {
 
   // Receipt DOM element ref
   const receiptRef = useRef<HTMLDivElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 1. Live change: when flight number changes, reset state and downstream selections immediately
+  // Redirect to flow start if accessed directly without configured state
   useEffect(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    if (!isFlowConfigured) {
+      navigate('/', { replace: true });
     }
+  }, [isFlowConfigured, navigate]);
 
-    if (!navState?.flightNo) {
-      setDateISO('');
-      setDateDisplay('');
-      setSelectedSectorIds([]);
-      setAvailableCabins([]);
-      setSelectedCabins([]);
-      setCheckState('idle');
-      setCheckFeedback(null);
-    }
-
-    if (validation.isValid && validation.flightNo) {
-      const known = getKnownFlightSectors(validation.flightNo);
-      setMultiSectors(known);
-    } else {
-      setMultiSectors(null);
-    }
-  }, [validation.flightNo, validation.isValid]);
-
-  const isMultiSector = Boolean(multiSectors && multiSectors.length > 1);
-
-  // 2. Live change: when date is selected, trigger cabin existence check
+  // Load menu data on mount
   useEffect(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    if (!isFlowConfigured) return;
 
-    if (!validation.flightNo || !validation.isValid || !dateISO) {
-      setAvailableCabins([]);
-      setSelectedCabins([]);
-      setCheckState('idle');
-      setCheckFeedback(null);
-      return;
-    }
+    let isMounted = true;
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    const cabinToFetch = flowState.cabinClass || 'BUSINESS';
+    const activeSectors = flowState.sectors.filter((s) => !s.paxing);
+    const sectorsToFetch = activeSectors.length > 0 ? activeSectors : flowState.sectors;
 
-    setCheckState('checking');
-    setCheckFeedback(null);
+    const fetchAllMenus = async () => {
+      const menus = await Promise.all(
+        sectorsToFetch.map((s) => getMenu(s.flightNumber, s.date, cabinToFetch))
+      );
 
-    checkFlightExistence(validation.flightNo, dateISO, controller.signal)
-      .then((result: LiveCheckResult) => {
-        if (controller.signal.aborted) return;
+      if (!isMounted) return;
 
-        if (result.ok) {
-          setCheckState('valid');
-          const codes: CabinCode[] = [];
-          result.data.cabins.forEach((c) => {
-            const codeUpper = c.code.toUpperCase();
-            if (codeUpper === 'FCL' || codeUpper === 'SUITES' || codeUpper === 'FIRST') {
-              const code = result.data.aircraftType?.includes('380') ? 'SUITES' : 'FIRST';
-              if (!codes.includes(code)) codes.push(code);
-            } else if (codeUpper === 'JCL' || codeUpper === 'BUSINESS') {
-              if (!codes.includes('BUSINESS')) codes.push('BUSINESS');
-            } else if (codeUpper === 'SCL' || codeUpper === 'PREMIUM_ECONOMY') {
-              if (!codes.includes('PREMIUM_ECONOMY')) codes.push('PREMIUM_ECONOMY');
-            } else if (codeUpper === 'YCL' || codeUpper === 'ECONOMY') {
-              if (!codes.includes('ECONOMY')) codes.push('ECONOMY');
-            }
-          });
+      const allSections: MenuSection[] = [];
+      const allDrinks: MenuSection[] = [];
 
-          setAvailableCabins(codes.length > 0 ? codes : ['BUSINESS', 'ECONOMY']);
-          setCheckFeedback(null);
-        } else {
-          setAvailableCabins([]);
-          setSelectedCabins([]);
+      menus.forEach((m, sIdx) => {
+        const secInfo = sectorsToFetch[sIdx];
+        const flightTag = `SQ${secInfo.flightNumber.replace(/\D/g, '')}`;
 
-          if (result.code === 'NOT_FOUND') {
-            setCheckState('not-found');
-            setCheckFeedback({
-              code: 'NOT_FOUND',
-              heading: result.heading || "We couldn't find that flight for this date.",
-              message: result.message,
-              guidance: result.guidance || 'Check the flight number and date. Menus are generally published up to eight days before departure.',
-            });
-          } else if (result.code === 'NO_CABINS') {
-            setCheckState('not-found');
-            setCheckFeedback({
-              code: 'NO_CABINS',
-              heading: result.heading || 'No Cabins Available',
-              message: result.message,
-              guidance: result.guidance || 'Menus are generally published up to eight days before departure.',
-            });
-          } else {
-            setCheckState('error');
-            setCheckFeedback({
-              code: result.code,
-              heading: result.heading || 'Verification Error',
-              message: result.message,
-            });
-          }
-        }
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setCheckState('error');
-        setAvailableCabins([]);
-        setSelectedCabins([]);
-        setCheckFeedback({
-          code: 'UPSTREAM_NETWORK',
-          heading: 'Service Unreachable',
-          message: 'The Singapore Airlines menu service is temporarily unreachable.',
-        });
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [validation.flightNo, validation.isValid, dateISO]);
-
-  // Handle Sector Toggle
-  const handleToggleSector = (sectorId: string) => {
-    setSelectedSectorIds((prev) =>
-      prev.includes(sectorId) ? prev.filter((id) => id !== sectorId) : [...prev, sectorId]
-    );
-  };
-
-  // Handle Cabin Toggle (Multi-select)
-  const handleToggleCabin = (code: CabinCode) => {
-    setSelectedCabins((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
-    );
-  };
-
-  const handleStartFetch = () => {
-    setStage('loading');
-  };
-
-  const executeMenuFetch = async () => {
-    const cabinsToFetch = selectedCabins.length > 0 ? selectedCabins : (['BUSINESS'] as CabinCode[]);
-    const menus = await Promise.all(
-      cabinsToFetch.map((c) => getMenu(validation.flightNo, dateISO, c))
-    );
-
-    const allSections: MenuSection[] = [];
-    const allDrinks: MenuSection[] = [];
-
-    menus.forEach((m, cIdx) => {
-      const cabinTag = cabinsToFetch[cIdx];
-      const prefix = cabinsToFetch.length > 1 ? `[${cabinTag}] ` : '';
-
-      let legsToUse = m.legs;
-      if (selectedSectorIds.length > 0 && legsToUse && legsToUse.length > 0) {
-        legsToUse = legsToUse.filter((leg) => {
-          const legKey = `${leg.origin}-${leg.destination}`;
-          return (
-            selectedSectorIds.includes(legKey) ||
-            selectedSectorIds.some((id) => id.includes(leg.origin) && id.includes(leg.destination))
-          );
-        });
-      }
-
-      if (legsToUse && legsToUse.length > 0) {
-        legsToUse.forEach((leg) => {
-          leg.mealServices.forEach((srv) => {
-            srv.selections.forEach((sel) => {
-              sel.courses.forEach((crs) => {
-                allSections.push({
-                  id: `${cabinTag}_${leg.legId}_${crs.id}`,
-                  title: `${prefix}${leg.origin}→${leg.destination} · ${srv.name} · ${crs.name}`,
-                  items: crs.items,
+        if (m.legs && m.legs.length > 0) {
+          m.legs.forEach((leg) => {
+            leg.mealServices.forEach((srv) => {
+              srv.selections.forEach((sel) => {
+                sel.courses.forEach((crs) => {
+                  allSections.push({
+                    id: `${flightTag}_${leg.legId}_${crs.id}`,
+                    title: `${flightTag} · ${leg.origin}→${leg.destination} · ${srv.name} · ${crs.name}`,
+                    items: crs.items,
+                  });
                 });
               });
             });
-          });
 
-          leg.drinks.forEach((d) => {
+            leg.drinks.forEach((d) => {
+              allDrinks.push({
+                id: `${flightTag}_${leg.legId}_${d.id}`,
+                title: `${flightTag} · ${leg.origin}→${leg.destination} · ${d.title}`,
+                items: d.items,
+              });
+            });
+          });
+        } else {
+          m.sections.forEach((s) => {
+            allSections.push({
+              id: `${flightTag}_${s.id}`,
+              title: `${flightTag} · ${s.title}`,
+              items: s.items,
+            });
+          });
+          m.drinks.forEach((d) => {
             allDrinks.push({
-              id: `${cabinTag}_${leg.legId}_${d.id}`,
-              title: `${prefix}${leg.origin}→${leg.destination} · ${d.title}`,
+              id: `${flightTag}_${d.id}`,
+              title: `${flightTag} · ${d.title}`,
               items: d.items,
             });
           });
-        });
-      } else {
-        m.sections.forEach((s) => {
-          allSections.push({
-            id: `${cabinTag}_${s.id}`,
-            title: `${prefix}${s.title}`,
-            items: s.items,
-          });
-        });
-        m.drinks.forEach((d) => {
-          allDrinks.push({
-            id: `${cabinTag}_${d.id}`,
-            title: `${prefix}${d.title}`,
-            items: d.items,
-          });
-        });
-      }
-    });
+        }
+      });
 
-    const combinedMenu: MenuData = {
-      flightNo: `SQ${validation.cleanFlightNo}`,
-      date: dateISO,
-      cabin: selectedCabins[0] || 'BUSINESS',
-      legs: menus[0]?.legs || [],
-      sections: allSections,
-      drinks: allDrinks,
+      const combinedMenu: MenuData = {
+        flightNo: sectorsToFetch.map((s) => `SQ${s.flightNumber.replace(/\D/g, '')}`).join(' / '),
+        date: sectorsToFetch[0]?.date || '',
+        cabin: cabinToFetch,
+        legs: menus[0]?.legs || [],
+        sections: allSections,
+        drinks: allDrinks,
+      };
+
+      setEditableMenu(combinedMenu);
     };
 
-    return combinedMenu;
-  };
+    fetchAllMenus();
 
-  const handleFetchSuccess = (data: MenuData) => {
-    const cloned = JSON.parse(JSON.stringify(data)) as MenuData;
-    setEditableMenu(cloned);
-    setStage('editor');
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [isFlowConfigured, flowState.sectors, flowState.cabinClass]);
+
+  if (!isFlowConfigured) {
+    return null;
+  }
 
   const toggleSectionVisibility = (secId: string) => {
     if (!editableMenu) return;
@@ -391,7 +218,7 @@ export const InkFlight: React.FC = () => {
     if (!receiptRef.current) return;
     setIsExporting(true);
     try {
-      await exportToPNG(receiptRef.current, `CrewKit_${validation.cleanFlightNo}_Receipt.png`);
+      await exportToPNG(receiptRef.current, `CrewKit_Thermal_Receipt.png`);
     } catch (err) {
       console.error(err);
     } finally {
@@ -405,7 +232,7 @@ export const InkFlight: React.FC = () => {
     try {
       await exportToPDF(
         receiptRef.current,
-        `CrewKit_${validation.cleanFlightNo}_Receipt`,
+        `CrewKit_Thermal_Receipt`,
         paperWidth === '108mm' ? 108 : 210
       );
     } catch (err) {
@@ -420,12 +247,12 @@ export const InkFlight: React.FC = () => {
     setIsExporting(true);
     try {
       await exportToDOCX(
-        `SQ${validation.cleanFlightNo}`,
-        dateDisplay,
-        selectedCabins.join(', '),
+        editableMenu.flightNo,
+        editableMenu.date,
+        editableMenu.cabin,
         [...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])],
         includeDescriptions,
-        `CrewKit_${validation.cleanFlightNo}_Menu`
+        `CrewKit_Menu_StudyGuide`
       );
     } catch (err) {
       console.error(err);
@@ -434,31 +261,9 @@ export const InkFlight: React.FC = () => {
     }
   };
 
-  const flightSummaryLine = [
-    `SQ${validation.cleanFlightNo}`,
-    selectedSectorIds.length > 0 ? selectedSectorIds.join(' & ') : '',
-    dateDisplay,
-    selectedCabins.length > 1
-      ? `${selectedCabins.length} Cabins`
-      : selectedCabins[0] === 'PREMIUM_ECONOMY'
-      ? 'Prem Econ'
-      : selectedCabins[0]
-      ? selectedCabins[0].charAt(0) + selectedCabins[0].slice(1).toLowerCase()
-      : '',
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-  // Visibility flags strictly adhering to workflow:
-  const showDateStep = validation.isValid && validation.flightNo.length > 0;
-  const showSectorStep = showDateStep && Boolean(dateISO) && isMultiSector;
-  const showCabinStep =
-    showDateStep &&
-    Boolean(dateISO) &&
-    (!isMultiSector || selectedSectorIds.length > 0) &&
-    checkState === 'valid' &&
-    availableCabins.length > 0;
-  const showFetchButton = showCabinStep && selectedCabins.length > 0;
+  const flightSummaryLine = `${flowState.sectors
+    .map((s) => `SQ${s.flightNumber.replace(/\D/g, '')}${s.paxing ? ' (Pax)' : ''}`)
+    .join(' · ')} · ${flowState.cabinClass || 'Business'}`;
 
   const mobileTabOptions = [
     { id: 'editor' as const, label: 'Customise', icon: Sliders },
@@ -466,194 +271,17 @@ export const InkFlight: React.FC = () => {
   ];
 
   return (
-    <Layout>
-      {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
-      {stage === 'loading' && (
-        <FetchInterlude
-          flightChipText={flightSummaryLine}
-          messages={INKFLIGHT_MESSAGES}
-          fetchTask={executeMenuFetch}
-          onSuccess={handleFetchSuccess}
-        />
-      )}
-
-      {/* 2. FORM FLOW (PROGRESSIVE STEP-BY-STEP WORKFLOW) */}
-      {stage === 'form' && (
-        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-4 sm:pt-6 pb-8 px-1 animate-cabin-in">
-          <div className="w-full max-w-md mx-auto flex flex-col items-center text-center space-y-8">
-            {/* Editorial Hero */}
-            <div className="space-y-1">
-              <Text variant="eyebrow">Prep,</Text>
-              <Heading variant="hero" as="h2">
-                Let's ready your homework.
-              </Heading>
-            </div>
-
-            {/* STEP 1: Flight Number */}
-            <div className="w-full text-left">
-              <FlightNumberInput
-                inputRef={validation.inputRef}
-                value={validation.flightNo}
-                onChange={validation.setFlightNo}
-                isValid={validation.isValid}
-                error={validation.error}
-                placeholder="1 1"
-              />
-            </div>
-
-            {/* STEP 2: Departure Date (Appears only if valid flight number; none selected by default) */}
-            {showDateStep && (
-              <div className="w-full text-left animate-cabin-in">
-                <DepartureBlock
-                  selectedDateISO={dateISO}
-                  onDateSelect={(iso, display) => {
-                    setDateISO(iso);
-                    setDateDisplay(display);
-                    setSelectedSectorIds([]);
-                    setSelectedCabins([]);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
-            {showSectorStep && multiSectors && (
-              <div className="w-full text-left animate-cabin-in space-y-2">
-                <Text variant="overline">SECTOR</Text>
-
-                <div className="grid grid-cols-1 gap-2">
-                  {multiSectors.map((sec) => {
-                    const isSelected = selectedSectorIds.includes(sec.id);
-                    return (
-                      <button
-                        key={sec.id}
-                        type="button"
-                        onClick={() => handleToggleSector(sec.id)}
-                        className={`flex items-center justify-between p-3 rounded-well border transition-all text-left ${
-                          isSelected
-                            ? 'bg-ink-850 border-gold-400/35 text-ivory-100 shadow-[0_0_20px_rgba(201,168,76,0.15)]'
-                            : 'bg-ink-850 text-mist-300 border-gold-dim hover:border-gold-400/60 hover:text-ivory-100'
-                        }`}
-                      >
-                        <div className="flex flex-col">
-                          <span
-                            className={`font-display text-lg font-light ${
-                              isSelected ? 'text-gold-300 font-normal' : 'text-ivory-100'
-                            }`}
-                          >
-                            {sec.label}
-                          </span>
-                          <span className="text-[11px] text-mist-400 font-ui truncate mt-0.5">
-                            {sec.description}
-                          </span>
-                        </div>
-                        <div
-                          className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs transition-all ${
-                            isSelected
-                              ? 'bg-gold-400 border-gold-400 text-onyx-900 font-bold'
-                              : 'border-gold-dim bg-ink-900/60 text-transparent'
-                          }`}
-                        >
-                          ✓
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Stage: CHECKING — Progress indicator & spinner */}
-            {checkState === 'checking' && Boolean(dateISO) && (
-              <div className="w-full text-left animate-fade-in space-y-2">
-                <Text variant="overline">CABIN</Text>
-                <div className="flex items-center gap-2.5 p-3 rounded-well bg-ink-850/80 border border-gold-dim">
-                  <div className="w-4 h-4 border-2 border-gold-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                  <span className="font-ui text-xs text-mist-300">Checking the flight…</span>
-                </div>
-              </div>
-            )}
-
-            {/* Stage: NOT-FOUND — Accurate heading & guidance */}
-            {checkState === 'not-found' && checkFeedback && (
-              <div
-                role="alert"
-                aria-live="polite"
-                className="w-full p-4 rounded-well bg-ink-850/95 border border-gold-dim text-left animate-fade-in space-y-2"
-              >
-                <div className="flex items-center gap-2 text-gold-300 font-sans font-semibold text-xs">
-                  <AlertCircle className="w-4 h-4 text-gold-400 shrink-0" />
-                  <span>{checkFeedback.heading}</span>
-                </div>
-                <p className="font-sans text-xs text-ivory-100 leading-relaxed">
-                  {checkFeedback.message}
-                </p>
-                {checkFeedback.guidance && (
-                  <p className="font-sans text-[0.72rem] text-mist-400 pt-1 border-t border-gold-dim/40 leading-relaxed select-none">
-                    {checkFeedback.guidance}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Stage: ERROR — Upstream timeout or network error */}
-            {checkState === 'error' && checkFeedback && (
-              <div
-                role="alert"
-                aria-live="polite"
-                className="w-full p-4 rounded-well bg-ink-850/95 border border-danger/40 text-left animate-fade-in space-y-2"
-              >
-                <div className="flex items-center gap-2 text-danger font-sans font-semibold text-xs">
-                  {checkFeedback.code === 'UPSTREAM_TIMEOUT' ? (
-                    <Clock className="w-4 h-4 text-danger shrink-0" />
-                  ) : (
-                    <WifiOff className="w-4 h-4 text-danger shrink-0" />
-                  )}
-                  <span>{checkFeedback.heading}</span>
-                </div>
-                <p className="font-sans text-xs text-mist-300 leading-relaxed">
-                  {checkFeedback.message}
-                </p>
-              </div>
-            )}
-
-            {/* STEP 4: Cabin Classes Multi-Select (Appears when flight check is valid) */}
-            {showCabinStep && (
-              <div className="w-full text-left animate-cabin-in">
-                <Text variant="overline" className="mb-2">
-                  CABIN
-                </Text>
-                <div className="flex flex-wrap gap-2">
-                  {availableCabins.map((code, idx) => (
-                    <CabinPill
-                      key={code}
-                      code={code}
-                      isSelected={selectedCabins.includes(code)}
-                      delayIndex={idx}
-                      onToggle={handleToggleCabin}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* STEP 5: Progression CTA (Appears only after cabin class/classes are selected) */}
-            {showFetchButton && (
-              <div className="w-full pt-2 mt-10">
-                <RevealCTA
-                  label="Fetch Menu ✨"
-                  summary={flightSummaryLine}
-                  onPress={handleStartFetch}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 3. EDITOR & RECEIPT PREVIEW (Split Layout) */}
-      {stage === 'editor' && editableMenu && (
-        <div className="flex flex-col h-full overflow-hidden animate-cabin-in">
+    <Layout
+      containerClassName="w-full md:w-[85%] max-w-6xl"
+      onBack={() => {
+        goToPage(4, 'backward');
+        navigate('/');
+      }}
+      menuOpen={isMenuOpen}
+      onMenuOpenChange={setIsMenuOpen}
+    >
+      {editableMenu && (
+        <div className="flex flex-col h-full overflow-hidden animate-cabin-in text-left">
           {/* Top Bar with Flight Chip & Mobile Tab Switcher */}
           <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-gold-dim">
             <FlightChip label={flightSummaryLine} />
@@ -877,11 +505,11 @@ export const InkFlight: React.FC = () => {
                     INFLIGHT MENU RECEIPT ({paperWidth === '108mm' ? '108mm A6' : '210mm A4'})
                   </div>
                   <div className="mt-2 text-[10px] text-neutral-800 flex justify-between">
-                    <span>FLIGHT: SQ{validation.cleanFlightNo}</span>
-                    <span>{dateDisplay}</span>
+                    <span>FLIGHT: {editableMenu.flightNo}</span>
+                    <span>{editableMenu.date}</span>
                   </div>
                   <div className="text-[9px] text-neutral-600 text-left mt-0.5">
-                    CLASS: {selectedCabins.join(', ')}
+                    CLASS: {editableMenu.cabin}
                   </div>
                 </div>
 
@@ -953,9 +581,12 @@ export const InkFlight: React.FC = () => {
               variant="ghost"
               size="sm"
               leftIcon={RotateCcw}
-              onClick={() => setStage('form')}
+              onClick={() => {
+                resetFlow();
+                navigate('/');
+              }}
             >
-              Reset
+              Start Over
             </Button>
 
             <div className="flex items-center gap-2">

@@ -330,3 +330,17 @@ body {
 .animate-cabin-in {
   animation: cabinFadeIn 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Pulse CTA breathing halo animation (expanding + fading glow, 2.5s loop) */
+@keyframes pulseBreathingHalo {
+  0%, 100% {
+    box-shadow: 0 0 16px 2px rgba(217, 185, 120, 0.35), 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 42px 10px rgba(217, 185, 120, 0.65), 0 6px 22px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.pulse-breathing-halo {
+  animation: pulseBreathingHalo 2.5s ease-in-out infinite;
+}
