@@ -45,6 +45,12 @@ html.dark {
   --gold-border-hover: rgba(231, 201, 138, 0.45);
   --gold-glow: rgba(231, 201, 138, 0.18);
 
+  /* Night Cabin: Route Arc & Hairlines */
+  --route-arc-stroke: rgba(217, 185, 120, 0.42);
+  --gold-hairline-rgb: 217, 185, 120;
+  --gold-hairline-opacity-mid: 0.50;
+  --gold-hairline-opacity-side: 0.22;
+
   /* Night Cabin: Warm Ivory & Mist Text */
   --ivory-100: #F5EFE2;
   --ivory-100-rgb: 245 239 226;
@@ -82,51 +88,57 @@ html.dark {
 [data-theme="light"],
 html.light {
   /* Day Cabin: Warm Cream Paper Ramp */
-  --ink-950: #FFFFFF;
-  --ink-950-rgb: 255 255 255;
-  --ink-900: #F8F4EA;
-  --ink-900-rgb: 248 244 234;
-  --ink-850: #F3ECDC;
-  --ink-850-rgb: 243 236 220;
-  --ink-800: #ECE2CB;
-  --ink-800-rgb: 236 226 203;
-  --ink-700: #E3D6B8;
-  --ink-700-rgb: 227 214 184;
-  --ink-600: #D5C49C;
-  --ink-600-rgb: 213 196 156;
-  --ink-500: #BFAE86;
-  --ink-500-rgb: 191 174 134;
+  --ink-950: #F8F4EA;
+  --ink-950-rgb: 248 244 234;
+  --ink-900: #FFFFFF;
+  --ink-900-rgb: 255 255 255;
+  --ink-850: #F0E7D4;
+  --ink-850-rgb: 240 231 212;
+  --ink-800: #E6DBC3;
+  --ink-800-rgb: 230 219 195;
+  --ink-700: #DCD0B4;
+  --ink-700-rgb: 220 208 180;
+  --ink-600: #CFC1A0;
+  --ink-600-rgb: 207 193 160;
+  --ink-500: #BFB08C;
+  --ink-500-rgb: 191 176 140;
   --ink-airline: #002569;
 
   /* Day Cabin: Antique Gold (Deepened for contrast >= 4.5:1) */
-  --gold-100: #D6B56B;
-  --gold-100-rgb: 214 181 107;
-  --gold-200: #D6B56B;
-  --gold-200-rgb: 214 181 107;
-  --gold-300: #AD8632;
-  --gold-300-rgb: 173 134 50;
-  --gold-400: #93702C;
-  --gold-400-rgb: 147 112 44;
-  --gold-500: #86611F;
-  --gold-500-rgb: 134 97 31;
-  --gold-600: #6B4C14;
-  --gold-600-rgb: 107 76 20;
-  --gold-dim: rgba(147, 112, 44, 0.15);
-  --gold-border: rgba(147, 112, 44, 0.25);
-  --gold-border-hover: rgba(147, 112, 44, 0.45);
-  --gold-glow: rgba(173, 134, 50, 0.14);
+  --gold-100: #C99E38;
+  --gold-100-rgb: 201 158 56;
+  --gold-200: #B88E28;
+  --gold-200-rgb: 184 142 40;
+  --gold-300: #9E761E;
+  --gold-300-rgb: 158 118 30;
+  --gold-400: #8A6414;
+  --gold-400-rgb: 138 100 20;
+  --gold-500: #75520B;
+  --gold-500-rgb: 117 82 11;
+  --gold-600: #5E4005;
+  --gold-600-rgb: 94 64 5;
+  --gold-dim: rgba(138, 100, 20, 0.18);
+  --gold-border: rgba(138, 100, 20, 0.28);
+  --gold-border-hover: rgba(138, 100, 20, 0.50);
+  --gold-glow: rgba(158, 118, 30, 0.18);
+
+  /* Day Cabin: Route Arc & Hairlines */
+  --route-arc-stroke: rgba(138, 100, 20, 0.68);
+  --gold-hairline-rgb: 138, 100, 20;
+  --gold-hairline-opacity-mid: 0.65;
+  --gold-hairline-opacity-side: 0.30;
 
   /* Day Cabin: Deep Midnight Navy & Slate Text */
-  --ivory-100: #131B30;
-  --ivory-100-rgb: 19 27 48;
-  --ivory-200: #202C48;
-  --ivory-200-rgb: 32 44 72;
-  --mist-300: #47557C;
-  --mist-300-rgb: 71 85 124;
-  --mist-400: #5A6A94;
-  --mist-400-rgb: 90 106 148;
-  --mist-500: #8492B4;
-  --mist-500-rgb: 132 146 180;
+  --ivory-100: #0D1527;
+  --ivory-100-rgb: 13 21 39;
+  --ivory-200: #18233C;
+  --ivory-200-rgb: 24 35 60;
+  --mist-300: #3B4A6B;
+  --mist-300-rgb: 59 74 107;
+  --mist-400: #546487;
+  --mist-400-rgb: 84 100 135;
+  --mist-500: #7B8CAE;
+  --mist-500-rgb: 123 140 174;
 
   /* Dietary & Accent Chips */
   --chip-wellness: rgba(31, 112, 80, 0.12);
@@ -143,11 +155,11 @@ html.light {
 
   /* Theme Shadows & Blurs */
   --shadow-cabin: 0 24px 70px -18px rgba(19, 27, 48, 0.12);
-  --shadow-cabin-glass: 0 16px 40px -8px rgba(19, 27, 48, 0.08), 0 0 1px 1px rgba(147, 112, 44, 0.12);
+  --shadow-cabin-glass: 0 16px 40px -8px rgba(19, 27, 48, 0.08), 0 0 1px 1px rgba(138, 100, 20, 0.15);
   --shadow-elevated-card: 0 8px 24px -3px rgba(19, 27, 48, 0.06);
-  --sky-gradient: radial-gradient(ellipse at 85% 15%, rgba(242, 222, 174, 0.4) 0%, rgba(248, 244, 234, 0.95) 60%), #F8F4EA;
-  --selection-bg: rgba(173, 134, 50, 0.25);
-  --selection-color: #131B30;
+  --sky-gradient: radial-gradient(ellipse at 85% 15%, rgba(242, 222, 174, 0.35) 0%, rgba(248, 244, 234, 0.95) 60%), #F8F4EA;
+  --selection-bg: rgba(158, 118, 30, 0.25);
+  --selection-color: #0D1527;
 }
 
 /* ==========================================================================
@@ -205,11 +217,7 @@ body {
 /* Gold Hairline Rule */
 .gold-rule {
   height: 1px;
-  background: linear-gradient(to right, rgba(201, 168, 76, 0.00) 0%, rgba(201, 168, 76, 0.22) 12%, rgba(201, 168, 76, 0.50) 50%, rgba(201, 168, 76, 0.22) 88%, rgba(201, 168, 76, 0.00) 100%);
-}
-
-[data-theme="light"] .gold-rule {
-  background: linear-gradient(to right, rgba(147, 112, 44, 0.00) 0%, rgba(147, 112, 44, 0.22) 12%, rgba(147, 112, 44, 0.50) 50%, rgba(147, 112, 44, 0.22) 88%, rgba(147, 112, 44, 0.00) 100%);
+  background: linear-gradient(to right, rgba(var(--gold-hairline-rgb), 0) 0%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 12%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-mid)) 50%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 88%, rgba(var(--gold-hairline-rgb), 0) 100%);
 }
 
 /* ==========================================================================
@@ -264,7 +272,7 @@ body {
 }
 
 [data-theme="light"] .cabin-glass {
-  background-color: rgba(248, 244, 234, 0.88);
+  background-color: rgba(255, 255, 255, 0.88);
   border: 1px solid var(--gold-dim);
   box-shadow: var(--shadow-cabin-glass);
 }
@@ -273,7 +281,7 @@ body {
 .gold-hairline {
   height: 1px;
   width: 100%;
-  background: linear-gradient(to right, rgba(201, 168, 76, 0.00) 0%, rgba(201, 168, 76, 0.22) 12%, rgba(201, 168, 76, 0.50) 50%, rgba(201, 168, 76, 0.22) 88%, rgba(201, 168, 76, 0.00) 100%);
+  background: linear-gradient(to right, rgba(var(--gold-hairline-rgb), 0) 0%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 12%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-mid)) 50%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 88%, rgba(var(--gold-hairline-rgb), 0) 100%);
 }
 
 /* 3. Champagne Gradient Text */

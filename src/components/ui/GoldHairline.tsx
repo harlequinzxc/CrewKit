@@ -8,7 +8,8 @@ export interface GoldHairlineProps extends React.HTMLAttributes<HTMLDivElement> 
 
 /**
  * Single source of truth for CrewKit graduated gold hairline dividers.
- * Features a token-based subtle gold gradient: softer/0% at ends, fuller (50%) in the middle.
+ * Features a token-based subtle gold gradient: softer/0% at ends, fuller in the middle.
+ * Fully theme-aware with high contrast in both dark and light modes.
  */
 export const GoldHairline: React.FC<GoldHairlineProps> = ({
   direction = 'horizontal',
@@ -21,12 +22,12 @@ export const GoldHairline: React.FC<GoldHairlineProps> = ({
   const gradientStyle: React.CSSProperties = isHorizontal
     ? {
         background:
-          'linear-gradient(to right, rgba(201,168,76,0.00) 0%, rgba(201,168,76,0.22) 12%, rgba(201,168,76,0.50) 50%, rgba(201,168,76,0.22) 88%, rgba(201,168,76,0.00) 100%)',
+          'linear-gradient(to right, rgba(var(--gold-hairline-rgb), 0) 0%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 12%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-mid)) 50%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 88%, rgba(var(--gold-hairline-rgb), 0) 100%)',
         height: '1px',
       }
     : {
         background:
-          'linear-gradient(to bottom, rgba(201,168,76,0.00) 0%, rgba(201,168,76,0.22) 12%, rgba(201,168,76,0.50) 50%, rgba(201,168,76,0.22) 88%, rgba(201,168,76,0.00) 100%)',
+          'linear-gradient(to bottom, rgba(var(--gold-hairline-rgb), 0) 0%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 12%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-mid)) 50%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 88%, rgba(var(--gold-hairline-rgb), 0) 100%)',
         width: '1px',
       };
 

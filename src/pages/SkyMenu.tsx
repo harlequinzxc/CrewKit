@@ -913,13 +913,13 @@ export const SkyMenu: React.FC = () => {
       {stage === 'result' && activeMenuData && (
         <div
           ref={scrollContainerRef}
-          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-fade-in text-left pb-16 relative"
+          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-fade-in text-left pb-16 relative w-full"
         >
-          {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM) ── */}
+          {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM, FULL BLEED) ── */}
           <StickyHeader ref={stickyHeaderRef} className="pb-2">
-            <div className="relative w-full flex flex-col gap-2.5 sm:gap-3">
+            <div className="w-full md:w-[85%] max-w-6xl mx-auto px-4 sm:px-6 relative flex flex-col gap-2.5 sm:gap-3">
               {/* Corner Overlay Buttons: Back (top-left) & Menu (top-right) */}
-              <div className="absolute top-1 left-2 sm:left-3 z-30 pointer-events-auto">
+              <div className="absolute top-1 left-2 sm:left-4 z-30 pointer-events-auto">
                 <BackButton
                   onClick={() => {
                     if (openDropdownId) {
@@ -932,7 +932,7 @@ export const SkyMenu: React.FC = () => {
                 />
               </div>
 
-              <div className="absolute top-1 right-2 sm:right-3 z-30 pointer-events-auto">
+              <div className="absolute top-1 right-2 sm:right-4 z-30 pointer-events-auto">
                 <MenuButton
                   onClick={() => setIsMenuOpen(true)}
                   label="Open navigation menu"
@@ -1007,10 +1007,11 @@ export const SkyMenu: React.FC = () => {
           </StickyHeader>
 
           {/* ── MAIN MENU CONTENT WRAPPED IN ANIMATED CONTENT (CROSS-FADING TRANSITIONS) ── */}
-          <AnimatedContent
-            value={`${activeCabinView}-${activeLegIndex}-${activeSegment}-${activeMealServiceId}-${activeSelectionId}`}
-            className="px-1 sm:px-2 space-y-6"
-          >
+          <div className="w-full md:w-[85%] max-w-6xl mx-auto px-4 sm:px-6">
+            <AnimatedContent
+              value={`${activeCabinView}-${activeLegIndex}-${activeSegment}-${activeMealServiceId}-${activeSelectionId}`}
+              className="px-1 sm:px-2 space-y-6"
+            >
             {/* Snack Bag Service Banner */}
             {currentLeg?.isSnackBag && (
               <div className="mt-2 p-4 rounded-well bg-ink-850/90 border border-gold-400/30 flex items-start gap-3">
@@ -1350,6 +1351,7 @@ export const SkyMenu: React.FC = () => {
               </div>
             )}
           </AnimatedContent>
+        </div>
         </div>
       )}
     </Layout>

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Plane } from 'lucide-react';
 
 export interface RouteData {
   from: string; // e.g. "LAX"
@@ -155,19 +154,19 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
   const arrTimeFormatted = formatTimeHHMM(route.arrTime, route.arrUtc);
 
   return (
-    <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-gold-400/[0.08] bg-gradient-to-b from-ink-850/50 to-ink-900/30 px-5 py-3.5 sm:px-6 sm:py-4 shadow-sm text-left select-none">
+    <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-gold-dim bg-ink-900/60 md:bg-ink-900/40 backdrop-blur-md px-5 py-3.5 sm:px-6 sm:py-4 shadow-sm text-left select-none transition-colors">
       {/* Subtle ambient glows */}
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.18),transparent)] blur-xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.08),transparent)] blur-xl" />
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.14),transparent)] blur-xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.06),transparent)] blur-xl" />
 
-      <div className="relative max-w-[38rem] mx-auto w-full px-5 sm:px-6">
+      <div className="relative max-w-[38rem] mx-auto w-full px-4 sm:px-6">
         {/* ── Whisper Meta Overline (Flight · Date) ── */}
         <div className="mb-2.5 sm:mb-3 flex items-center justify-center gap-2.5 text-center select-none">
-          <span className="font-ui text-[10px] tracking-[0.22em] text-gold-400/90 font-medium uppercase">
+          <span className="font-ui text-[10px] tracking-[0.22em] text-gold-400 font-semibold uppercase">
             {flightNumber}
           </span>
-          <span className="h-px w-4 bg-gold-400/25" />
-          <span className="text-[10px] uppercase tracking-[0.2em] text-mist-400 font-ui">
+          <span className="h-px w-4 bg-gold-400/35" />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-mist-400 font-ui font-medium">
             {prettyDateLong(flightDate)}
           </span>
         </div>
@@ -179,32 +178,57 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
             <p className="font-display text-3xl sm:text-4xl md:text-[2.5rem] font-light leading-none text-ivory-100">
               {route.from}
             </p>
-            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate max-w-[130px] sm:max-w-[180px]">
+            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate max-w-[130px] sm:max-w-[180px] font-medium">
               {route.fromCity}
             </p>
             {depTimeFormatted && (
-              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-300/90 font-light">
+              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-400 font-light">
                 {depTimeFormatted}
               </p>
             )}
           </div>
 
-          {/* Center Zone: Plane + Arc + Duration (Guaranteed min-width 88–112px+) */}
+          {/* Center Zone: Plane + Arc + Duration (Guaranteed min-width 92–130px) */}
           <div className="relative flex min-w-[92px] sm:min-w-[112px] md:min-w-[130px] flex-col items-center justify-center pb-0.5 shrink-0">
-            <svg viewBox="0 0 160 45" className="w-full overflow-visible max-w-[140px]" aria-hidden="true">
+            {/* SVG containing both the dashed arc and plane badge locked to midpoint apex (80, 15) */}
+            <svg
+              viewBox="0 0 160 46"
+              className="w-full overflow-visible max-w-[140px]"
+              aria-hidden="true"
+            >
+              {/* Dashed Route Arc */}
               <path
-                d="M4 38 C 45 6, 115 6, 156 38"
+                d="M 6 36 C 44 8, 116 8, 154 36"
                 fill="none"
-                stroke="rgba(212,175,122,0.35)"
-                strokeWidth="1.2"
+                stroke="var(--route-arc-stroke)"
+                strokeWidth="1.25"
                 strokeDasharray="3 4"
               />
+
+              {/* Plane Badge centered horizontally and vertically on arc midpoint apex (80, 15) */}
+              <g transform="translate(80, 15)">
+                {/* Background disc */}
+                <circle
+                  r="9.5"
+                  className="fill-ink-850 stroke-gold-400/40"
+                  strokeWidth="1"
+                />
+                {/* Plane icon centered at (0, 0) with slight nose-up pitch */}
+                <g transform="translate(-5.5, -5.5) scale(0.46) rotate(15, 12, 12)">
+                  <path
+                    d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"
+                    className="stroke-gold-400 fill-gold-400/25"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </g>
+              </g>
             </svg>
-            <div className="absolute -top-1 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border border-gold-400/30 bg-ink-800">
-              <Plane className="h-2 w-2 sm:h-2.5 sm:w-2.5 rotate-[24deg] text-gold-400" />
-            </div>
+
+            {/* Duration Chip sitting below the arc+plane unit */}
             {dur && (
-              <p className="mt-1.5 rounded-full border border-ink-700/60 bg-ink-850/60 px-2 sm:px-2.5 py-0.5 text-[8px] sm:text-[8.5px] uppercase tracking-[0.2em] text-mist-400 select-none whitespace-nowrap">
+              <p className="mt-1 rounded-full border border-gold-dim bg-ink-850/80 px-2 sm:px-2.5 py-0.5 text-[8px] sm:text-[8.5px] uppercase tracking-[0.2em] text-mist-400 font-ui font-medium select-none whitespace-nowrap">
                 {dur}
               </p>
             )}
@@ -215,14 +239,14 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
             <p className="font-display text-3xl sm:text-4xl md:text-[2.5rem] font-light leading-none text-ivory-100">
               {route.to}
             </p>
-            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate max-w-[130px] sm:max-w-[180px]">
+            <p className="mt-1 text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-mist-400 truncate max-w-[130px] sm:max-w-[180px] font-medium">
               {route.toCity}
             </p>
             {arrTimeFormatted && (
-              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-300/90 font-light">
+              <p className="mt-0.5 font-display text-base sm:text-lg text-gold-400 font-light">
                 {arrTimeFormatted}
                 {route.arrDayShift > 0 && (
-                  <sup className="ml-0.5 text-[9px] sm:text-[10px] text-gold-400">+{route.arrDayShift}d</sup>
+                  <sup className="ml-0.5 text-[9px] sm:text-[10px] text-gold-400 font-medium">+{route.arrDayShift}d</sup>
                 )}
               </p>
             )}

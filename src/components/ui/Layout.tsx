@@ -84,11 +84,16 @@ export const Layout: React.FC<LayoutProps> = ({
       {/* Dynamic Starfield / Atmospheric Motes */}
       <Starfield />
 
-      {/* Centered Luxury App Container (Desktop: 85-90% centered, max-w-6xl) */}
+      {/* Luxury App Container */}
       <div
         className={cn(
-          'w-full mx-auto h-full flex flex-col justify-between px-4 sm:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] relative z-10 overflow-hidden transition-all duration-300',
-          containerClassName
+          'w-full mx-auto h-full flex flex-col justify-between relative z-10 overflow-hidden transition-all duration-300',
+          hideHeader
+            ? 'max-w-none px-0 pt-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+            : cn(
+                'px-4 sm:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+                containerClassName
+              )
         )}
       >
         {/* Top Header Bar (Omitted when hideHeader is true on hero result pages) */}
@@ -265,7 +270,12 @@ export const Layout: React.FC<LayoutProps> = ({
         </main>
 
         {/* Thin Single Whisper Line Footer */}
-        <footer className="shrink-0 text-center py-2 select-none">
+        <footer
+          className={cn(
+            'shrink-0 text-center py-2 select-none',
+            hideHeader && 'w-full md:w-[85%] max-w-6xl mx-auto px-4 sm:px-6'
+          )}
+        >
           <Text variant="tertiary" className="text-[0.68rem] uppercase tracking-eyebrow">
             CrewKit is an independent tool &bull; Not affiliated with SQ
           </Text>

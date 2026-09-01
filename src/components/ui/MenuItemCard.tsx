@@ -66,7 +66,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
   return (
     <div
       className={cn(
-        'rounded-card bg-ink-900 border border-gold-400/10 overflow-hidden flex flex-col justify-between text-left shadow-[0_8px_24px_rgba(0,0,0,0.25)] select-none',
+        'rounded-card bg-ink-900 border border-gold-dim overflow-hidden flex flex-col justify-between text-left shadow-sm select-none transition-colors',
         className
       )}
     >
@@ -77,11 +77,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
             {isAmenity ? (
               /* Amenity Light Stage: Warm paper/white ground with centered ink artwork */
               <div
-                className="relative w-full aspect-[16/10] overflow-hidden flex items-center justify-center p-6"
-                style={{
-                  background:
-                    'radial-gradient(ellipse at 50% 40%, #FFFFFF 0%, #F0ECE4 70%, #E7E2D8 100%)',
-                }}
+                className="relative w-full aspect-[16/10] overflow-hidden flex items-center justify-center p-6 bg-gradient-to-b from-white via-ink-900/40 to-ink-900/80"
               >
                 <img
                   src={imageState.thumbUrl!}
@@ -93,17 +89,17 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   }}
                 />
 
-                {/* Soft bottom dissolve into navy text footing */}
+                {/* Theme-aware soft bottom dissolve into card text footing */}
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
                     background:
-                      'linear-gradient(to bottom, transparent 50%, rgba(7, 11, 20, 0.35) 72%, rgb(var(--ink-900-rgb) / 1) 100%)',
+                      'linear-gradient(to bottom, transparent 48%, rgb(var(--ink-900-rgb) / 0.45) 75%, rgb(var(--ink-900-rgb) / 1) 100%)',
                   }}
                 />
               </div>
             ) : (
-              /* Food / Drinks Photo Stage: Luxury cover with dark dissolve */
+              /* Food / Drinks Photo Stage: Luxury cover with theme-aware dissolve into card footing */
               <div className="relative w-full aspect-[16/10] overflow-hidden bg-ink-950">
                 <img
                   src={imageState.thumbUrl!}
@@ -115,12 +111,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   }}
                 />
 
-                {/* Photo bottom dissolve into card navy footing */}
+                {/* Photo bottom dissolve into card footing */}
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
                     background:
-                      'linear-gradient(to bottom, transparent 55%, rgb(var(--ink-900-rgb) / 0.65) 78%, rgb(var(--ink-900-rgb) / 1) 100%)',
+                      'linear-gradient(to bottom, transparent 52%, rgb(var(--ink-900-rgb) / 0.55) 76%, rgb(var(--ink-900-rgb) / 1) 100%)',
                   }}
                 />
               </div>
@@ -135,7 +131,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
           </div>
         )}
 
-        {/* 3. Text Region (Navy Footing) */}
+        {/* 3. Text Region (Navy/Ivory Card Footing) */}
         <div
           className={cn(
             'px-4 sm:px-5 flex flex-col',
@@ -165,7 +161,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
           {item.footnote && (
             <Text
               variant="secondary"
-              className="text-[0.78rem] text-mist-400 mt-1.5 italic"
+              className="text-[0.78rem] text-mist-400 mt-1.5 italic font-medium"
             >
               {item.footnote}
             </Text>
@@ -175,7 +171,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
 
       {/* 4. Dietary & Badges */}
       {item.tags && item.tags.length > 0 && (
-        <div className="px-4 sm:px-5 pb-4 mt-3.5 pt-2.5 border-t border-gold-400/10 flex flex-wrap gap-1.5">
+        <div className="px-4 sm:px-5 pb-4 mt-3.5 pt-2.5 border-t border-gold-dim flex flex-wrap gap-1.5">
           {item.tags.map((tag, tIdx) => {
             const isSig = tag.toLowerCase().includes('signature');
             const isChef =
@@ -186,10 +182,10 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 className={cn(
                   'text-[9px] px-2 py-0.5 rounded-sm font-ui uppercase tracking-wider font-semibold',
                   isSig
-                    ? 'bg-gold-400/15 text-gold-300 border border-gold-400/30'
+                    ? 'bg-gold-400/15 text-gold-400 border border-gold-400/30'
                     : isChef
-                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
-                    : 'bg-ink-800 text-mist-300 border border-gold-400/10'
+                    ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                    : 'bg-ink-850 text-mist-300 border border-gold-dim'
                 )}
               >
                 {isSig && (
