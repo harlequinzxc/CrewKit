@@ -802,7 +802,7 @@ export const SkyMenu: React.FC = () => {
       {stage === 'result' && activeMenuData && (
         <div
           ref={scrollContainerRef}
-          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16 relative"
+          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-fade-in text-left pb-16 relative"
         >
           {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM) ── */}
           <StickyHeader ref={stickyHeaderRef} className="pb-2">

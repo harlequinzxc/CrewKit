@@ -17,7 +17,7 @@ export const StickyHeader = forwardRef<HTMLDivElement, StickyHeaderProps>(
       <div
         ref={ref}
         className={cn(
-          'sticky top-0 z-20 bg-ink-950/95 backdrop-blur-md pt-1 pb-2 transition-colors relative',
+          'sticky top-0 z-30 bg-ink-950/95 backdrop-blur-md pt-1 pb-2 transition-colors',
           className
         )}
         {...props}

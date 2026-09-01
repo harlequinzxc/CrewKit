@@ -267,7 +267,7 @@ export const Layout: React.FC<LayoutProps> = ({
         {/* Thin Single Whisper Line Footer */}
         <footer className="shrink-0 text-center py-2 select-none">
           <Text variant="tertiary" className="text-[0.68rem] uppercase tracking-eyebrow">
-            Unofficial crew companion &bull; CrewKit is an independent tool &bull; Not affiliated with SQ
+            CrewKit is an independent tool &bull; Not affiliated with SQ
           </Text>
         </footer>
       </div>
