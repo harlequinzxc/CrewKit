@@ -13,6 +13,7 @@ import {
   StickyHeader,
   GoldHairline,
   MenuItemCard,
+  DrinkItem,
   InlineDropdownGroup,
   InlineDropdownDimension,
   TextTabs,
@@ -29,7 +30,7 @@ import {
   checkFlightExistence,
   LiveCheckResult,
 } from '../lib/sq/endpoints';
-import { CabinCode, MenuData, LegMenuData } from '../lib/sq/types';
+import { CabinCode, MenuData, LegMenuData, MenuItem } from '../lib/sq/types';
 import { cn } from '../lib/utils';
 import {
   Utensils,
@@ -45,6 +46,99 @@ const SKYMENU_MESSAGES: InterludeMessage[] = [
   { text: 'Retrieving menu from seat pocket…', durationMs: 3000 },
   { text: 'Almost ready…', durationMs: 2000 },
 ];
+
+interface NormalizedDrinkSection {
+  id: string;
+  family: string;
+  subtype: string;
+  items: MenuItem[];
+  hasRichItems: boolean;
+}
+
+function parseDrinkSectionTitle(rawTitle: string): { family: string; subtype: string } {
+  if (!rawTitle) return { family: '', subtype: '' };
+
+  const clean = rawTitle.trim();
+
+  // 1. Check for explicit delimiters: " · ", " - ", " : ", " / ", " | ", " — "
+  const delimiterMatch = clean.match(/^(.*?)\s*(?:·|–|—|-|:|\/|\|)\s*(.*?)$/);
+  if (delimiterMatch) {
+    const p1 = delimiterMatch[1].trim();
+    const p2 = delimiterMatch[2].trim();
+    if (p1 && p2) {
+      return {
+        family: formatFamilyLabel(p1),
+        subtype: formatSubtypeLabel(p2),
+      };
+    }
+  }
+
+  // 2. Check for common combined phrases from SIA feeds
+  const lower = clean.toLowerCase();
+  if (lower.includes('champagne') && lower.includes('wine')) {
+    return { family: 'Wines & Champagne', subtype: 'Champagne & Fine Wines' };
+  }
+  if (lower.includes('champagne')) {
+    return { family: 'Wines & Champagne', subtype: 'Champagne' };
+  }
+  if (lower.includes('white wine')) {
+    return { family: 'Wines & Champagne', subtype: 'White Wine' };
+  }
+  if (lower.includes('red wine')) {
+    return { family: 'Wines & Champagne', subtype: 'Red Wine' };
+  }
+  if (lower.includes('cocktail')) {
+    return { family: 'Cocktails & Aperitifs', subtype: 'Cocktails' };
+  }
+  if (lower.includes('aperitif') || lower.includes('apéritif')) {
+    return { family: 'Cocktails & Aperitifs', subtype: 'Apéritifs' };
+  }
+  if (
+    lower.includes('spirit') ||
+    lower.includes('liqueur') ||
+    lower.includes('whisky') ||
+    lower.includes('gin') ||
+    lower.includes('vodka')
+  ) {
+    return { family: 'Spirits & Liqueurs', subtype: clean };
+  }
+  if (lower.includes('beer') || lower.includes('cider')) {
+    return { family: 'Beer & Cider', subtype: clean };
+  }
+  if (lower.includes('tea')) {
+    return {
+      family: 'Hot Beverages',
+      subtype: clean.replace(/\bselections?\b/gi, '').trim() || clean,
+    };
+  }
+  if (lower.includes('coffee')) {
+    return {
+      family: 'Hot Beverages',
+      subtype: clean.replace(/\bselections?\b/gi, '').trim() || clean,
+    };
+  }
+  if (
+    lower.includes('juice') ||
+    lower.includes('soft drink') ||
+    lower.includes('water') ||
+    lower.includes('mocktail')
+  ) {
+    return { family: 'Non-Alcoholic', subtype: clean };
+  }
+
+  return { family: clean, subtype: clean };
+}
+
+function formatFamilyLabel(s: string): string {
+  return s
+    .replace(/^DRINKS\s*&\s*CELLAR$/i, 'Cellar & Drinks')
+    .replace(/^BEVERAGES?$/i, 'Beverages')
+    .trim();
+}
+
+function formatSubtypeLabel(s: string): string {
+  return s.trim();
+}
 
 export const SkyMenu: React.FC = () => {
   // Screen Stages: 'form' | 'loading' | 'result'
@@ -414,6 +508,23 @@ export const SkyMenu: React.FC = () => {
     activeMenuData && activeMenuData.legs && activeMenuData.legs.length > 0
       ? activeMenuData.legs[activeLegIndex] || activeMenuData.legs[0]
       : null;
+
+  const normalizedDrinks: NormalizedDrinkSection[] = (currentLeg?.drinks || [])
+    .map((sec) => {
+      const { family, subtype } = parseDrinkSectionTitle(sec.title);
+      const validItems = (sec.items || []).filter((it) => it && Boolean(it.title));
+      const hasRichItems = validItems.some(
+        (it) => Boolean(it.description && it.description.trim().length > 0)
+      );
+      return {
+        id: sec.id,
+        family,
+        subtype,
+        items: validItems,
+        hasRichItems,
+      };
+    })
+    .filter((sec) => sec.items.length > 0);
 
   const flightSummaryLine = [
     `SQ${validation.cleanFlightNo}`,
@@ -1017,56 +1128,86 @@ export const SkyMenu: React.FC = () => {
 
             {/* 2. DRINKS (CELLAR, COFFEE, TEA & BEVERAGES) */}
             {activeSegment === 'drinks' && currentLeg && (
-              <div className="pt-2 pb-8 space-y-10">
-                {currentLeg.drinks.length === 0 ? (
+              <div className="pt-2 pb-8 space-y-8 w-full">
+                {normalizedDrinks.length === 0 ? (
                   <EmptyState
                     id="menu-category-empty"
                     heading="No Drinks Listing Available"
                     message="Beverage, tea, and coffee selections have not been published for this sector yet."
                   />
                 ) : (
-                  currentLeg.drinks.map((sec, idx) => (
-                    <div key={sec.id} className="w-full">
-                      {/* Centered Editorial Drinks Header */}
-                      <div
-                        data-menu-section-header="true"
-                        {...(idx === 0 ? { id: 'menu-first-section' } : {})}
-                        className={cn(
-                          'flex items-center gap-4 w-full select-none',
-                          idx === 0
-                            ? 'my-6 md:my-8'
-                            : 'my-8 md:my-10'
-                        )}
-                      >
-                        <GoldHairline className="flex-1" />
-                        <div className="flex flex-col items-center gap-1 text-center select-none px-2 shrink-0">
-                          <Text
-                            variant="overline"
-                            className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
-                          >
-                            {sec.title}
-                          </Text>
-                        </div>
-                        <GoldHairline className="flex-1" />
-                      </div>
+                  normalizedDrinks.map((sec, idx) => {
+                    const prevSec = idx > 0 ? normalizedDrinks[idx - 1] : null;
+                    const isNewFamily =
+                      !prevSec ||
+                      prevSec.family.toLowerCase() !== sec.family.toLowerCase();
+                    const showFamilyEyebrow =
+                      isNewFamily &&
+                      Boolean(sec.family) &&
+                      sec.family.toLowerCase() !== sec.subtype.toLowerCase();
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mt-6">
-                        {sec.items.map((it, iIdx) => (
-                          <div
-                            key={it.id}
-                            {...(idx === 0 && iIdx === 0 ? { id: 'menu-first-item' } : {})}
-                            className="w-full"
-                          >
-                            <MenuItemCard
-                              item={it}
-                              courseCategory={sec.title}
-                              cabin={activeCabinView}
-                            />
+                    return (
+                      <div key={sec.id} className="w-full">
+                        {/* Centered Editorial Drinks Header (Quiet, consistent with Food course headers) */}
+                        <div
+                          data-menu-section-header="true"
+                          {...(idx === 0 ? { id: 'menu-first-section' } : {})}
+                          className={cn(
+                            'flex items-center gap-4 w-full select-none',
+                            idx === 0
+                              ? 'my-6 md:my-8'
+                              : isNewFamily
+                              ? 'mt-10 mb-6 md:mt-12 md:mb-8'
+                              : 'my-6 md:my-8'
+                          )}
+                        >
+                          <GoldHairline className="flex-1" />
+                          <div className="flex flex-col items-center gap-0.5 text-center select-none px-2 shrink-0">
+                            {showFamilyEyebrow && (
+                              <Text
+                                variant="overline"
+                                className="text-mist-400 tracking-[0.2em] text-[0.62rem] font-normal uppercase"
+                              >
+                                {sec.family}
+                              </Text>
+                            )}
+                            <Text
+                              variant="overline"
+                              className="text-gold-300 tracking-[0.25em] text-[0.7rem] font-medium uppercase"
+                            >
+                              {sec.subtype}
+                            </Text>
                           </div>
-                        ))}
+                          <GoldHairline className="flex-1" />
+                        </div>
+
+                        {/* Density Ladder: Mode A (Compact list) vs Mode B (Rich cards) */}
+                        {sec.hasRichItems ? (
+                          /* Mode B: Rich cards grid with readable measure */
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5 max-w-4xl mx-auto w-full mt-4">
+                            {sec.items.map((it, iIdx) => (
+                              <DrinkItem
+                                key={it.id}
+                                item={it}
+                                isFirstItem={idx === 0 && iIdx === 0}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          /* Mode A: Editorial compact list stack */
+                          <div className="flex flex-col max-w-2xl mx-auto w-full mt-2">
+                            {sec.items.map((it, iIdx) => (
+                              <DrinkItem
+                                key={it.id}
+                                item={it}
+                                isFirstItem={idx === 0 && iIdx === 0}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
