@@ -19,8 +19,6 @@ import {
   TextTabs,
   AnimatedContent,
   EmptyState,
-  BackButton,
-  MenuButton,
 } from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
@@ -60,8 +58,9 @@ function parseDrinkSectionTitle(rawTitle: string): { family: string; subtype: st
 
   const clean = rawTitle.trim();
 
-  // 1. Check for explicit delimiters: " · ", " - ", " : ", " / ", " | ", " — "
-  const delimiterMatch = clean.match(/^(.*?)\s*(?:·|–|—|-|:|\/|\|)\s*(.*?)$/);
+  // 1. Check for explicit delimiters: " · ", " - ", " : ", " / ", " | ", " — ", " – "
+  // Note: we require \s+-\s+ or explicit dashes/dots so hyphenated words like NON-ALCOHOLIC, SINGLE-ORIGIN are preserved intact!
+  const delimiterMatch = clean.match(/^(.*?)(?:\s+-\s+|\s*·\s*|\s*–\s*|\s*—\s*|\s*:\s*|\s*\/\s*|\s*\|\s*)(.*)$/);
   if (delimiterMatch) {
     const p1 = delimiterMatch[1].trim();
     const p2 = delimiterMatch[2].trim();
@@ -118,6 +117,7 @@ function parseDrinkSectionTitle(rawTitle: string): { family: string; subtype: st
     };
   }
   if (
+    lower.includes('non-alcoholic') ||
     lower.includes('juice') ||
     lower.includes('soft drink') ||
     lower.includes('water') ||
@@ -715,7 +715,17 @@ export const SkyMenu: React.FC = () => {
   return (
     <Layout
       containerClassName="w-full md:w-[85%] max-w-6xl"
-      hideHeader={stage === 'result'}
+      onBack={
+        stage === 'result'
+          ? () => {
+              if (openDropdownId) {
+                setOpenDropdownId(null);
+              } else {
+                setStage('form');
+              }
+            }
+          : undefined
+      }
       menuOpen={isMenuOpen}
       onMenuOpenChange={setIsMenuOpen}
     >
@@ -918,27 +928,6 @@ export const SkyMenu: React.FC = () => {
           {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM, FULL BLEED) ── */}
           <StickyHeader ref={stickyHeaderRef} className="pb-2">
             <div className="w-full md:w-[85%] max-w-6xl mx-auto px-4 sm:px-6 relative flex flex-col gap-2.5 sm:gap-3">
-              {/* Corner Overlay Buttons: Back (top-left) & Menu (top-right) */}
-              <div className="absolute top-1 left-2 sm:left-4 z-30 pointer-events-auto">
-                <BackButton
-                  onClick={() => {
-                    if (openDropdownId) {
-                      setOpenDropdownId(null);
-                    } else {
-                      setStage('form');
-                    }
-                  }}
-                  label="Back to flight search"
-                />
-              </div>
-
-              <div className="absolute top-1 right-2 sm:right-4 z-30 pointer-events-auto">
-                <MenuButton
-                  onClick={() => setIsMenuOpen(true)}
-                  label="Open navigation menu"
-                />
-              </div>
-
               {/* Layer 1: Route Hero Card (Info-only, fully sticky) */}
               {currentLeg && (
                 <RouteHero

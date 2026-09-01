@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { MenuItem } from '../../lib/sq/types';
 import { Heading, Text } from './index';
 import { cn } from '../../lib/utils';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export interface DrinkItemProps {
   item: MenuItem;
@@ -24,10 +25,49 @@ export const DrinkItem: React.FC<DrinkItemProps> = ({
   className,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
 
   const cleanDescription = item.description?.trim() || '';
   const hasBody = cleanDescription.length > 0;
-  const isLongDescription = cleanDescription.length > 130 || cleanDescription.includes('\n');
+
+  // Responsive overflow measurement using ResizeObserver
+  useLayoutEffect(() => {
+    if (!hasBody) return;
+    const el = textRef.current;
+    if (!el) return;
+
+    const checkOverflow = () => {
+      if (!el) return;
+      const computedStyle = window.getComputedStyle(el);
+      const lineHeight = parseFloat(computedStyle.lineHeight) || 20;
+      const twoLineMax = lineHeight * 2 + 3;
+
+      const isClampedOverflow = el.scrollHeight > el.clientHeight + 1;
+      const isMultiLineOverflow = el.scrollHeight > twoLineMax;
+
+      setIsOverflowing(isClampedOverflow || isMultiLineOverflow);
+    };
+
+    checkOverflow();
+
+    const resizeObserver = new ResizeObserver(() => {
+      checkOverflow();
+    });
+
+    resizeObserver.observe(el);
+    window.addEventListener('resize', checkOverflow);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [cleanDescription, hasBody]);
+
+  // Check user preference for reduced motion
+  const prefersReduced =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // MODE A — Compact List Row (Catalogue lines without descriptions)
   if (!hasBody) {
@@ -94,26 +134,36 @@ export const DrinkItem: React.FC<DrinkItemProps> = ({
           </Text>
         )}
 
-        {/* Description with Clamp & Inline Expand */}
+        {/* Description with Clamp & Inline Height Animation */}
         <div className="mt-2 text-left">
-          <p
-            className={cn(
-              'text-xs sm:text-[0.85rem] text-mist-300 leading-relaxed font-sans text-left transition-all duration-200',
-              !isExpanded && 'line-clamp-3 sm:line-clamp-4',
-              isExpanded ? 'whitespace-pre-line' : ''
-            )}
+          <motion.div
+            layout
+            transition={{
+              duration: prefersReduced ? 0 : isExpanded ? 0.2 : 0.18,
+              ease: isExpanded ? [0.16, 1, 0.3, 1] : [0.4, 0, 0.2, 1],
+            }}
+            className="overflow-hidden"
           >
-            {cleanDescription}
-          </p>
+            <p
+              ref={textRef}
+              className={cn(
+                'text-xs sm:text-[0.85rem] text-mist-300 leading-relaxed font-sans text-left',
+                !isExpanded && 'line-clamp-2',
+                isExpanded ? 'whitespace-pre-line' : ''
+              )}
+            >
+              {cleanDescription}
+            </p>
+          </motion.div>
 
-          {isLongDescription && (
+          {isOverflowing && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsExpanded((prev) => !prev);
               }}
-              className="mt-2 text-[0.75rem] sm:text-xs text-gold-400/90 hover:text-gold-300 font-ui font-medium inline-flex items-center gap-1 transition-colors py-0.5"
+              className="mt-2 text-[0.75rem] sm:text-xs text-gold-400/90 hover:text-gold-300 font-ui font-medium inline-flex items-center gap-1 transition-colors py-0.5 outline-none active:scale-95"
               aria-expanded={isExpanded}
             >
               <span>{isExpanded ? 'Less' : 'More'}</span>

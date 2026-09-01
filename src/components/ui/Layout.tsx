@@ -7,7 +7,6 @@ import { Text } from './Text';
 import { BackButton, MenuButton, CloseButton } from './IconButton';
 import {
   Smartphone,
-  SunMoon,
   MessageCircle,
   Settings,
   ExternalLink,
@@ -21,6 +20,7 @@ export interface LayoutProps {
   children: React.ReactNode;
   containerClassName?: string;
   hideHeader?: boolean;
+  onBack?: () => void;
   menuOpen?: boolean;
   onMenuOpenChange?: (open: boolean) => void;
 }
@@ -29,6 +29,7 @@ export const Layout: React.FC<LayoutProps> = ({
   children,
   containerClassName = 'w-full md:w-[90%] max-w-6xl',
   hideHeader = false,
+  onBack,
   menuOpen: controlledMenuOpen,
   onMenuOpenChange: controlledOnMenuOpenChange,
 }) => {
@@ -91,17 +92,17 @@ export const Layout: React.FC<LayoutProps> = ({
           hideHeader
             ? 'max-w-none px-0 pt-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]'
             : cn(
-                'px-4 sm:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+                'px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))]',
                 containerClassName
               )
         )}
       >
-        {/* Top Header Bar (Omitted when hideHeader is true on hero result pages) */}
+        {/* Top Header Bar (Unified global Back / Brand and Hamburger Menu) */}
         {!hideHeader && (
-          <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">
-            {/* LEFT: Back button on inner pages without logo/text, Logo on Home */}
+          <header className="flex items-center justify-between h-14 shrink-0 z-30">
+            {/* LEFT: Back button on inner pages, Logo on Home */}
             <div className="flex items-center gap-3">
-              {!isHome ? <BackButton /> : <Logo to="/" size="sm" />}
+              {!isHome ? <BackButton onClick={onBack} /> : <Logo to="/" size="sm" />}
             </div>
 
             {/* RIGHT: Circular Ghost Hamburger Menu Button (34px visual, 44px hit) */}
@@ -125,112 +126,101 @@ export const Layout: React.FC<LayoutProps> = ({
             />
 
             {/* Glass Panel Anchored Top-Right */}
-            <div className="absolute top-16 right-4 sm:right-6 w-84 max-w-[calc(100vw-2rem)] cabin-glass p-2 z-50 animate-menu-in flex flex-col gap-0.5 text-left border border-gold-dim">
+            <div className="absolute top-16 right-4 sm:right-6 w-80 max-w-[calc(100vw-2rem)] cabin-glass p-2 z-50 animate-menu-in flex flex-col gap-0.5 text-left border border-gold-dim">
               {installPromptMsg && (
                 <div className="mx-2 my-1.5 p-2 rounded-lg bg-gold-400/15 border border-gold-400/30 text-xs text-gold-300 font-ui tracking-wide text-center animate-fade-in">
                   {installPromptMsg}
                 </div>
               )}
 
-              {/* Row 1: Install CrewKit (Hidden if standalone installed) */}
+              {/* Row 1: Install CrewKit (Hidden if standalone installed; no helper subtitle) */}
               {!isStandalone && (
                 <button
                   onClick={handleInstallClick}
                   className="flex items-center gap-3 w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group min-h-[44px]"
                 >
                   <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
-                    <Smartphone className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
+                    <Smartphone className="w-3.5 h-3.5 text-gold-300" strokeWidth={1.75} />
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
-                      Install CrewKit
-                    </span>
-                    <span className="text-[11px] text-mist-300 mt-0.5">
-                      {isIOS ? 'Tap Share → Add to Home Screen' : 'Full-screen, offline-ready access'}
-                    </span>
-                  </div>
+                  <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                    Install CrewKit
+                  </span>
                 </button>
               )}
 
-              {/* Row 2: Mood Switching (Night Cabin vs Day Cabin) */}
+              {/* Row 2: Window Shades (Appearance / Mood toggle; Open=light, Close=dark; dynamic Sun/Moon icon) */}
               <div
                 onClick={() => toggleTheme()}
                 className="flex items-center justify-between w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group cursor-pointer min-h-[44px]"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
-                    <SunMoon className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
+                    {isNight ? (
+                      <Moon className="w-3.5 h-3.5 text-gold-300" strokeWidth={1.75} />
+                    ) : (
+                      <Sun className="w-3.5 h-3.5 text-gold-300" strokeWidth={1.75} />
+                    )}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
-                      Cabin Mood
-                    </span>
-                    <span className="text-[11px] text-mist-300 mt-0.5">
-                      {isNight ? 'Night Cabin (Midnight)' : 'Day Cabin (Pearl Cream)'}
-                    </span>
-                  </div>
+                  <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                    Window Shades
+                  </span>
                 </div>
 
-                {/* Segmented Switch */}
+                {/* Segmented Pill Switch: Open (Day/Light) vs Close (Night/Dark) */}
                 <div
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center p-0.5 bg-ink-800 border border-gold-dim rounded-full relative shrink-0"
                 >
                   <button
                     type="button"
-                    onClick={() => setTheme('dark')}
-                    className={cn(
-                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-ui uppercase tracking-wider font-semibold transition-all',
-                      isNight
-                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
-                        : 'text-mist-300 hover:text-ivory-100'
-                    )}
-                    aria-label="Set Night Cabin"
-                  >
-                    <Moon className="w-3 h-3" />
-                    <span>Night</span>
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setTheme('light')}
                     className={cn(
-                      'flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-ui uppercase tracking-wider font-semibold transition-all',
+                      'flex items-center gap-1 px-3 py-1.5 rounded-full text-[10.5px] font-ui uppercase tracking-wider font-semibold transition-all',
                       !isNight
                         ? 'bg-gold-400 text-onyx-900 shadow-sm'
                         : 'text-mist-300 hover:text-ivory-100'
                     )}
-                    aria-label="Set Day Cabin"
+                    aria-label="Open Window Shades (Day Light)"
                   >
                     <Sun className="w-3 h-3" />
-                    <span>Day</span>
+                    <span>Open</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('dark')}
+                    className={cn(
+                      'flex items-center gap-1 px-3 py-1.5 rounded-full text-[10.5px] font-ui uppercase tracking-wider font-semibold transition-all',
+                      isNight
+                        ? 'bg-gold-400 text-onyx-900 shadow-sm'
+                        : 'text-mist-300 hover:text-ivory-100'
+                    )}
+                    aria-label="Close Window Shades (Night Cabin)"
+                  >
+                    <Moon className="w-3 h-3" />
+                    <span>Close</span>
                   </button>
                 </div>
               </div>
 
-              {/* Row 3: Feedback & Suggestions */}
+              {/* Row 3: Feedback & Support (Direct Telegram link; no helper subtitle) */}
               <a
-                href="https://t.me"
+                href="https://t.me/harlequinzxc"
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center justify-between w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group min-h-[44px]"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
-                    <MessageCircle className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
+                    <MessageCircle className="w-3.5 h-3.5 text-gold-300" strokeWidth={1.75} />
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
-                      Feedback &amp; Crew Chat
-                    </span>
-                    <span className="text-[11px] text-mist-300 mt-0.5">
-                      Chat with developer on Telegram
-                    </span>
-                  </div>
+                  <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                    Feedback &amp; Support
+                  </span>
                 </div>
                 <ExternalLink className="w-3.5 h-3.5 text-mist-400 group-hover:text-gold-300 mr-1" />
               </a>
 
-              {/* Row 4: Settings */}
+              {/* Row 4: Settings (No helper subtitle) */}
               <button
                 onClick={() => {
                   setMenuOpen(false);
@@ -242,16 +232,11 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
               >
                 <div className="w-9 h-9 rounded-full bg-ink-800/80 border border-gold-dim flex items-center justify-center text-gold-300 group-hover:border-gold-400/50 shrink-0">
-                  <Settings className="w-4.5 h-4.5 text-gold-300" strokeWidth={1.75} />
+                  <Settings className="w-3.5 h-3.5 text-gold-300" strokeWidth={1.75} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
-                    Settings &amp; Rates
-                  </span>
-                  <span className="text-[11px] text-mist-300 mt-0.5">
-                    Allowances, modifiers, diagnostics
-                  </span>
-                </div>
+                <span className="font-ui text-xs uppercase tracking-eyebrow text-ivory-100 group-hover:text-gold-300 font-semibold leading-tight">
+                  Settings
+                </span>
               </button>
 
               {/* Divider & Footer */}
@@ -264,7 +249,7 @@ export const Layout: React.FC<LayoutProps> = ({
           </>
         )}
 
-        {/* Main Content Area (Single Viewport, Zero Scroll) */}
+        {/* Main Content Area */}
         <main className="flex-1 flex flex-col justify-between min-h-0 py-1 overflow-hidden relative z-10">
           {children}
         </main>
