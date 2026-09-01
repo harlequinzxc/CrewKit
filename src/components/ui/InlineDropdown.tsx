@@ -110,7 +110,7 @@ const TriggerButton: React.FC<TriggerButtonProps> = ({ dim, isOpen, onToggle }) 
       onClick={() => onToggle(dim.id)}
       aria-expanded={isOpen}
       className={cn(
-        'flex-1 min-w-0 h-7.5 px-3 rounded-full border text-[0.7rem] sm:text-[0.72rem] font-medium font-sans flex items-center justify-between gap-1.5 transition-all outline-none active:scale-[0.98]',
+        'flex-1 min-w-0 h-[34px] px-3 rounded-full border text-[0.7rem] sm:text-[0.72rem] font-medium font-sans flex items-center justify-between gap-1.5 transition-all outline-none active:scale-[0.98]',
         isOpen
           ? 'bg-ink-800 border-gold-400/40 text-gold-300 shadow-sm'
           : 'bg-ink-850/60 hover:bg-ink-800 text-ivory-100 hover:text-ivory-100 border-gold-400/15'

@@ -18,6 +18,8 @@ import {
   TextTabs,
   AnimatedContent,
   EmptyState,
+  BackButton,
+  MenuButton,
 } from '../components/ui';
 import { useFlightValidation } from '../hooks/useFlightValidation';
 import {
@@ -47,6 +49,9 @@ const SKYMENU_MESSAGES: InterludeMessage[] = [
 export const SkyMenu: React.FC = () => {
   // Screen Stages: 'form' | 'loading' | 'result'
   const [stage, setStage] = useState<'form' | 'loading' | 'result'>('form');
+
+  // Navigation menu open state (controlled on Layout)
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Flight validation hook
   const validation = useFlightValidation('');
@@ -395,15 +400,9 @@ export const SkyMenu: React.FC = () => {
     if (targetLeg && targetLeg.mealServices.length > 0) {
       setActiveMealServiceId(targetLeg.mealServices[0].id);
     }
-    const targetHasSnacks = Boolean(
-      targetLeg?.snacks && targetLeg.snacks.groups && targetLeg.snacks.groups.length > 0
-    );
     const targetHasAmenities = Boolean(
       targetLeg?.amenities && targetLeg.amenities.length > 0
     );
-    if (activeSegment === 'snacks' && !targetHasSnacks) {
-      setActiveSegment('dining');
-    }
     if (activeSegment === 'amenities' && !targetHasAmenities) {
       setActiveSegment('dining');
     }
@@ -443,18 +442,14 @@ export const SkyMenu: React.FC = () => {
   const showFetchButton = showCabinStep && selectedCabins.length > 0;
 
   // Check availability for dynamic category list strictly per active sector/leg
-  const hasSnacks = Boolean(currentLeg?.snacks && currentLeg.snacks.groups && currentLeg.snacks.groups.length > 0);
   const hasAmenities = Boolean(currentLeg?.amenities && currentLeg.amenities.length > 0);
 
-  // Dynamic automatic fallback if active tab is no longer available on active leg
+  // Dynamic automatic fallback only if amenities tab is no longer available on active leg
   useEffect(() => {
-    if (activeSegment === 'snacks' && !hasSnacks) {
-      setActiveSegment('dining');
-    }
     if (activeSegment === 'amenities' && !hasAmenities) {
       setActiveSegment('dining');
     }
-  }, [activeLegIndex, activeCabinView, hasSnacks, hasAmenities, activeSegment]);
+  }, [activeLegIndex, activeCabinView, hasAmenities, activeSegment]);
 
   // STICKY BAR: Categories (Snacks permanently available with dedicated empty state if none exist)
   const availableCategories = [
@@ -607,7 +602,12 @@ export const SkyMenu: React.FC = () => {
   ];
 
   return (
-    <Layout containerClassName="w-full md:w-[85%] max-w-6xl">
+    <Layout
+      containerClassName="w-full md:w-[85%] max-w-6xl"
+      hideHeader={stage === 'result'}
+      menuOpen={isMenuOpen}
+      onMenuOpenChange={setIsMenuOpen}
+    >
       {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
       {stage === 'loading' && (
         <FetchInterlude
@@ -802,12 +802,33 @@ export const SkyMenu: React.FC = () => {
       {stage === 'result' && activeMenuData && (
         <div
           ref={scrollContainerRef}
-          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16"
+          className="flex flex-col h-full overflow-y-auto no-scrollbar animate-cabin-in text-left pb-16 relative"
         >
           {/* ── CONSOLIDATED LAYERED STICKY STACK (TOP TO BOTTOM) ── */}
-          <StickyHeader ref={stickyHeaderRef} className="mb-4 pb-2">
-            <div className="w-full flex flex-col gap-2.5 sm:gap-3">
-              {/* Layer 2: Route Hero Card (Info-only, fully sticky) */}
+          <StickyHeader ref={stickyHeaderRef} className="pb-2">
+            <div className="relative w-full flex flex-col gap-2.5 sm:gap-3">
+              {/* Corner Overlay Buttons: Back (top-left) & Menu (top-right) */}
+              <div className="absolute top-1 left-2 sm:left-3 z-30 pointer-events-auto">
+                <BackButton
+                  onClick={() => {
+                    if (openDropdownId) {
+                      setOpenDropdownId(null);
+                    } else {
+                      setStage('form');
+                    }
+                  }}
+                  label="Back to flight search"
+                />
+              </div>
+
+              <div className="absolute top-1 right-2 sm:right-3 z-30 pointer-events-auto">
+                <MenuButton
+                  onClick={() => setIsMenuOpen(true)}
+                  label="Open navigation menu"
+                />
+              </div>
+
+              {/* Layer 1: Route Hero Card (Info-only, fully sticky) */}
               {currentLeg && (
                 <RouteHero
                   flightNumber={`SQ ${validation.cleanFlightNo}`}
@@ -828,7 +849,7 @@ export const SkyMenu: React.FC = () => {
                 />
               )}
 
-              {/* Layer 3: Dropdown Row (Cabin / Sector / Culinary Line) */}
+              {/* Layer 2: Dropdown Row (Cabin / Sector / Culinary Line) */}
               {dropdownDimensions.length > 0 && (
                 <div className="w-full max-w-xl mx-auto">
                   <InlineDropdownGroup
@@ -839,7 +860,7 @@ export const SkyMenu: React.FC = () => {
                 </div>
               )}
 
-              {/* Layer 4: Category Pills (Food / Drinks / Snacks / Amenities) */}
+              {/* Layer 3: Category Pills (Food / Drinks / Snacks / Amenities) */}
               <div className="w-full max-w-xl mx-auto">
                 <SegmentedControl
                   options={availableCategories}
@@ -854,7 +875,7 @@ export const SkyMenu: React.FC = () => {
                 />
               </div>
 
-              {/* Layer 5: Meal Service Text Tabs (Conditional: Food + 2+ services) */}
+              {/* Layer 4: Meal Service Text Tabs (Conditional: Food + 2+ services) */}
               {activeSegment === 'dining' && currentLeg && currentLeg.mealServices.length >= 2 && (
                 <div className="w-full max-w-xl mx-auto pt-0.5">
                   <TextTabs

@@ -20,16 +20,32 @@ import { cn } from '../../lib/utils';
 export interface LayoutProps {
   children: React.ReactNode;
   containerClassName?: string;
+  hideHeader?: boolean;
+  menuOpen?: boolean;
+  onMenuOpenChange?: (open: boolean) => void;
 }
 
 export const Layout: React.FC<LayoutProps> = ({
   children,
   containerClassName = 'w-full md:w-[90%] max-w-6xl',
+  hideHeader = false,
+  menuOpen: controlledMenuOpen,
+  onMenuOpenChange: controlledOnMenuOpenChange,
 }) => {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [installPromptMsg, setInstallPromptMsg] = useState<string | null>(null);
+
+  const isControlled = controlledMenuOpen !== undefined;
+  const menuOpen = isControlled ? controlledMenuOpen : internalMenuOpen;
+  const setMenuOpen = (open: boolean) => {
+    if (isControlled && controlledOnMenuOpenChange) {
+      controlledOnMenuOpenChange(open);
+    } else {
+      setInternalMenuOpen(open);
+    }
+  };
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,22 +91,24 @@ export const Layout: React.FC<LayoutProps> = ({
           containerClassName
         )}
       >
-        {/* Top Header Bar */}
-        <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">
-          {/* LEFT: Back button on inner pages without logo/text, Logo on Home */}
-          <div className="flex items-center gap-3">
-            {!isHome ? <BackButton to="/" /> : <Logo to="/" size="sm" />}
-          </div>
+        {/* Top Header Bar (Omitted when hideHeader is true on hero result pages) */}
+        {!hideHeader && (
+          <header className="flex items-center justify-between h-14 shrink-0 z-30 pt-1">
+            {/* LEFT: Back button on inner pages without logo/text, Logo on Home */}
+            <div className="flex items-center gap-3">
+              {!isHome ? <BackButton /> : <Logo to="/" size="sm" />}
+            </div>
 
-          {/* RIGHT: Circular Ghost Hamburger Menu Button (34px visual, 44px hit) */}
-          <div className="flex items-center gap-2">
-            {menuOpen ? (
-              <CloseButton onClick={() => setMenuOpen(false)} label="Close navigation menu" />
-            ) : (
-              <MenuButton onClick={() => setMenuOpen(true)} label="Open navigation menu" />
-            )}
-          </div>
-        </header>
+            {/* RIGHT: Circular Ghost Hamburger Menu Button (34px visual, 44px hit) */}
+            <div className="flex items-center gap-2">
+              {menuOpen ? (
+                <CloseButton onClick={() => setMenuOpen(false)} label="Close navigation menu" />
+              ) : (
+                <MenuButton onClick={() => setMenuOpen(true)} label="Open navigation menu" />
+              )}
+            </div>
+          </header>
+        )}
 
         {/* Floating Glass Dropdown Menu */}
         {menuOpen && (

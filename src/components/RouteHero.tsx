@@ -160,7 +160,7 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
       <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.18),transparent)] blur-xl" />
       <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.08),transparent)] blur-xl" />
 
-      <div className="relative max-w-[38rem] mx-auto w-full">
+      <div className="relative max-w-[38rem] mx-auto w-full px-5 sm:px-6">
         {/* ── Whisper Meta Overline (Flight · Date) ── */}
         <div className="mb-2.5 sm:mb-3 flex items-center justify-center gap-2.5 text-center select-none">
           <span className="font-ui text-[10px] tracking-[0.22em] text-gold-400/90 font-medium uppercase">

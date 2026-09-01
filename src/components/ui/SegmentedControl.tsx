@@ -25,17 +25,15 @@ export function SegmentedControl<T extends string = string>({
   onChange,
   layoutId = 'segmented-pill',
   className,
-  size = 'md',
+  size = 'sm',
 }: SegmentedControlProps<T>) {
-  const sizeStyles = {
-    sm: 'py-1 px-2.5 text-[0.7rem] sm:text-[0.72rem] font-medium gap-1.5',
-    md: 'py-1.5 px-3.5 text-xs font-medium gap-1.5',
-  }[size];
+  const isMd = size === 'md';
 
   return (
     <div
       className={cn(
-        'relative flex items-center p-1 rounded-full bg-ink-900/60 dark:bg-ink-900/70 backdrop-blur-md border border-gold-dim select-none max-w-full overflow-x-auto no-scrollbar',
+        'relative flex items-center p-0.5 rounded-full bg-ink-900/60 dark:bg-ink-900/70 backdrop-blur-md border border-gold-dim select-none max-w-full overflow-x-auto no-scrollbar',
+        isMd ? 'h-[38px]' : 'h-[34px]',
         className
       )}
     >
@@ -56,8 +54,8 @@ export function SegmentedControl<T extends string = string>({
             disabled={opt.disabled}
             onClick={() => onChange(opt.id)}
             className={cn(
-              'relative flex items-center justify-center flex-1 rounded-full font-ui uppercase tracking-wider font-semibold transition-colors duration-200 z-10 shrink-0',
-              sizeStyles,
+              'relative flex items-center justify-center flex-1 rounded-full font-ui uppercase tracking-wider font-semibold transition-colors duration-200 z-10 shrink-0 px-2.5 sm:px-3 gap-1.5',
+              isMd ? 'h-[32px] text-xs' : 'h-[28px] text-[0.7rem] sm:text-[0.72rem]',
               isActive ? 'text-onyx-900' : 'text-mist-300 hover:text-ivory-100 disabled:opacity-30'
             )}
           >
