@@ -206,7 +206,7 @@ export const Layout: React.FC<LayoutProps> = ({
               <a
                 href="https://t.me/harlequinzxc"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="flex items-center justify-between w-full px-3 py-3 rounded-xl hover:bg-ink-800/60 text-left transition-colors group min-h-[44px]"
               >
                 <div className="flex items-center gap-3">

@@ -51,6 +51,10 @@ export const DrinkItem: React.FC<DrinkItemProps> = ({
 
     checkOverflow();
 
+    if (typeof document !== 'undefined' && 'fonts' in document) {
+      document.fonts.ready.then(checkOverflow);
+    }
+
     const resizeObserver = new ResizeObserver(() => {
       checkOverflow();
     });

@@ -155,10 +155,6 @@ export const RouteHero: React.FC<FlightHeroProps> = ({
 
   return (
     <section className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl border border-gold-dim bg-ink-900/60 md:bg-ink-900/40 backdrop-blur-md px-5 py-3.5 sm:px-6 sm:py-4 shadow-sm text-left select-none transition-colors">
-      {/* Subtle ambient glows */}
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(36,66,126,0.14),transparent)] blur-xl" />
-      <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-[radial-gradient(closest-side,rgba(200,164,93,0.06),transparent)] blur-xl" />
-
       <div className="relative max-w-[38rem] mx-auto w-full px-4 sm:px-6">
         {/* ── Whisper Meta Overline (Flight · Date) ── */}
         <div className="mb-2.5 sm:mb-3 flex items-center justify-center gap-2.5 text-center select-none">
