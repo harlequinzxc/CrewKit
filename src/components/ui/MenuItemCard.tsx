@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../lib/sq/types';
-import { resolveDishImage, getCatalogImageUrl, ResolvedDishImageResult } from '../../lib/images/resolveDishImage';
+import { resolveDishImage, ResolvedDishImageResult } from '../../lib/images/resolveDishImage';
 import { Heading, Text } from './index';
 import { GoldHairline } from './GoldHairline';
 import { Sparkles } from 'lucide-react';
@@ -60,19 +60,8 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
   }, [item.title, item.imageUrl, cabin]);
 
   const hasPhoto = Boolean(
-    imageState && imageState.thumbUrl && imageState.source !== 'placeholder'
+    imageState && imageState.thumbUrl && imageState.source === 'sq'
   );
-
-  const handleImageError = () => {
-    if (imageState.source === 'sq') {
-      const catalogUrl = getCatalogImageUrl(item.title);
-      if (catalogUrl && catalogUrl !== imageState.thumbUrl) {
-        setImageState({ thumbUrl: catalogUrl, fullUrl: catalogUrl, source: 'catalog' });
-        return;
-      }
-    }
-    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-  };
 
   return (
     <div
@@ -95,7 +84,9 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   alt={item.title}
                   className="w-full h-full max-w-[64%] max-h-[64%] object-contain select-none"
                   loading="lazy"
-                  onError={handleImageError}
+                  onError={() => {
+                    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+                  }}
                 />
 
                 {/* Theme-aware soft bottom dissolve into card text footing */}
@@ -115,7 +106,9 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   alt={item.title}
                   className="w-full h-full object-cover select-none"
                   loading="lazy"
-                  onError={handleImageError}
+                  onError={() => {
+                    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
+                  }}
                 />
 
                 {/* Photo bottom dissolve into card footing */}
