@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   CREWKIT DUAL-THEME DESIGN TOKEN SYSTEM
+   Mood 1: Night Cabin (Default) | Mood 2: Day Cabin
+   ========================================================================== */
+
+:root,
+[data-theme="dark"],
+html.dark {
+  /* Night Cabin: Midnight Navy Ramp (Values & RGB Channels) */
+  --ink-950: #04070F;
+  --ink-950-rgb: 4 7 15;
+  --ink-900: #060D1B;
+  --ink-900-rgb: 6 13 27;
+  --ink-850: #081226;
+  --ink-850-rgb: 8 18 38;
+  --ink-800: #0B1730;
+  --ink-800-rgb: 11 23 48;
+  --ink-700: #12224A;
+  --ink-700-rgb: 18 34 74;
+  --ink-600: #1A2F66;
+  --ink-600-rgb: 26 47 102;
+  --ink-500: #24427E;
+  --ink-500-rgb: 36 66 126;
+  --ink-airline: #002569;
+
+  /* Night Cabin: Champagne Gold Ramp */
+  --gold-100: #F2DEAE;
+  --gold-100-rgb: 242 222 174;
+  --gold-200: #F2DEAE;
+  --gold-200-rgb: 242 222 174;
+  --gold-300: #E7C98A;
+  --gold-300-rgb: 231 201 138;
+  --gold-400: #D9B978;
+  --gold-400-rgb: 217 185 120;
+  --gold-500: #C8A45D;
+  --gold-500-rgb: 200 164 93;
+  --gold-600: #A9853F;
+  --gold-600-rgb: 169 133 63;
+  --gold-dim: rgba(217, 185, 120, 0.14);
+  --gold-border: rgba(217, 185, 120, 0.24);
+  --gold-border-hover: rgba(231, 201, 138, 0.45);
+  --gold-glow: rgba(231, 201, 138, 0.18);
+
+  /* Night Cabin: Route Arc & Hairlines */
+  --route-arc-stroke: rgba(217, 185, 120, 0.42);
+  --gold-hairline-rgb: 217, 185, 120;
+  --gold-hairline-opacity-mid: 0.50;
+  --gold-hairline-opacity-side: 0.22;
+
+  /* Night Cabin: Warm Ivory & Mist Text */
+  --ivory-100: #F5EFE2;
+  --ivory-100-rgb: 245 239 226;
+  --ivory-200: #ECE3D2;
+  --ivory-200-rgb: 236 227 210;
+  --mist-300: #9AA7C4;
+  --mist-300-rgb: 154 167 196;
+  --mist-400: #7C8AAC;
+  --mist-400-rgb: 124 138 172;
+  --mist-500: #4E5B7A;
+  --mist-500-rgb: 78 91 122;
+
+  /* Dietary & Accent Chips */
+  --chip-wellness: rgba(91, 168, 138, 0.15);
+  --chip-wellness-text: #7EE0BE;
+  --chip-veg: rgba(163, 230, 53, 0.15);
+  --chip-veg-text: #BEF264;
+  --chip-amber: rgba(245, 158, 11, 0.15);
+  --chip-amber-text: #FCD34D;
+  --chip-sky: rgba(56, 189, 248, 0.15);
+  --chip-sky-text: #7DD3FC;
+
+  --danger: #E06C75;
+  --success: #5BA88A;
+
+  /* Theme Shadows & Blurs */
+  --shadow-cabin: 0 24px 70px -18px rgba(0, 0, 0, 0.7);
+  --shadow-cabin-glass: 0 20px 50px -10px rgba(0, 0, 0, 0.65), 0 0 1px 1px rgba(217, 185, 120, 0.15);
+  --shadow-elevated-card: 0 12px 32px -4px rgba(0, 0, 0, 0.55);
+  --sky-gradient: #04070F;
+  --selection-bg: rgba(217, 185, 120, 0.28);
+  --selection-color: #F5EFE2;
+}
+
+[data-theme="light"],
+html.light {
+  /* Day Cabin: Warm Cream Paper Ramp */
+  --ink-950: #F8F4EA;
+  --ink-950-rgb: 248 244 234;
+  --ink-900: #FFFFFF;
+  --ink-900-rgb: 255 255 255;
+  --ink-850: #F0E7D4;
+  --ink-850-rgb: 240 231 212;
+  --ink-800: #E6DBC3;
+  --ink-800-rgb: 230 219 195;
+  --ink-700: #DCD0B4;
+  --ink-700-rgb: 220 208 180;
+  --ink-600: #CFC1A0;
+  --ink-600-rgb: 207 193 160;
+  --ink-500: #BFB08C;
+  --ink-500-rgb: 191 176 140;
+  --ink-airline: #002569;
+
+  /* Day Cabin: Antique Gold (Deepened for contrast >= 4.5:1) */
+  --gold-100: #C99E38;
+  --gold-100-rgb: 201 158 56;
+  --gold-200: #B88E28;
+  --gold-200-rgb: 184 142 40;
+  --gold-300: #9E761E;
+  --gold-300-rgb: 158 118 30;
+  --gold-400: #8A6414;
+  --gold-400-rgb: 138 100 20;
+  --gold-500: #75520B;
+  --gold-500-rgb: 117 82 11;
+  --gold-600: #5E4005;
+  --gold-600-rgb: 94 64 5;
+  --gold-dim: rgba(138, 100, 20, 0.18);
+  --gold-border: rgba(138, 100, 20, 0.28);
+  --gold-border-hover: rgba(138, 100, 20, 0.50);
+  --gold-glow: rgba(158, 118, 30, 0.18);
+
+  /* Day Cabin: Route Arc & Hairlines */
+  --route-arc-stroke: rgba(138, 100, 20, 0.68);
+  --gold-hairline-rgb: 138, 100, 20;
+  --gold-hairline-opacity-mid: 0.65;
+  --gold-hairline-opacity-side: 0.30;
+
+  /* Day Cabin: Deep Midnight Navy & Slate Text */
+  --ivory-100: #0D1527;
+  --ivory-100-rgb: 13 21 39;
+  --ivory-200: #18233C;
+  --ivory-200-rgb: 24 35 60;
+  --mist-300: #3B4A6B;
+  --mist-300-rgb: 59 74 107;
+  --mist-400: #546487;
+  --mist-400-rgb: 84 100 135;
+  --mist-500: #7B8CAE;
+  --mist-500-rgb: 123 140 174;
+
+  /* Dietary & Accent Chips */
+  --chip-wellness: rgba(31, 112, 80, 0.12);
+  --chip-wellness-text: #17573E;
+  --chip-veg: rgba(63, 112, 16, 0.12);
+  --chip-veg-text: #2D540A;
+  --chip-amber: rgba(146, 64, 14, 0.12);
+  --chip-amber-text: #78350F;
+  --chip-sky: rgba(3, 105, 161, 0.12);
+  --chip-sky-text: #0369A1;
+
+  --danger: #B91C1C;
+  --success: #15803D;
+
+  /* Theme Shadows & Blurs */
+  --shadow-cabin: 0 24px 70px -18px rgba(19, 27, 48, 0.12);
+  --shadow-cabin-glass: 0 16px 40px -8px rgba(19, 27, 48, 0.08), 0 0 1px 1px rgba(138, 100, 20, 0.15);
+  --shadow-elevated-card: 0 8px 24px -3px rgba(19, 27, 48, 0.06);
+  --sky-gradient: radial-gradient(ellipse at 85% 15%, rgba(242, 222, 174, 0.35) 0%, rgba(248, 244, 234, 0.95) 60%), #F8F4EA;
+  --selection-bg: rgba(158, 118, 30, 0.25);
+  --selection-color: #0D1527;
+}
+
+/* ==========================================================================
+   GLOBAL RESET & SEAMLESS TRANSITIONS
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-color);
+}
+
+body {
+  background-color: var(--ink-950);
+  color: var(--ivory-100);
+  font-family: 'Jost', 'Inter', system-ui, -apple-system, sans-serif;
+  transition: background-color 500ms cubic-bezier(0.22, 1, 0.36, 1),
+              color 500ms cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+/* Hide native scrollbars globally */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ==========================================================================
+   UTILITY CLASSES SPECIFIED BY DESIGN SYSTEM
+   ========================================================================== */
+
+/* Eyebrow Label */
+.eyebrow {
+  font-family: 'Jost', 'Inter', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gold-400);
+}
+
+/* Gold Hairline Rule */
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(to right, rgba(var(--gold-hairline-rgb), 0) 0%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 12%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-mid)) 50%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 88%, rgba(var(--gold-hairline-rgb), 0) 100%);
+}
+
+/* ==========================================================================
+   ATMOSPHERIC CABIN BACKGROUNDS (NIGHT STARFIELD VS DAY PEARL SKY)
+   ========================================================================== */
+
+.cabin-atmosphere {
+  background: var(--sky-gradient);
+  position: relative;
+}
+
+/* Night Stars & Horizon */
+.starfield-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.65;
+  transition: opacity 500ms ease;
+}
+
+[data-theme="light"] .starfield-layer {
+  opacity: 0.12;
+}
+
+/* Star twinkling animations */
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 0.95; transform: scale(1.15); }
+}
+
+.star-mote {
+  position: absolute;
+  border-radius: 9999px;
+  background: var(--gold-100);
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   SIGNATURE LUXURY DESIGN ELEMENTS
+   ========================================================================== */
+
+/* 1. Cabin Glass Panels */
+.cabin-glass {
+  background-color: rgba(6, 13, 27, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--gold-dim);
+  border-radius: 24px;
+  box-shadow: var(--shadow-cabin-glass);
+  transition: all 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-theme="light"] .cabin-glass {
+  background-color: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--gold-dim);
+  box-shadow: var(--shadow-cabin-glass);
+}
+
+/* 2. Hairline Gold Gradient Divider */
+.gold-hairline {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(to right, rgba(var(--gold-hairline-rgb), 0) 0%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 12%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-mid)) 50%, rgba(var(--gold-hairline-rgb), var(--gold-hairline-opacity-side)) 88%, rgba(var(--gold-hairline-rgb), 0) 100%);
+}
+
+/* 3. Champagne Gradient Text */
+.gold-gradient-text {
+  background: linear-gradient(135deg, var(--gold-100) 0%, var(--gold-400) 50%, var(--gold-500) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 4. Primary Gold Button (Onyx text in BOTH themes) */
+.gold-pill-button {
+  background: linear-gradient(135deg, var(--gold-100) 0%, var(--gold-300) 45%, var(--gold-500) 100%);
+  color: #0B1220 !important; /* Constant Onyx */
+  font-family: 'Jost', 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  border-radius: 9999px;
+  box-shadow: 0 4px 20px var(--gold-glow);
+  transition: all 250ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gold-pill-button:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px var(--gold-glow);
+}
+
+.gold-pill-button:active {
+  transform: scale(0.96);
+  transition-duration: 100ms;
+}
+
+/* Page entrance animations */
+@keyframes cabinFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-cabin-in {
+  animation: cabinFadeIn 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

@@ -1,0 +1,1000 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Layout } from '../components/ui/Layout';
+import { FlightNumberInput } from '../components/FlightNumberInput';
+import { DepartureBlock } from '../components/DepartureBlock';
+import { RevealCTA } from '../components/RevealCTA';
+import { CabinPill } from '../components/CabinPill';
+import { FlightChip } from '../components/FlightChip';
+import { FetchInterlude, InterludeMessage } from '../components/FetchInterlude';
+import { useFlightValidation } from '../hooks/useFlightValidation';
+import {
+  getMenu,
+  getKnownFlightSectors,
+  SectorLegOption,
+  checkFlightExistence,
+  LiveCheckResult,
+} from '../lib/sq/endpoints';
+import { CabinCode, MenuData, MenuSection } from '../lib/sq/types';
+import { exportToPNG } from '../lib/export/png';
+import { exportToPDF } from '../lib/export/pdf';
+import { exportToDOCX } from '../lib/export/docx';
+import { Heading, Text, Button, SegmentedControl } from '../components/ui';
+import {
+  Printer,
+  Download,
+  FileText,
+  FileCode,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Sliders,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  Clock,
+  WifiOff,
+} from 'lucide-react';
+
+const INKFLIGHT_MESSAGES: InterludeMessage[] = [
+  { text: 'Retrieving menu from seat pocket…', durationMs: 3000 },
+  { text: 'Formatting thermal receipt…', durationMs: 2000 },
+];
+
+export const InkFlight: React.FC = () => {
+  const location = useLocation();
+  const navState = location.state as {
+    flightNo?: string;
+    dateISO?: string;
+    dateDisplay?: string;
+    cabin?: CabinCode;
+  } | null;
+
+  // Screen Stages: 'form' | 'loading' | 'editor'
+  const [stage, setStage] = useState<'form' | 'loading' | 'editor'>('form');
+
+  // Flight validation
+  const validation = useFlightValidation(navState?.flightNo || '');
+
+  // Step 2: Departure Date (not selected by default unless passed in navState)
+  const [dateISO, setDateISO] = useState<string>(navState?.dateISO || '');
+  const [dateDisplay, setDateDisplay] = useState<string>(navState?.dateDisplay || '');
+
+  // Client UX State: 'idle' | 'checking' | 'valid' | 'not-found' | 'error'
+  const [checkState, setCheckState] = useState<'idle' | 'checking' | 'valid' | 'not-found' | 'error'>('idle');
+  const [checkFeedback, setCheckFeedback] = useState<{
+    code?: string;
+    heading?: string;
+    message?: string;
+    guidance?: string;
+  } | null>(null);
+
+  // Special multi-sector flight detection (e.g. SQ12, SQ11, SQ26, SQ25)
+  const [multiSectors, setMultiSectors] = useState<SectorLegOption[] | null>(null);
+  const [selectedSectorIds, setSelectedSectorIds] = useState<string[]>([]);
+
+  // Step 4: Cabin detection & Multi-selection (not selected by default)
+  const [availableCabins, setAvailableCabins] = useState<CabinCode[]>([]);
+  const [selectedCabins, setSelectedCabins] = useState<CabinCode[]>(
+    navState?.cabin ? [navState.cabin] : []
+  );
+
+  // InkFlight Editor State
+  const [editableMenu, setEditableMenu] = useState<MenuData | null>(null);
+  const [includeHeaders, setIncludeHeaders] = useState<boolean>(true);
+  const [includeDescriptions, setIncludeDescriptions] = useState<boolean>(false);
+  const [includeDrinks, setIncludeDrinks] = useState<boolean>(true);
+  const [compactMode, setCompactMode] = useState<boolean>(false);
+  const [paperWidth, setPaperWidth] = useState<'108mm' | '210mm'>('108mm');
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  // Mobile Tab View: 'editor' | 'preview'
+  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('preview');
+
+  // Receipt DOM element ref
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // 1. Live change: when flight number changes, reset state and downstream selections immediately
+  useEffect(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    if (!navState?.flightNo) {
+      setDateISO('');
+      setDateDisplay('');
+      setSelectedSectorIds([]);
+      setAvailableCabins([]);
+      setSelectedCabins([]);
+      setCheckState('idle');
+      setCheckFeedback(null);
+    }
+
+    if (validation.isValid && validation.flightNo) {
+      const known = getKnownFlightSectors(validation.flightNo);
+      setMultiSectors(known);
+    } else {
+      setMultiSectors(null);
+    }
+  }, [validation.flightNo, validation.isValid]);
+
+  const isMultiSector = Boolean(multiSectors && multiSectors.length > 1);
+
+  // 2. Live change: when date is selected, trigger cabin existence check
+  useEffect(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    if (!validation.flightNo || !validation.isValid || !dateISO) {
+      setAvailableCabins([]);
+      setSelectedCabins([]);
+      setCheckState('idle');
+      setCheckFeedback(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    setCheckState('checking');
+    setCheckFeedback(null);
+
+    checkFlightExistence(validation.flightNo, dateISO, controller.signal)
+      .then((result: LiveCheckResult) => {
+        if (controller.signal.aborted) return;
+
+        if (result.ok) {
+          setCheckState('valid');
+          const codes: CabinCode[] = [];
+          result.data.cabins.forEach((c) => {
+            const codeUpper = c.code.toUpperCase();
+            if (codeUpper === 'FCL' || codeUpper === 'SUITES' || codeUpper === 'FIRST') {
+              const code = result.data.aircraftType?.includes('380') ? 'SUITES' : 'FIRST';
+              if (!codes.includes(code)) codes.push(code);
+            } else if (codeUpper === 'JCL' || codeUpper === 'BUSINESS') {
+              if (!codes.includes('BUSINESS')) codes.push('BUSINESS');
+            } else if (codeUpper === 'SCL' || codeUpper === 'PREMIUM_ECONOMY') {
+              if (!codes.includes('PREMIUM_ECONOMY')) codes.push('PREMIUM_ECONOMY');
+            } else if (codeUpper === 'YCL' || codeUpper === 'ECONOMY') {
+              if (!codes.includes('ECONOMY')) codes.push('ECONOMY');
+            }
+          });
+
+          setAvailableCabins(codes.length > 0 ? codes : ['BUSINESS', 'ECONOMY']);
+          setCheckFeedback(null);
+        } else {
+          setAvailableCabins([]);
+          setSelectedCabins([]);
+
+          if (result.code === 'NOT_FOUND') {
+            setCheckState('not-found');
+            setCheckFeedback({
+              code: 'NOT_FOUND',
+              heading: result.heading || "We couldn't find that flight for this date.",
+              message: result.message,
+              guidance: result.guidance || 'Check the flight number and date. Menus are generally published up to eight days before departure.',
+            });
+          } else if (result.code === 'NO_CABINS') {
+            setCheckState('not-found');
+            setCheckFeedback({
+              code: 'NO_CABINS',
+              heading: result.heading || 'No Cabins Available',
+              message: result.message,
+              guidance: result.guidance || 'Menus are generally published up to eight days before departure.',
+            });
+          } else {
+            setCheckState('error');
+            setCheckFeedback({
+              code: result.code,
+              heading: result.heading || 'Verification Error',
+              message: result.message,
+            });
+          }
+        }
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setCheckState('error');
+        setAvailableCabins([]);
+        setSelectedCabins([]);
+        setCheckFeedback({
+          code: 'UPSTREAM_NETWORK',
+          heading: 'Service Unreachable',
+          message: 'The Singapore Airlines menu service is temporarily unreachable.',
+        });
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [validation.flightNo, validation.isValid, dateISO]);
+
+  // Handle Sector Toggle
+  const handleToggleSector = (sectorId: string) => {
+    setSelectedSectorIds((prev) =>
+      prev.includes(sectorId) ? prev.filter((id) => id !== sectorId) : [...prev, sectorId]
+    );
+  };
+
+  // Handle Cabin Toggle (Multi-select)
+  const handleToggleCabin = (code: CabinCode) => {
+    setSelectedCabins((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  const handleStartFetch = () => {
+    setStage('loading');
+  };
+
+  const executeMenuFetch = async () => {
+    const cabinsToFetch = selectedCabins.length > 0 ? selectedCabins : (['BUSINESS'] as CabinCode[]);
+    const menus = await Promise.all(
+      cabinsToFetch.map((c) => getMenu(validation.flightNo, dateISO, c))
+    );
+
+    const allSections: MenuSection[] = [];
+    const allDrinks: MenuSection[] = [];
+
+    menus.forEach((m, cIdx) => {
+      const cabinTag = cabinsToFetch[cIdx];
+      const prefix = cabinsToFetch.length > 1 ? `[${cabinTag}] ` : '';
+
+      let legsToUse = m.legs;
+      if (selectedSectorIds.length > 0 && legsToUse && legsToUse.length > 0) {
+        legsToUse = legsToUse.filter((leg) => {
+          const legKey = `${leg.origin}-${leg.destination}`;
+          return (
+            selectedSectorIds.includes(legKey) ||
+            selectedSectorIds.some((id) => id.includes(leg.origin) && id.includes(leg.destination))
+          );
+        });
+      }
+
+      if (legsToUse && legsToUse.length > 0) {
+        legsToUse.forEach((leg) => {
+          leg.mealServices.forEach((srv) => {
+            srv.selections.forEach((sel) => {
+              sel.courses.forEach((crs) => {
+                allSections.push({
+                  id: `${cabinTag}_${leg.legId}_${crs.id}`,
+                  title: `${prefix}${leg.origin}→${leg.destination} · ${srv.name} · ${crs.name}`,
+                  items: crs.items,
+                });
+              });
+            });
+          });
+
+          leg.drinks.forEach((d) => {
+            allDrinks.push({
+              id: `${cabinTag}_${leg.legId}_${d.id}`,
+              title: `${prefix}${leg.origin}→${leg.destination} · ${d.title}`,
+              items: d.items,
+            });
+          });
+        });
+      } else {
+        m.sections.forEach((s) => {
+          allSections.push({
+            id: `${cabinTag}_${s.id}`,
+            title: `${prefix}${s.title}`,
+            items: s.items,
+          });
+        });
+        m.drinks.forEach((d) => {
+          allDrinks.push({
+            id: `${cabinTag}_${d.id}`,
+            title: `${prefix}${d.title}`,
+            items: d.items,
+          });
+        });
+      }
+    });
+
+    const combinedMenu: MenuData = {
+      flightNo: `SQ${validation.cleanFlightNo}`,
+      date: dateISO,
+      cabin: selectedCabins[0] || 'BUSINESS',
+      legs: menus[0]?.legs || [],
+      sections: allSections,
+      drinks: allDrinks,
+    };
+
+    return combinedMenu;
+  };
+
+  const handleFetchSuccess = (data: MenuData) => {
+    const cloned = JSON.parse(JSON.stringify(data)) as MenuData;
+    setEditableMenu(cloned);
+    setStage('editor');
+  };
+
+  const toggleSectionVisibility = (secId: string) => {
+    if (!editableMenu) return;
+    setEditableMenu({
+      ...editableMenu,
+      sections: editableMenu.sections.map((sec) =>
+        sec.id === secId ? { ...sec, hidden: !sec.hidden } : sec
+      ),
+      drinks: editableMenu.drinks.map((sec) =>
+        sec.id === secId ? { ...sec, hidden: !sec.hidden } : sec
+      ),
+    });
+  };
+
+  const toggleItemVisibility = (secId: string, itemId: string) => {
+    if (!editableMenu) return;
+    const updateSec = (sections: MenuSection[]) =>
+      sections.map((sec) =>
+        sec.id === secId
+          ? {
+              ...sec,
+              items: sec.items.map((it) =>
+                it.id === itemId ? { ...it, hidden: !it.hidden } : it
+              ),
+            }
+          : sec
+      );
+
+    setEditableMenu({
+      ...editableMenu,
+      sections: updateSec(editableMenu.sections),
+      drinks: updateSec(editableMenu.drinks),
+    });
+  };
+
+  const updateItemTitle = (secId: string, itemId: string, newTitle: string) => {
+    if (!editableMenu) return;
+    const updateSec = (sections: MenuSection[]) =>
+      sections.map((sec) =>
+        sec.id === secId
+          ? {
+              ...sec,
+              items: sec.items.map((it) =>
+                it.id === itemId ? { ...it, title: newTitle } : it
+              ),
+            }
+          : sec
+      );
+
+    setEditableMenu({
+      ...editableMenu,
+      sections: updateSec(editableMenu.sections),
+      drinks: updateSec(editableMenu.drinks),
+    });
+  };
+
+  const moveItem = (secId: string, itemIdx: number, direction: 'up' | 'down') => {
+    if (!editableMenu) return;
+    const updateSec = (sections: MenuSection[]) =>
+      sections.map((sec) => {
+        if (sec.id !== secId) return sec;
+        const newItems = [...sec.items];
+        const targetIdx = direction === 'up' ? itemIdx - 1 : itemIdx + 1;
+        if (targetIdx < 0 || targetIdx >= newItems.length) return sec;
+        const temp = newItems[itemIdx];
+        newItems[itemIdx] = newItems[targetIdx];
+        newItems[targetIdx] = temp;
+        return { ...sec, items: newItems };
+      });
+
+    setEditableMenu({
+      ...editableMenu,
+      sections: updateSec(editableMenu.sections),
+      drinks: updateSec(editableMenu.drinks),
+    });
+  };
+
+  const handleExportPng = async () => {
+    if (!receiptRef.current) return;
+    setIsExporting(true);
+    try {
+      await exportToPNG(receiptRef.current, `CrewKit_${validation.cleanFlightNo}_Receipt.png`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!receiptRef.current) return;
+    setIsExporting(true);
+    try {
+      await exportToPDF(
+        receiptRef.current,
+        `CrewKit_${validation.cleanFlightNo}_Receipt`,
+        paperWidth === '108mm' ? 108 : 210
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!editableMenu) return;
+    setIsExporting(true);
+    try {
+      await exportToDOCX(
+        `SQ${validation.cleanFlightNo}`,
+        dateDisplay,
+        selectedCabins.join(', '),
+        [...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])],
+        includeDescriptions,
+        `CrewKit_${validation.cleanFlightNo}_Menu`
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const flightSummaryLine = [
+    `SQ${validation.cleanFlightNo}`,
+    selectedSectorIds.length > 0 ? selectedSectorIds.join(' & ') : '',
+    dateDisplay,
+    selectedCabins.length > 1
+      ? `${selectedCabins.length} Cabins`
+      : selectedCabins[0] === 'PREMIUM_ECONOMY'
+      ? 'Prem Econ'
+      : selectedCabins[0]
+      ? selectedCabins[0].charAt(0) + selectedCabins[0].slice(1).toLowerCase()
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  // Visibility flags strictly adhering to workflow:
+  const showDateStep = validation.isValid && validation.flightNo.length > 0;
+  const showSectorStep = showDateStep && Boolean(dateISO) && isMultiSector;
+  const showCabinStep =
+    showDateStep &&
+    Boolean(dateISO) &&
+    (!isMultiSector || selectedSectorIds.length > 0) &&
+    checkState === 'valid' &&
+    availableCabins.length > 0;
+  const showFetchButton = showCabinStep && selectedCabins.length > 0;
+
+  const mobileTabOptions = [
+    { id: 'editor' as const, label: 'Customise', icon: Sliders },
+    { id: 'preview' as const, label: 'Receipt Preview', icon: Printer },
+  ];
+
+  return (
+    <Layout>
+      {/* 1. LOADING INTERLUDE (5s Minimum Duration) */}
+      {stage === 'loading' && (
+        <FetchInterlude
+          flightChipText={flightSummaryLine}
+          messages={INKFLIGHT_MESSAGES}
+          fetchTask={executeMenuFetch}
+          onSuccess={handleFetchSuccess}
+        />
+      )}
+
+      {/* 2. FORM FLOW (PROGRESSIVE STEP-BY-STEP WORKFLOW) */}
+      {stage === 'form' && (
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pt-4 sm:pt-6 pb-8 px-1 animate-cabin-in">
+          <div className="w-full max-w-md mx-auto flex flex-col items-center text-center space-y-8">
+            {/* Editorial Hero */}
+            <div className="space-y-1">
+              <Text variant="eyebrow">Prep,</Text>
+              <Heading variant="hero" as="h2">
+                Let's ready your homework.
+              </Heading>
+            </div>
+
+            {/* STEP 1: Flight Number */}
+            <div className="w-full text-left">
+              <FlightNumberInput
+                inputRef={validation.inputRef}
+                value={validation.flightNo}
+                onChange={validation.setFlightNo}
+                isValid={validation.isValid}
+                error={validation.error}
+                placeholder="1 1"
+              />
+            </div>
+
+            {/* STEP 2: Departure Date (Appears only if valid flight number; none selected by default) */}
+            {showDateStep && (
+              <div className="w-full text-left animate-cabin-in">
+                <DepartureBlock
+                  selectedDateISO={dateISO}
+                  onDateSelect={(iso, display) => {
+                    setDateISO(iso);
+                    setDateDisplay(display);
+                    setSelectedSectorIds([]);
+                    setSelectedCabins([]);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* STEP 3 (For SQ12, SQ11, SQ26, SQ25): Sector Legs Multi-Select (none selected by default) */}
+            {showSectorStep && multiSectors && (
+              <div className="w-full text-left animate-cabin-in space-y-2">
+                <Text variant="overline">SECTOR</Text>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {multiSectors.map((sec) => {
+                    const isSelected = selectedSectorIds.includes(sec.id);
+                    return (
+                      <button
+                        key={sec.id}
+                        type="button"
+                        onClick={() => handleToggleSector(sec.id)}
+                        className={`flex items-center justify-between p-3 rounded-well border transition-all text-left ${
+                          isSelected
+                            ? 'bg-ink-850 border-gold-400/35 text-ivory-100 shadow-[0_0_20px_rgba(201,168,76,0.15)]'
+                            : 'bg-ink-850 text-mist-300 border-gold-dim hover:border-gold-400/60 hover:text-ivory-100'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span
+                            className={`font-display text-lg font-light ${
+                              isSelected ? 'text-gold-300 font-normal' : 'text-ivory-100'
+                            }`}
+                          >
+                            {sec.label}
+                          </span>
+                          <span className="text-[11px] text-mist-400 font-ui truncate mt-0.5">
+                            {sec.description}
+                          </span>
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center text-xs transition-all ${
+                            isSelected
+                              ? 'bg-gold-400 border-gold-400 text-onyx-900 font-bold'
+                              : 'border-gold-dim bg-ink-900/60 text-transparent'
+                          }`}
+                        >
+                          ✓
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Stage: CHECKING — Progress indicator & spinner */}
+            {checkState === 'checking' && Boolean(dateISO) && (
+              <div className="w-full text-left animate-fade-in space-y-2">
+                <Text variant="overline">CABIN</Text>
+                <div className="flex items-center gap-2.5 p-3 rounded-well bg-ink-850/80 border border-gold-dim">
+                  <div className="w-4 h-4 border-2 border-gold-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="font-ui text-xs text-mist-300">Checking the flight…</span>
+                </div>
+              </div>
+            )}
+
+            {/* Stage: NOT-FOUND — Accurate heading & guidance */}
+            {checkState === 'not-found' && checkFeedback && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="w-full p-4 rounded-well bg-ink-850/95 border border-gold-dim text-left animate-fade-in space-y-2"
+              >
+                <div className="flex items-center gap-2 text-gold-300 font-sans font-semibold text-xs">
+                  <AlertCircle className="w-4 h-4 text-gold-400 shrink-0" />
+                  <span>{checkFeedback.heading}</span>
+                </div>
+                <p className="font-sans text-xs text-ivory-100 leading-relaxed">
+                  {checkFeedback.message}
+                </p>
+                {checkFeedback.guidance && (
+                  <p className="font-sans text-[0.72rem] text-mist-400 pt-1 border-t border-gold-dim/40 leading-relaxed select-none">
+                    {checkFeedback.guidance}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Stage: ERROR — Upstream timeout or network error */}
+            {checkState === 'error' && checkFeedback && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="w-full p-4 rounded-well bg-ink-850/95 border border-danger/40 text-left animate-fade-in space-y-2"
+              >
+                <div className="flex items-center gap-2 text-danger font-sans font-semibold text-xs">
+                  {checkFeedback.code === 'UPSTREAM_TIMEOUT' ? (
+                    <Clock className="w-4 h-4 text-danger shrink-0" />
+                  ) : (
+                    <WifiOff className="w-4 h-4 text-danger shrink-0" />
+                  )}
+                  <span>{checkFeedback.heading}</span>
+                </div>
+                <p className="font-sans text-xs text-mist-300 leading-relaxed">
+                  {checkFeedback.message}
+                </p>
+              </div>
+            )}
+
+            {/* STEP 4: Cabin Classes Multi-Select (Appears when flight check is valid) */}
+            {showCabinStep && (
+              <div className="w-full text-left animate-cabin-in">
+                <Text variant="overline" className="mb-2">
+                  CABIN
+                </Text>
+                <div className="flex flex-wrap gap-2">
+                  {availableCabins.map((code, idx) => (
+                    <CabinPill
+                      key={code}
+                      code={code}
+                      isSelected={selectedCabins.includes(code)}
+                      delayIndex={idx}
+                      onToggle={handleToggleCabin}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* STEP 5: Progression CTA (Appears only after cabin class/classes are selected) */}
+            {showFetchButton && (
+              <div className="w-full pt-2 mt-10">
+                <RevealCTA
+                  label="Fetch Menu ✨"
+                  summary={flightSummaryLine}
+                  onPress={handleStartFetch}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 3. EDITOR & RECEIPT PREVIEW (Split Layout) */}
+      {stage === 'editor' && editableMenu && (
+        <div className="flex flex-col h-full overflow-hidden animate-cabin-in">
+          {/* Top Bar with Flight Chip & Mobile Tab Switcher */}
+          <div className="shrink-0 flex flex-col items-center pt-1 pb-2 border-b border-gold-dim">
+            <FlightChip label={flightSummaryLine} />
+
+            {/* Mobile Tab Switcher */}
+            <div className="sm:hidden mt-2">
+              <SegmentedControl
+                options={mobileTabOptions}
+                value={mobileTab}
+                onChange={(val) => setMobileTab(val as any)}
+                layoutId="mobile-inkflight-tab"
+                size="sm"
+              />
+            </div>
+          </div>
+
+          {/* Main Content Area (Split Grid on desktop, Tabbed on mobile) */}
+          <div className="flex-1 overflow-hidden grid grid-cols-1 sm:grid-cols-2 gap-4 py-3 min-h-0">
+            {/* LEFT PANEL: Customize Controls & Reordering */}
+            <div
+              className={`flex-col h-full overflow-y-auto no-scrollbar space-y-3 pr-1 ${
+                mobileTab === 'editor' ? 'flex' : 'hidden sm:flex'
+              }`}
+            >
+              {/* Global Receipt Toggles Card */}
+              <div className="p-4 rounded-card bg-ink-850/80 border border-gold-dim space-y-3 text-xs text-left">
+                <div className="font-ui uppercase tracking-eyebrow font-semibold text-gold-300 text-xs pb-1.5 border-b border-gold-dim">
+                  Thermal Receipt Layout Options
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIncludeHeaders(!includeHeaders)}
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
+                      includeHeaders
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
+                    }`}
+                  >
+                    <span>Headers</span>
+                    <span className="font-mono text-[10px]">{includeHeaders ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIncludeDescriptions(!includeDescriptions)}
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
+                      includeDescriptions
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
+                    }`}
+                  >
+                    <span>Descriptions</span>
+                    <span className="font-mono text-[10px]">{includeDescriptions ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIncludeDrinks(!includeDrinks)}
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
+                      includeDrinks
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
+                    }`}
+                  >
+                    <span>Drinks List</span>
+                    <span className="font-mono text-[10px]">{includeDrinks ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCompactMode(!compactMode)}
+                    className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
+                      compactMode
+                        ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                        : 'bg-ink-800 border-gold-dim text-mist-300'
+                    }`}
+                  >
+                    <span>Compact</span>
+                    <span className="font-mono text-[10px]">{compactMode ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  {/* Paper Width Selector */}
+                  <div className="flex flex-col gap-1.5 col-span-2 pt-2 border-t border-gold-dim">
+                    <span className="text-[10px] font-ui uppercase tracking-eyebrow text-mist-300">
+                      Paper Width Target
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaperWidth('108mm')}
+                        className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
+                          paperWidth === '108mm'
+                            ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                            : 'bg-ink-800 border-gold-dim text-mist-300'
+                        }`}
+                      >
+                        <span>108mm (A6)</span>
+                        <span className="font-mono text-[10px]">{paperWidth === '108mm' ? '✓' : ''}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaperWidth('210mm')}
+                        className={`px-3 py-2 rounded-lg border text-left flex items-center justify-between font-ui uppercase tracking-wider text-xs transition-all ${
+                          paperWidth === '210mm'
+                            ? 'bg-gold-400/20 border-gold-400 text-gold-300 font-semibold'
+                            : 'bg-ink-800 border-gold-dim text-mist-300'
+                        }`}
+                      >
+                        <span>210mm (A4)</span>
+                        <span className="font-mono text-[10px]">{paperWidth === '210mm' ? '✓' : ''}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items Customization List */}
+              <div className="space-y-3">
+                {[...editableMenu.sections, ...(includeDrinks ? editableMenu.drinks : [])].map(
+                  (sec) => (
+                    <div
+                      key={sec.id}
+                      className={`rounded-card bg-ink-850/70 border transition-opacity ${
+                        sec.hidden ? 'opacity-40 border-gold-dim' : 'border-gold-dim'
+                      }`}
+                    >
+                      <div className="p-2.5 bg-ink-800/80 flex items-center justify-between border-b border-gold-dim">
+                        <Heading variant="subsection" as="span" className="text-base font-light font-display text-ivory-100">
+                          {sec.title}
+                        </Heading>
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionVisibility(sec.id)}
+                          className="p-1 rounded text-mist-400 hover:text-gold-300"
+                          title={sec.hidden ? 'Show Section' : 'Hide Section'}
+                        >
+                          {sec.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+
+                      {!sec.hidden && (
+                        <div className="p-2 space-y-1.5">
+                          {sec.items.map((it, idx) => (
+                            <div
+                              key={it.id}
+                              className={`flex items-center gap-1.5 p-1.5 rounded-lg bg-ink-900/60 border border-gold-dim/40 ${
+                                it.hidden ? 'opacity-35' : ''
+                              }`}
+                            >
+                              {/* Reorder up/down buttons */}
+                              <div className="flex flex-col shrink-0">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => moveItem(sec.id, idx, 'up')}
+                                  className="text-mist-400 hover:text-gold-300 disabled:opacity-20 p-0.5"
+                                >
+                                  <ChevronUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === sec.items.length - 1}
+                                  onClick={() => moveItem(sec.id, idx, 'down')}
+                                  className="text-mist-400 hover:text-gold-300 disabled:opacity-20 p-0.5"
+                                >
+                                  <ChevronDown className="w-3 h-3" />
+                                </button>
+                              </div>
+
+                              {/* Editable Title */}
+                              <input
+                                type="text"
+                                value={it.title}
+                                onChange={(e) => updateItemTitle(sec.id, it.id, e.target.value)}
+                                className="flex-1 bg-transparent border-0 text-ivory-100 text-xs font-sans focus:outline-none focus:ring-1 focus:ring-gold-400 rounded px-1"
+                              />
+
+                              {/* Toggle visibility */}
+                              <button
+                                type="button"
+                                onClick={() => toggleItemVisibility(sec.id, it.id)}
+                                className="p-1 rounded text-mist-400 hover:text-gold-300 shrink-0"
+                              >
+                                {it.hidden ? (
+                                  <EyeOff className="w-3.5 h-3.5 text-red-400" />
+                                ) : (
+                                  <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT PANEL: Live Thermal Receipt Canvas */}
+            <div
+              className={`h-full overflow-y-auto no-scrollbar flex flex-col items-center justify-start ${
+                mobileTab === 'preview' ? 'flex' : 'hidden sm:flex'
+              }`}
+            >
+              <div
+                ref={receiptRef}
+                className="bg-white text-black p-5 shadow-2xl rounded-sm font-mono text-[11px] leading-tight select-none border border-neutral-300"
+                style={{
+                  width: paperWidth === '108mm' ? '300px' : '400px',
+                  maxWidth: '100%',
+                }}
+              >
+                {/* Receipt Header */}
+                <div className="text-center pb-3 border-b-2 border-dashed border-black">
+                  <div className="font-bold text-sm tracking-wider uppercase">SINGAPORE AIRLINES</div>
+                  <div className="text-[10px] mt-0.5 font-sans font-medium">
+                    INFLIGHT MENU RECEIPT ({paperWidth === '108mm' ? '108mm A6' : '210mm A4'})
+                  </div>
+                  <div className="mt-2 text-[10px] text-neutral-800 flex justify-between">
+                    <span>FLIGHT: SQ{validation.cleanFlightNo}</span>
+                    <span>{dateDisplay}</span>
+                  </div>
+                  <div className="text-[9px] text-neutral-600 text-left mt-0.5">
+                    CLASS: {selectedCabins.join(', ')}
+                  </div>
+                </div>
+
+                {/* Receipt Sections & Items */}
+                <div className={`py-2.5 ${compactMode ? 'space-y-2' : 'space-y-3'}`}>
+                  {editableMenu.sections
+                    .filter((sec) => !sec.hidden)
+                    .map((sec) => (
+                      <div key={sec.id} className={compactMode ? 'space-y-0.5' : 'space-y-1'}>
+                        {includeHeaders && (
+                          <div className="font-bold uppercase text-[10px] tracking-wide border-b border-black pb-0.5">
+                            * {sec.title} *
+                          </div>
+                        )}
+                        <div className="space-y-1 pt-0.5">
+                          {sec.items
+                            .filter((it) => !it.hidden)
+                            .map((it) => (
+                              <div key={it.id} className="pl-1">
+                                <div className="font-bold">- {it.title}</div>
+                                {includeDescriptions && it.description && (
+                                  <div className="text-[9px] text-neutral-700 pl-3 leading-snug">
+                                    {it.description}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    ))}
+
+                  {/* Drinks Section if enabled */}
+                  {includeDrinks &&
+                    editableMenu.drinks
+                      .filter((sec) => !sec.hidden)
+                      .map((sec) => (
+                        <div key={sec.id} className={`pt-1 ${compactMode ? 'space-y-0.5' : 'space-y-1'}`}>
+                          {includeHeaders && (
+                            <div className="font-bold uppercase text-[10px] tracking-wide border-b border-black pb-0.5">
+                              * {sec.title} *
+                            </div>
+                          )}
+                          <div className="space-y-1 pt-0.5">
+                            {sec.items
+                              .filter((it) => !it.hidden)
+                              .map((it) => (
+                                <div key={it.id} className="pl-1">
+                                  <div className="font-bold">- {it.title}</div>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      ))}
+                </div>
+
+                {/* Receipt Footer */}
+                <div className="pt-3 border-t-2 border-dashed border-black text-center text-[9px] space-y-0.5 text-neutral-600">
+                  <div>* CREW STUDY GUIDE ONLY *</div>
+                  <div>Generated via CrewKit ({paperWidth === '108mm' ? '108mm Portrait' : '210mm Portrait'})</div>
+                  <div className="pt-1">*** HAVE A SAFE FLIGHT ***</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky Bottom Export Bar */}
+          <div className="shrink-0 flex items-center justify-between gap-2 pt-3 pb-1 border-t border-gold-dim">
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={RotateCcw}
+              onClick={() => setStage('form')}
+            >
+              Reset
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isExporting}
+                leftIcon={<Download className="w-3.5 h-3.5 text-gold-400" />}
+                onClick={handleExportPng}
+                title="Download PNG image"
+              >
+                PNG
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={isExporting}
+                leftIcon={<FileText className="w-3.5 h-3.5 text-gold-400" />}
+                onClick={handleExportPdf}
+                title={`Download ${paperWidth} PDF document`}
+              >
+                PDF
+              </Button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={isExporting}
+                leftIcon={<FileCode className="w-3.5 h-3.5 text-onyx-900" />}
+                onClick={handleExportDocx}
+                title="Download Microsoft Word document"
+              >
+                DOCX
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
+};

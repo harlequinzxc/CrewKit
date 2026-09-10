@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <defs>
+    <!-- Warm Ambient Gold Glow -->
+    <radialGradient id="favGlow" cx="50%" cy="52%" r="40%">
+      <stop offset="0%" stop-color="#D4AF7A" stop-opacity="0.32" />
+      <stop offset="60%" stop-color="#B78D55" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#B78D55" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Lit Upper Wing Gradient -->
+    <linearGradient id="favLitWing" x1="120" y1="216" x2="440" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFF6E5" />
+      <stop offset="45%" stop-color="#ECD0A2" />
+      <stop offset="100%" stop-color="#D4AF7A" />
+    </linearGradient>
+
+    <!-- Lower Main Wing Gradient -->
+    <linearGradient id="favMainWing" x1="245" y1="327" x2="440" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B88D52" />
+      <stop offset="55%" stop-color="#D4AF7A" />
+      <stop offset="100%" stop-color="#E4C494" />
+    </linearGradient>
+
+    <!-- Keel / Underside Shadow Gradient -->
+    <linearGradient id="favKeel" x1="174" y1="307" x2="245" y2="327" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5A3D14" />
+      <stop offset="100%" stop-color="#8C6328" />
+    </linearGradient>
+  </defs>
+
+  <!-- Ambient Glow -->
+  <circle cx="256" cy="266" r="190" fill="url(#favGlow)" />
+
+  <!-- Underside Keel / Fold Shadow -->
+  <path d="M 245 327 L 174 307 L 204 358 Z" fill="url(#favKeel)" />
+
+  <!-- Lit Upper Wing Facet -->
+  <path d="M 440 92 L 92 225 L 245 327 Z" fill="url(#favLitWing)" />
+
+  <!-- Main Lower Wing Facet -->
+  <path d="M 440 92 L 245 327 L 337 430 Z" fill="url(#favMainWing)" />
+
+  <!-- Center Spine Fold Line Highlight -->
+  <line x1="440" y1="92" x2="245" y2="327" stroke="#FFF8EC" stroke-width="3" stroke-linecap="round" opacity="0.8" />
+</svg>
