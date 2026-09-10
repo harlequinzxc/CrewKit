@@ -37,11 +37,14 @@ export type FlightSchedule = {
 
 export type MenuItem = {
   id: string;
+  dishId?: string;
   title: string;
   description?: string;
   footnote?: string;
   tags?: string[];
   imageUrl?: string;
+  imagePathIfeHigh?: string;
+  imagePathIfeLow?: string;
   hidden?: boolean;
 };
 

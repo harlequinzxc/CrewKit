@@ -358,13 +358,17 @@ export function parseSiaMenuResponse(data, flightNumber, departureDateISO, cabin
             rawItems.forEach((item, iIdx) => {
               const title = cleanText(item.name || item.title || item.dishName || item.itemName || '');
               if (title) {
+                const dishId = item.id || item.dishId || item.itemId || `dish_${lIdx}_${mIdx}_${sIdx}_${cIdx}_${iIdx}`;
                 items.push({
-                  id: `dish_${lIdx}_${mIdx}_${sIdx}_${cIdx}_${iIdx}`,
+                  id: dishId,
+                  dishId: item.id || item.dishId || undefined,
                   title,
                   description: cleanText(item.description || item.desc || '') || undefined,
                   footnote: cleanText(item.footnote || '') || undefined,
                   tags: Array.isArray(item.icons) ? item.icons.map(cleanText) : [],
                   imageUrl: extractSqImageUrl(item),
+                  imagePathIfeHigh: item.imagePathIfeHigh || undefined,
+                  imagePathIfeLow: item.imagePathIfeLow || undefined,
                 });
               }
             });
@@ -587,6 +591,65 @@ export async function getFlightSchedule(flightNumber, departureDateISO, options 
   };
 }
 
+/**
+ * Resolves priority photo candidates per dish item (High-res, Constructed ID, Low-res)
+ * @param {object} item
+ * @param {string} [cabin='JCL']
+ * @returns {string[]} Candidate URLs
+ */
+export function photoCandidates(item, cabin = 'JCL') {
+  if (!item) return [];
+  const siaCabin = normalizeCabinCode(cabin);
+  const idStr = item.id || item.dishId || '';
+  const match = idStr.match(/^([A-Z]{2}\d{6}(?:-\d{3})?)(?:-v\d+)?/i);
+  const list = [];
+  const staticHost = 'https://inflightmenu.singaporeair.com';
+
+  if (item.imagePathIfeHigh) {
+    const clean = item.imagePathIfeHigh.replace(/^\/+/, '');
+    list.push(`${staticHost}/${encodeURI(clean)}`);
+  } else if (item.imageUrl && !item.imageUrl.includes('/assets/')) {
+    list.push(item.imageUrl);
+  }
+
+  if (match && match[1]) {
+    const idBase = match[1].toUpperCase();
+    for (const res of ['HIGH', 'LOW']) {
+      list.push(`${staticHost}/fabs/IFE/INFM/${siaCabin}/${res}/${idBase}_${siaCabin}.png`);
+    }
+  }
+
+  if (item.imagePathIfeLow) {
+    const clean = item.imagePathIfeLow.replace(/^\/+/, '');
+    list.push(`${staticHost}/${encodeURI(clean)}`);
+  }
+
+  return list;
+}
+
+/**
+ * Creates an HTMLImageElement that cascades through candidate URLs on error
+ * @param {object} item
+ * @param {string} [cabin='JCL']
+ * @param {string|null} [placeholder=null]
+ * @returns {HTMLImageElement}
+ */
+export function mealImage(item, cabin = 'JCL', placeholder = null) {
+  const cands = photoCandidates(item, cabin);
+  const img = new Image();
+  let i = 0;
+  img.onerror = () => {
+    i++;
+    if (i < cands.length) {
+      img.src = cands[i];
+    } else if (placeholder) {
+      img.src = placeholder;
+    }
+  };
+  img.src = cands[0] || placeholder || '';
+  return img;
+}
+
 // Export as Default Object as well for easy modular import
 export default {
   AIRPORT_CITIES,
@@ -594,6 +657,8 @@ export default {
   normalizeCabinCode,
   generateSessionId,
   extractSqImageUrl,
+  photoCandidates,
+  mealImage,
   getFlightCabins,
   getFlightMenu,
   getFlightSchedule,

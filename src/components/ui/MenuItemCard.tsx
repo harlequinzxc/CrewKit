@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MenuItem } from '../../lib/sq/types';
-import { resolveDishImage, ResolvedDishImageResult } from '../../lib/images/resolveDishImage';
+import { getSiaPhotoCandidates } from '../../lib/images/resolveDishImage';
 import { Heading, Text } from './index';
 import { GoldHairline } from './GoldHairline';
 import { Sparkles } from 'lucide-react';
@@ -19,7 +19,7 @@ export interface MenuItemCardProps {
 /**
  * Unified CrewKit menu item card for Food dishes, Drinks entries, and Amenities tiles.
  * - Soft card radius (16–20px / rounded-card), quiet subtle border (no heavy frame)
- * - Media stage:
+ * - Authentic SIA Media stage with candidate fallback chain:
  *     - 'photo' (Food/Drinks): object-cover photography with bottom fade into card footing
  *     - 'amenity': warm paper / white stage (#F5F2EB), object-contain with ~56-68% max bounds, bottom fade into navy footing
  * - Inset graduated GoldHairline separator in the fade zone between media and text
@@ -41,27 +41,22 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
     imageFit === 'contain' ||
     Boolean(courseCategory && courseCategory.toLowerCase().includes('amenit'));
 
-  const [imageState, setImageState] = useState<ResolvedDishImageResult>(() =>
-    resolveDishImage({
-      dishTitle: item.title,
-      sqImageUrl: item.imageUrl,
-      cabin,
-    })
-  );
+  // Calculate prioritized list of authentic Singapore Airlines photo candidates
+  const candidates = useMemo(() => getSiaPhotoCandidates(item, cabin), [item, cabin]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
 
+  // Reset candidate index when item or candidates change
+  const candidatesKey = candidates.join('|');
   useEffect(() => {
-    setImageState(
-      resolveDishImage({
-        dishTitle: item.title,
-        sqImageUrl: item.imageUrl,
-        cabin,
-      })
-    );
-  }, [item.title, item.imageUrl, cabin]);
+    setCandidateIndex(0);
+  }, [candidatesKey]);
 
-  const hasPhoto = Boolean(
-    imageState && imageState.thumbUrl && imageState.source === 'sq'
-  );
+  const currentPhotoUrl = candidateIndex < candidates.length ? candidates[candidateIndex] : null;
+  const hasPhoto = Boolean(currentPhotoUrl);
+
+  const handleImageError = () => {
+    setCandidateIndex((prev) => prev + 1);
+  };
 
   return (
     <div
@@ -72,7 +67,7 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
     >
       <div>
         {/* 1. Media Stage with Aspect Ratio and Bottom Dissolve */}
-        {hasPhoto && (
+        {hasPhoto && currentPhotoUrl && (
           <>
             {isAmenity ? (
               /* Amenity Light Stage: Warm paper/white ground with centered ink artwork */
@@ -80,13 +75,11 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 className="relative w-full aspect-[16/10] overflow-hidden flex items-center justify-center p-6 bg-gradient-to-b from-white via-ink-900/40 to-ink-900/80"
               >
                 <img
-                  src={imageState.thumbUrl!}
+                  src={currentPhotoUrl}
                   alt={item.title}
                   className="w-full h-full max-w-[64%] max-h-[64%] object-contain select-none"
                   loading="lazy"
-                  onError={() => {
-                    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-                  }}
+                  onError={handleImageError}
                 />
 
                 {/* Theme-aware soft bottom dissolve into card text footing */}
@@ -102,13 +95,11 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
               /* Food / Drinks Photo Stage: Luxury cover with theme-aware dissolve into card footing */
               <div className="relative w-full aspect-[16/10] overflow-hidden bg-ink-950">
                 <img
-                  src={imageState.thumbUrl!}
+                  src={currentPhotoUrl}
                   alt={item.title}
                   className="w-full h-full object-cover select-none"
                   loading="lazy"
-                  onError={() => {
-                    setImageState({ thumbUrl: null, fullUrl: null, source: 'placeholder' });
-                  }}
+                  onError={handleImageError}
                 />
 
                 {/* Photo bottom dissolve into card footing */}

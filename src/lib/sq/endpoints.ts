@@ -955,15 +955,19 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
                   item.icons.forEach((ic: string) => tags.push(mapIconTag(ic)));
                 }
 
+                const rawDishId = item.id || item.dishId || item.itemId || undefined;
                 const imageUrl = extractSqImageUrl(item);
 
                 items.push({
-                  id: `leg_${lIdx}_m_${mIdx}_s_${sIdx}_c_${cIdx}_i_${iIdx}`,
+                  id: rawDishId || `leg_${lIdx}_m_${mIdx}_s_${sIdx}_c_${cIdx}_i_${iIdx}`,
+                  dishId: rawDishId,
                   title: name,
                   description: desc || undefined,
                   footnote: footnote || undefined,
                   tags: tags.length > 0 ? Array.from(new Set(tags)) : undefined,
                   imageUrl,
+                  imagePathIfeHigh: item.imagePathIfeHigh || undefined,
+                  imagePathIfeLow: item.imagePathIfeLow || undefined,
                 });
               }
             });
@@ -1063,13 +1067,17 @@ function parseSiaMenuResponse(data: any, flightNo: string, dateISO: string, cabi
               if (name) {
                 const desc = cleanText(it.description || it.vintage || it.region || it.desc || '');
                 const imageUrl = extractSqImageUrl(it, spec, sub, cat);
+                const rawDishId = it.id || it.dishId || it.itemId || undefined;
 
                 items.push({
-                  id: `bev_${lIdx}_${catIdx}_${subIdx}_${iIdx}`,
+                  id: rawDishId || `bev_${lIdx}_${catIdx}_${subIdx}_${iIdx}`,
+                  dishId: rawDishId,
                   title: name,
                   description: desc || undefined,
                   tags: [catName],
                   imageUrl,
+                  imagePathIfeHigh: it.imagePathIfeHigh || undefined,
+                  imagePathIfeLow: it.imagePathIfeLow || undefined,
                 });
               }
             });
@@ -1166,18 +1174,18 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                 name: 'Canapés & Appetiser',
                 items: [
                   {
-                    id: `dish_${lIdx}_0_0`,
+                    id: 'DH021259-v3-FCL',
+                    dishId: 'DH021259-v3-FCL',
                     title: 'Singapore Signature Chicken and Mutton Satay',
                     description: 'Served with spicy peanut sauce, cucumber, and baby onions.',
                     tags: ['Signature'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/satay.jpg',
                   },
                   {
-                    id: `dish_${lIdx}_0_1`,
+                    id: 'DH026749-001-FCL',
+                    dishId: 'DH026749-001-FCL',
                     title: 'Marinated Boston Lobster Tail with Oscietra Caviar',
                     description: 'Fennel confit, granny smith apple gel, and young herb salad.',
                     tags: ['Signature', 'Culinary Panel'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/lobster.jpg',
                   },
                 ],
               },
@@ -1187,32 +1195,32 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                 maxSequence: 1,
                 items: [
                   {
-                    id: `dish_${lIdx}_0_2`,
+                    id: 'DH019842-FCL',
+                    dishId: 'DH019842-FCL',
                     title: 'Pan Seared Angus Beef Fillet with Truffle Jus',
                     description: 'Pomme mousseline, butter-glazed baby asparagus, and glazed morel mushrooms.',
                     tags: ['Culinary Panel'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/beef.jpg',
                   },
                   {
-                    id: `dish_${lIdx}_0_3`,
+                    id: 'DH030114-FCL',
+                    dishId: 'DH030114-FCL',
                     title: 'Singapore Hainanese Chicken Rice',
                     description: 'Fragrant chicken rice accompanied by tender poached chicken, ginger dip, chilli, and dark soya sauce.',
                     tags: ['Signature', 'Book the Cook'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/chicken_rice.jpg',
                   },
                   {
-                    id: `dish_${lIdx}_0_4`,
+                    id: 'DH024551-FCL',
+                    dishId: 'DH024551-FCL',
                     title: 'Seared Chilean Sea Bass with Yuzu Soy Reduction',
                     description: 'Steamed ginger rice, broccolini, and seasonal Japanese mushrooms.',
                     tags: ['Signature'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/seabass.jpg',
                   },
                   {
-                    id: `dish_${lIdx}_0_5`,
+                    id: 'DH028773-FCL',
+                    dishId: 'DH028773-FCL',
                     title: 'Artisanal Plant-Based Truffle Mushroom Risotto',
                     description: 'Carnaroli rice simmered with wild foraged forest mushrooms, aged parmesan, and micro greens.',
                     tags: ['Vegetarian'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/risotto.jpg',
                   },
                 ],
               },
@@ -1225,14 +1233,12 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                     title: 'Signature Singapore Airlines Garlic Bread',
                     description: 'Freshly baked French baguette slices toasted with rich herb and garlic butter.',
                     tags: ['Bakery'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/garlic_bread.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_bread_1`,
                     title: 'Artisanal Sourdough Roll & Lavosh',
                     description: 'Warm crusty sourdough roll and crisp sesame lavosh served with cultured salted butter.',
                     tags: ['Bakery'],
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/sourdough.jpg',
                   },
                 ],
               },
@@ -1244,13 +1250,11 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                     id: `dish_${lIdx}_0_6`,
                     title: 'Valrhona Grand Cru Dark Chocolate Ganache Tart',
                     description: 'Madagascar vanilla bean ice cream with raspberry coulis.',
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/chocolate.jpg',
                   },
                   {
                     id: `dish_${lIdx}_0_7`,
                     title: 'International Farmhouse Gourmet Cheese Board',
                     description: 'Selection of brie de meaux, aged comte, and stilton with water crackers and dried muscatels.',
-                    imageUrl: 'https://inflightmenu.singaporeair.com/assets/cheese.jpg',
                   },
                 ],
               },
@@ -1270,21 +1274,18 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             title: 'Krug Grande Cuvée Brut Champagne, France',
             description: 'Aromas of flowers in bloom, ripe dried fruits, marzipan, and gingerbread.',
             tags: ['Champagne'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/krug.jpg',
           },
           {
             id: `wine_${lIdx}_1`,
             title: 'Taittinger Comtes de Champagne Blanc de Blancs',
             description: 'Refined minerality, white peach, toasted brioche, and crisp citrus finish.',
             tags: ['Champagne'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/taittinger.jpg',
           },
           {
             id: `wine_${lIdx}_2`,
             title: 'Château Cos d’Estournel, Saint-Estèphe, Bordeaux',
             description: 'Deep cassis, cedarwood, subtle spices, and velvety tannins.',
             tags: ['Red Wine'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/bordeaux.jpg',
           },
         ],
       },
@@ -1297,21 +1298,18 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             title: '1837 Black Tea by TWG',
             description: 'A unique blend of black tea with notes of fruits and flowers from the Bermuda triangle.',
             tags: ['TWG Tea'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/twg_tea.jpg',
           },
           {
             id: `tea_${lIdx}_1`,
             title: 'Silver Moon Tea by TWG',
             description: 'Green tea accented with a grand berry and vanilla bouquet.',
             tags: ['TWG Tea'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/twg_green.jpg',
           },
           {
             id: `tea_${lIdx}_2`,
             title: 'Grand Jasmine Green Tea by TWG',
             description: 'Delicate green tea leaves scented with night-blooming jasmine blossoms.',
             tags: ['TWG Tea'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/twg_jasmine.jpg',
           },
         ],
       },
@@ -1324,14 +1322,12 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             title: 'Single Origin Arabica Espresso & Cappuccino',
             description: 'Freshly pulled illy 100% Arabica with rich crema and velvety microfoam.',
             tags: ['illy Coffee'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/illy_coffee.jpg',
           },
           {
             id: `coffee_${lIdx}_1`,
             title: 'Jamaican Blue Mountain Brewed Coffee',
             description: 'Mild flavour, delicate body, and clean sweetness.',
             tags: ['Specialty Coffee'],
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/brewed_coffee.jpg',
           },
         ],
       },
@@ -1348,12 +1344,10 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
                 {
                   name: 'Artisanal Mixed Truffle Nuts',
                   description: 'Roasted almonds, cashews, and pecans dusted with Italian black summer truffle.',
-                  imageUrl: 'https://inflightmenu.singaporeair.com/assets/truffle_nuts.jpg',
                 },
                 {
                   name: 'Gourmet Light Bites & Cookies',
                   description: 'Warm chocolate chip cookies, butter shortbreads, and dried orchard fruits.',
-                  imageUrl: 'https://inflightmenu.singaporeair.com/assets/cookies.jpg',
                 },
               ],
             },
@@ -1380,13 +1374,13 @@ function generateSiaMenuData(flightNo: string, dateISO: string, cabin: CabinCode
             id: `am_${lIdx}_0`,
             name: 'Penhaligon’s Luxury Amenity Kit',
             description: 'Bespoke Luna fragrance lip balm, hand lotion, and facial hydrating mist.',
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/penhaligons.jpg',
+            imageUrl: 'https://inflightmenu.singaporeair.com/ifss/images/DM/FCL/1%20Amenity%20Kit.png',
           },
           {
             id: `am_${lIdx}_1`,
             name: 'Lalique Signature Sleepwear & Slippers',
             description: 'Plush unisex lounge sleep suit with matching eye mask.',
-            imageUrl: 'https://inflightmenu.singaporeair.com/assets/lalique.jpg',
+            imageUrl: 'https://inflightmenu.singaporeair.com/ifss/images/DM/FCL/2%20Sleepwear.png',
           },
         ]
       : [];
